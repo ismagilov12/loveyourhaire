@@ -1,0 +1,1011 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no"/>
+<title>Love Your Haire — CRM</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#fff5f5;--surface:#fff;--border:#f0d6d6;--text:#2d1b1b;--text2:#8c6b6b;
+  --pink:#e8527a;--pink2:#c93d63;--pink-light:#fde8ef;--pink-pale:#fff0f5;
+  --gold:#d4a054;--gold-light:#fdf3e0;
+  --green:#3a8a5c;--green-light:#e6f4ec;--red:#c44b4b;--red-light:#fce8e8;
+  --blue:#4a7fc4;--blue-light:#e8f0fa;--np-red:#d42a2a;--np-light:#fef0f0;
+  --leopard-1:#d4a054;--leopard-2:#c08030;--leopard-3:#8b5e2b;--leopard-4:#f5deb3;
+}
+html{font-family:'Nunito',system-ui,sans-serif;background:var(--bg);color:var(--text);font-size:15px;line-height:1.5}
+body{min-height:100vh;background:var(--bg)}
+button{font-family:inherit;cursor:pointer}
+input,select,textarea{font-family:inherit;font-size:inherit}
+
+/* Leopard pattern as CSS */
+.leopard-bg{
+  background-color:#f5deb3;
+  background-image:
+    radial-gradient(ellipse 18px 14px at 15% 20%,#c08030 60%,transparent 61%),
+    radial-gradient(ellipse 12px 10px at 15% 20%,#f5deb3 60%,transparent 61%),
+    radial-gradient(ellipse 20px 16px at 55% 15%,#8b5e2b 60%,transparent 61%),
+    radial-gradient(ellipse 14px 10px at 55% 15%,#f5deb3 60%,transparent 61%),
+    radial-gradient(ellipse 16px 12px at 85% 25%,#c08030 60%,transparent 61%),
+    radial-gradient(ellipse 10px 8px at 85% 25%,#f5deb3 60%,transparent 61%),
+    radial-gradient(ellipse 22px 16px at 35% 55%,#8b5e2b 60%,transparent 61%),
+    radial-gradient(ellipse 15px 11px at 35% 55%,#f5deb3 60%,transparent 61%),
+    radial-gradient(ellipse 18px 14px at 75% 60%,#c08030 60%,transparent 61%),
+    radial-gradient(ellipse 12px 9px at 75% 60%,#f5deb3 60%,transparent 61%),
+    radial-gradient(ellipse 14px 11px at 10% 80%,#8b5e2b 60%,transparent 61%),
+    radial-gradient(ellipse 9px 7px at 10% 80%,#f5deb3 60%,transparent 61%),
+    radial-gradient(ellipse 20px 15px at 50% 85%,#c08030 60%,transparent 61%),
+    radial-gradient(ellipse 13px 10px at 50% 85%,#f5deb3 60%,transparent 61%),
+    radial-gradient(ellipse 16px 13px at 90% 90%,#8b5e2b 60%,transparent 61%),
+    radial-gradient(ellipse 10px 8px at 90% 90%,#f5deb3 60%,transparent 61%);
+  background-size:200px 200px;
+}
+
+.app{display:flex;height:100vh;overflow:hidden}
+
+/* Sidebar desktop */
+.sidebar{width:220px;background:#2d1b1b;color:#fff;display:flex;flex-direction:column;flex-shrink:0}
+.sidebar-logo{padding:20px 16px;font-size:14px;font-weight:800;letter-spacing:-.3px;border-bottom:1px solid #4a2e2e;display:flex;align-items:center;gap:10px}
+.sidebar-logo span{color:var(--pink);font-size:17px}
+.sidebar-nav{padding:10px 8px;flex:1;overflow-y:auto}
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:10px;color:#c9a0a0;font-size:13px;font-weight:600;border:none;background:none;width:100%;text-align:left;transition:all .15s}
+.nav-item:hover{background:#4a2e2e;color:#fff}
+.nav-item.active{background:var(--pink);color:#fff}
+.nav-badge{background:var(--pink);color:#fff;border-radius:10px;padding:1px 7px;font-size:10px;margin-left:auto}
+.sidebar-stats{padding:12px 14px;border-top:1px solid #4a2e2e;font-size:11px;color:#8c6b6b}
+
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
+.topbar{height:52px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 20px;background:var(--surface)}
+.topbar h1{font-size:16px;font-weight:700;color:var(--pink2)}
+.topbar-date{font-size:12px;color:var(--text2)}
+
+.content{flex:1;overflow-y:auto;padding:16px 20px}
+
+/* Mobile bottom nav */
+.mobile-nav{display:none;position:fixed;bottom:0;left:0;right:0;background:var(--surface);border-top:2px solid var(--border);z-index:90;padding:4px 0 env(safe-area-inset-bottom,4px)}
+.mobile-nav-inner{display:flex;justify-content:space-around}
+.mob-nav-btn{display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 4px;border:none;background:none;color:var(--text2);font-size:9px;font-weight:600;min-width:52px}
+.mob-nav-btn.active{color:var(--pink)}
+.mob-nav-btn svg{width:20px;height:20px}
+
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px}
+.card-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+.card-title{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text2)}
+
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 16px}
+.stat-label{font-size:11px;color:var(--text2);font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
+.stat-value{font-size:22px;font-weight:800;letter-spacing:-.5px}
+.stat-value.green{color:var(--green)}
+.stat-value.red{color:var(--red)}
+.stat-value.blue{color:var(--blue)}
+.stat-value.pink{color:var(--pink)}
+
+.tbl{width:100%;border-collapse:collapse;font-size:13px}
+.tbl th{text-align:left;padding:8px 10px;font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--text2);font-weight:700;border-bottom:2px solid var(--border)}
+.tbl td{padding:8px 10px;border-bottom:1px solid var(--border)}
+.tbl tr:hover td{background:var(--pink-pale)}
+
+.btn{display:inline-flex;align-items:center;gap:5px;padding:7px 14px;border-radius:8px;font-size:12px;font-weight:700;border:1px solid transparent;transition:all .15s}
+.btn-primary{background:var(--pink);color:#fff;border-color:var(--pink)}
+.btn-primary:hover{background:var(--pink2)}
+.btn-secondary{background:var(--surface);color:var(--text);border-color:var(--border)}
+.btn-secondary:hover{background:var(--bg)}
+.btn-danger{background:var(--red-light);color:var(--red)}
+.btn-danger:hover{background:var(--red);color:#fff}
+.btn-np{background:var(--np-red);color:#fff}
+.btn-np:hover{background:#b02020}
+.btn-gold{background:var(--gold);color:#fff}
+.btn-gold:hover{background:#b8893a}
+.btn-sm{padding:5px 10px;font-size:11px}
+.btn-xs{padding:3px 7px;font-size:10px}
+
+.form-group{margin-bottom:12px}
+.form-label{display:block;font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
+.form-input{width:100%;padding:8px 11px;border:1px solid var(--border);border-radius:8px;font-size:14px;background:var(--surface);transition:border .15s}
+.form-input:focus{outline:none;border-color:var(--pink)}
+select.form-input{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238c6b6b' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center}
+textarea.form-input{resize:vertical;min-height:60px;line-height:1.5}
+
+/* Orders feed - show all, scrollable */
+.orders-feed{padding:12px 0}
+.order-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:12px;font-size:13px}
+.order-card .oh{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px}
+.order-card .oh-name{font-weight:700;font-size:14px}
+.order-card .oh-date{font-size:11px;color:var(--text2)}
+.order-card .od{background:var(--np-light);border-radius:8px;padding:8px 10px;margin:6px 0;font-size:12px}
+.order-card .od strong{color:var(--np-red)}
+.order-card .oi{display:flex;justify-content:space-between;padding:2px 0}
+.order-card .ot{border-top:1px solid var(--border);padding-top:6px;margin-top:6px;font-weight:700;display:flex;justify-content:space-between}
+.order-card .op{font-size:11px;color:var(--green);margin-top:2px}
+.order-card.draft{border-color:var(--pink);border-style:dashed;background:var(--pink-pale)}
+
+.parsed-preview{background:var(--pink-pale);border:1px solid var(--border);border-radius:10px;padding:10px 14px;margin-top:8px;font-size:12px}
+.parsed-row{display:flex;gap:8px;padding:2px 0}
+.parsed-label{color:var(--text2);min-width:80px;font-weight:700;font-size:11px;text-transform:uppercase}
+
+.badge{display:inline-block;padding:2px 9px;border-radius:20px;font-size:10px;font-weight:700}
+.badge-green{background:var(--green-light);color:var(--green)}
+.badge-red{background:var(--red-light);color:var(--red)}
+.badge-blue{background:var(--blue-light);color:var(--blue)}
+.badge-amber{background:#fef3cd;color:#856404}
+.badge-pink{background:var(--pink-light);color:var(--pink)}
+.badge-np{background:var(--np-light);color:var(--np-red)}
+.status-new{background:var(--blue-light);color:var(--blue)}
+.status-ttn{background:#fef3cd;color:#856404}
+.status-shipped{background:var(--np-light);color:var(--np-red)}
+.status-delivered{background:var(--green-light);color:var(--green)}
+.status-studio{background:var(--pink-light);color:var(--pink)}
+
+.modal-overlay{position:fixed;inset:0;background:rgba(45,27,27,.5);display:flex;align-items:center;justify-content:center;z-index:100;padding:16px}
+.modal{background:var(--surface);border-radius:14px;padding:20px;width:100%;max-width:520px;max-height:85vh;overflow-y:auto;box-shadow:0 20px 60px rgba(45,27,27,.2)}
+.modal-title{font-size:16px;font-weight:800;color:var(--pink2)}
+
+.filter-pills{display:flex;gap:5px;flex-wrap:wrap}
+.filter-pill{padding:5px 12px;border-radius:20px;border:1px solid var(--border);background:var(--surface);font-size:11px;font-weight:600;color:var(--text2);cursor:pointer;transition:all .15s}
+.filter-pill:hover{border-color:var(--pink)}
+.filter-pill.active{background:var(--pink);color:#fff;border-color:var(--pink)}
+
+.calendar{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;font-size:12px}
+.cal-header{font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--text2);text-align:center;padding:6px 0;font-weight:700}
+.cal-day{text-align:center;padding:7px 3px;border-radius:6px;cursor:pointer;transition:all .1s;border:none;background:none;font-size:12px;color:var(--text)}
+.cal-day:hover{background:var(--pink-light)}
+.cal-day.today{font-weight:800;background:var(--pink-light);color:var(--pink2)}
+.cal-day.selected{background:var(--pink);color:#fff}
+.cal-day.in-range{background:var(--pink-pale)}
+.cal-day.empty{cursor:default}.cal-day.empty:hover{background:none}
+.cal-nav{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.cal-nav button{background:none;border:1px solid var(--border);border-radius:6px;padding:3px 8px;font-size:12px}
+.cal-nav span{font-weight:700;font-size:13px}
+
+.empty-state{text-align:center;padding:40px 16px;color:var(--text2)}.empty-state p{font-size:13px;margin-top:6px}
+
+/* Product photo */
+.prod-photo{width:36px;height:36px;border-radius:8px;object-fit:cover;background:var(--pink-pale);border:1px solid var(--border)}
+.prod-photo-placeholder{width:36px;height:36px;border-radius:8px;background:var(--pink-pale);display:flex;align-items:center;justify-content:center;font-size:16px;border:1px solid var(--border)}
+.photo-upload{position:relative;width:80px;height:80px;border-radius:10px;overflow:hidden;border:2px dashed var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;background:var(--pink-pale);transition:border .15s}
+.photo-upload:hover{border-color:var(--pink)}
+.photo-upload img{width:100%;height:100%;object-fit:cover}
+.photo-upload input{position:absolute;inset:0;opacity:0;cursor:pointer}
+
+.ttn-value{font-family:monospace;font-size:12px;font-weight:700;cursor:pointer;padding:2px 5px;border-radius:4px;background:#f5f5f5}
+.ttn-value:hover{background:#e8e8e8}
+
+/* ─── MOBILE ─── */
+@media(max-width:768px){
+  .sidebar{display:none}
+  .mobile-nav{display:block}
+  .content{padding:12px 12px 70px}
+  .topbar{padding:0 12px;height:48px}
+  .topbar h1{font-size:14px}
+  .stats-row{grid-template-columns:repeat(2,1fr);gap:8px}
+  .stat-card{padding:10px 12px}
+  .stat-value{font-size:18px}
+  .tbl{font-size:12px}
+  .tbl th,.tbl td{padding:6px 6px}
+  .order-card{padding:10px 12px}
+  .modal{padding:16px;margin:8px;max-height:90vh}
+  .btn{padding:6px 10px;font-size:11px}
+  .form-input{padding:7px 9px;font-size:13px}
+  .chat-form-row{flex-wrap:wrap}
+  .chat-form-row .form-group{min-width:calc(50% - 5px)}
+}
+@media(max-width:400px){
+  .stats-row{grid-template-columns:1fr 1fr;gap:6px}
+  .stat-value{font-size:16px}
+}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const{useState,useEffect,useMemo,useRef}=React;
+
+// ─── Data ───
+const INIT_PRODUCTS=[
+  {id:1,name:"Чоловіча стрижка",sku:"HC-001",category:"Стрижки",cost:100,price:500,stock:999,type:"service",photo:""},
+  {id:2,name:"Жіноча стрижка",sku:"HC-002",category:"Стрижки",cost:150,price:800,stock:999,type:"service",photo:""},
+  {id:3,name:"Фарбування",sku:"HC-003",category:"Стрижки",cost:300,price:1500,stock:999,type:"service",photo:""},
+  {id:4,name:"Укладка",sku:"HC-004",category:"Стрижки",cost:80,price:400,stock:999,type:"service",photo:""},
+  {id:5,name:"Шампунь Olaplex",sku:"COS-001",category:"Косметика",cost:450,price:980,stock:24,type:"product",photo:""},
+  {id:6,name:"Маска Moroccanoil",sku:"COS-002",category:"Косметика",cost:380,price:850,stock:18,type:"product",photo:""},
+  {id:7,name:"Олія для волосся",sku:"COS-003",category:"Косметика",cost:220,price:550,stock:30,type:"product",photo:""},
+  {id:8,name:'Футболка "LYH" біла',sku:"TSH-001",category:"Футболки",cost:180,price:650,stock:40,type:"product",photo:""},
+  {id:9,name:'Футболка "LYH" чорна',sku:"TSH-002",category:"Футболки",cost:180,price:650,stock:35,type:"product",photo:""},
+];
+const CATEGORIES=["Все","Стрижки","Косметика","Футболки"];
+const MONTHS=["Січень","Лютий","Березень","Квітень","Травень","Червень","Липень","Серпень","Вересень","Жовтень","Листопад","Грудень"];
+const DAYS=["Пн","Вт","Ср","Чт","Пт","Сб","Нд"];
+const STATUSES={new:"Новий",ttn:"ТТН",shipped:"Відправлено",delivered:"Доставлено",studio:"Студія"};
+const STCLS={new:"status-new",ttn:"status-ttn",shipped:"status-shipped",delivered:"status-delivered",studio:"status-studio"};
+const EXPENSE_CATS=["Оренда студії","Податки","Закупівля товару","Зарплата","Реклама","Інше"];
+
+const fmt=n=>n.toLocaleString("uk-UA")+" ₴";
+const fmtD=d=>d.toLocaleDateString("uk-UA",{day:"numeric",month:"short",year:"numeric"});
+const sameDay=(a,b)=>a.getFullYear()===b.getFullYear()&&a.getMonth()===b.getMonth()&&a.getDate()===b.getDate();
+
+// ─── Smart parser ───
+function parseClient(text){
+  let name="",phone="",city="",branch="",payment="cod";
+  const full=text.trim();
+
+  // Known Ukrainian cities (UA + RU variants) for smart detection
+  const CITIES=["київ","киев","kyiv","харків","харьков","одеса","одесса","дніпро","днепр","львів","львов","запоріжжя","запорожье","миколаїв","николаев","маріуполь","мариуполь","вінниця","винница","херсон","полтава","чернігів","чернигов","черкаси","черкассы","суми","сумы","житомир","рівне","ровно","кропивницький","кировоград","тернопіль","тернополь","івано-франківськ","ивано-франковск","луцьк","луцк","ужгород","хмельницький","хмельницкий","чернівці","черновцы","біла церква","кременчук","кременчуг","бровари","бровары","краматорськ","краматорск","мелітополь","мелитополь","нікополь","никополь","бердянськ","бердянск","павлоград","кам'янське","олександрія","конотоп","умань","шостка","ізмаїл","измаил","новомосковськ","новомосковск","коростень","ніжин","нежин","прилуки"];
+
+  // 1. Extract phone (9-10 digits starting with 0, or +380...)
+  const phMatch=full.match(/(\+?3?8?)(0\d{8,9})/);
+  if(phMatch){phone="+38"+phMatch[2];}
+
+  // 2. Extract payment
+  if(/(?:контроль|передоплат|на\s*карт|переказ|prepaid)/i.test(full)) payment="control";
+
+  // 3. Extract branch number near NP keywords
+  const npExplicit=full.match(/(?:нп|нова\s*пошта|відділення|отделение|склад|відд)[^\d]*(\d{1,4})/i);
+  if(npExplicit) branch=npExplicit[1];
+
+  // 4. Remove phone from text for further parsing
+  let rest=full.replace(/\+?3?8?0\d{8,9}/g,"").replace(/(?:контроль\s*оплати|наложка|контроль|передоплат\w*)/gi,"").trim();
+
+  // 5. Try to find city from known list (must be at word boundary)
+  const restLow=rest.toLowerCase();
+  let foundCity="";
+  for(const c of CITIES){
+    // Use regex with word boundary to avoid matching inside names
+    const cityRe=new RegExp("(?:^|[\\s,/|])("+ c.replace(/[.*+?^${}()|[\]\\]/g,'\\$&') +")","i");
+    const cm2=restLow.match(cityRe);
+    if(cm2){
+      const idx=restLow.indexOf(cm2[1],cm2.index);
+      foundCity=rest.substr(idx,c.length);
+      // Check if number follows city (like "одеса 04" or "одеса04" or "харьков 22")
+      const afterCity=rest.substring(idx+c.length).trim();
+      const brAfter=afterCity.match(/^(\d{1,4})\s*(?:від|отд|відділення|отделение)?/i);
+      if(brAfter&&!branch) branch=brAfter[1];
+      // Remove city + branch from rest
+      const endIdx=idx+c.length+(brAfter?(rest.substring(idx+c.length).indexOf(brAfter[0])+brAfter[0].length):0);
+      rest=(rest.substring(0,idx)+rest.substring(endIdx)).replace(/\s+/g," ").trim();
+      city=foundCity.charAt(0).toUpperCase()+foundCity.slice(1);
+      break;
+    }
+  }
+
+  // 6. If no city found from known list, try pattern: word + small number (1-4 digits)
+  if(!city&&!branch){
+    const lines=rest.split(/\n/).map(l=>l.trim()).filter(Boolean);
+    for(let i=0;i<lines.length;i++){
+      const cm=lines[i].match(/^([A-Za-zА-ЯІЇЄҐа-яіїєґ\s\-'`]+?)\s+(\d{1,4})\s*(?:від|отд|відділення|отделение)?$/i);
+      if(cm){city=cm[1].trim();branch=cm[2];lines.splice(i,1);rest=lines.join("\n");break;}
+    }
+  }
+
+  // 7. If branch still not found, look for standalone small number (1-4 digits, not phone)
+  if(!branch){
+    const brMatch=rest.match(/(?:^|\s)(\d{1,4})(?:\s|$)/);
+    if(brMatch){branch=brMatch[1];rest=rest.replace(brMatch[0]," ").trim();}
+  }
+
+  // 8. Whatever text remains — clean up and use as name
+  rest=rest.replace(/\s+/g," ").replace(/[,\/\|]+/g," ").trim();
+  // Remove NP keywords from name
+  rest=rest.replace(/(?:нп|нова\s*пошта|відділення|отделение|склад|відд)\s*/gi,"").trim();
+  // Remove stray numbers that are branch-like
+  if(branch) rest=rest.replace(new RegExp("\\b"+branch+"\\b"),"").trim();
+  name=rest;
+
+  return{name,phone,city,npBranch:branch,payment};
+}
+
+// ─── Icons ───
+const I={
+  dash:<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>,
+  plus2:<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>,
+  list:<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/></svg>,
+  bag:<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>,
+  wallet:<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="1" y="4" width="22" height="16" rx="2"/><path d="M1 10h22"/><circle cx="18" cy="15" r="1"/></svg>,
+  plus:<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>,
+  trash:<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>,
+  edit:<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>,
+  cL:<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M15 18l-6-6 6-6"/></svg>,
+  cR:<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 18l6-6-6-6"/></svg>,
+  send:<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>,
+  scissors:<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" y1="4" x2="8.12" y2="15.88"/><line x1="14.47" y1="14.48" x2="20" y2="20"/><line x1="8.12" y1="8.12" x2="12" y2="12"/></svg>,
+  truck:<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>,
+  copy:<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>,
+  users:<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>,
+  eye:<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>,
+  cam:<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>,
+};
+
+// ─── Calendar ───
+function Calendar({startDate,endDate,onSelect}){
+  const[vd,setVd]=useState(new Date());
+  const y=vd.getFullYear(),m=vd.getMonth();
+  let sw=new Date(y,m,1).getDay()-1;if(sw<0)sw=6;
+  const dim=new Date(y,m+1,0).getDate();
+  const today=new Date();
+  const ds=[];for(let i=0;i<sw;i++)ds.push(null);for(let i=1;i<=dim;i++)ds.push(new Date(y,m,i));
+  const inR=d=>{if(!d||!startDate||!endDate)return false;return d>=startDate&&d<=endDate;};
+  return(<div>
+    <div className="cal-nav"><button onClick={()=>setVd(new Date(y,m-1,1))}>{I.cL}</button><span>{MONTHS[m]} {y}</span><button onClick={()=>setVd(new Date(y,m+1,1))}>{I.cR}</button></div>
+    <div className="calendar">{DAYS.map(d=><div key={d} className="cal-header">{d}</div>)}
+    {ds.map((d,i)=><button key={i} className={`cal-day${!d?' empty':''}${d&&sameDay(d,today)?' today':''}${d&&startDate&&sameDay(d,startDate)?' selected':''}${d&&endDate&&sameDay(d,endDate)?' selected':''}${d&&inR(d)&&!(startDate&&sameDay(d,startDate))&&!(endDate&&sameDay(d,endDate))?' in-range':''}`} onClick={()=>d&&onSelect(d)} disabled={!d}>{d?d.getDate():''}</button>)}
+    </div></div>);
+}
+
+function Modal({title,onClose,children,wide}){
+  return(<div className="modal-overlay" onClick={onClose}><div className="modal" style={wide?{maxWidth:640}:{}} onClick={e=>e.stopPropagation()}>
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}><div className="modal-title">{title}</div><button className="btn btn-secondary btn-sm" onClick={onClose}>✕</button></div>{children}
+  </div></div>);
+}
+
+// ─── DASHBOARD ───
+function DashboardPage({orders,products,expenses,dateRange,setDateRange}){
+  const[selStart,setSelStart]=useState(true);
+  const[expandDate,setExpandDate]=useState(null);
+  const fOrders=useMemo(()=>{
+    if(!dateRange.start||!dateRange.end)return orders;
+    return orders.filter(o=>{const d=new Date(o.date);const s=new Date(dateRange.start);s.setHours(0,0,0,0);const e=new Date(dateRange.end);e.setHours(23,59,59,999);return d>=s&&d<=e;});
+  },[orders,dateRange]);
+  const fExpenses=useMemo(()=>{
+    if(!dateRange.start||!dateRange.end)return expenses;
+    return expenses.filter(x=>{const d=new Date(x.date);const s=new Date(dateRange.start);s.setHours(0,0,0,0);const e=new Date(dateRange.end);e.setHours(23,59,59,999);return d>=s&&d<=e;});
+  },[expenses,dateRange]);
+
+  // Split by type: services vs products
+  const serviceRev=fOrders.reduce((s,o)=>s+o.items.filter(i=>i.type==="service").reduce((a,i)=>a+i.price*i.qty,0),0);
+  const serviceCost=fOrders.reduce((s,o)=>s+o.items.filter(i=>i.type==="service").reduce((a,i)=>a+i.cost*i.qty,0),0);
+  const productRev=fOrders.reduce((s,o)=>s+o.items.filter(i=>i.type==="product").reduce((a,i)=>a+i.price*i.qty,0),0);
+  const productCost=fOrders.reduce((s,o)=>s+o.items.filter(i=>i.type==="product").reduce((a,i)=>a+i.cost*i.qty,0),0);
+  const rev=serviceRev+productRev;
+  const cost=serviceCost+productCost;
+  const expTotal=fExpenses.reduce((s,x)=>s+x.amount,0);
+  const profit=rev-cost-expTotal;
+  const cnt=fOrders.length;
+
+  const hCal=d=>{
+    // If clicking same single date — just expand
+    if(selStart){setDateRange({start:d,end:null});setSelStart(false);setExpandDate(d);}
+    else{if(d<dateRange.start)setDateRange({start:d,end:dateRange.start});else setDateRange({...dateRange,end:d});setSelStart(true);setExpandDate(null);}
+  };
+  const sToday=()=>{const t=new Date();t.setHours(0,0,0,0);setDateRange({start:t,end:t});setExpandDate(t);setSelStart(true);};
+  const sWeek=()=>{const t=new Date();t.setHours(0,0,0,0);const s=new Date(t);s.setDate(t.getDate()-7);setDateRange({start:s,end:t});setExpandDate(null);setSelStart(true);};
+  const sMonth=()=>{const t=new Date();t.setHours(0,0,0,0);const s=new Date(t);s.setDate(1);setDateRange({start:s,end:t});setExpandDate(null);setSelStart(true);};
+
+  // Group orders by date for expanded view
+  const ordersByDate=useMemo(()=>{
+    const m={};fOrders.forEach(o=>{const dk=new Date(o.date).toLocaleDateString("uk-UA");if(!m[dk])m[dk]=[];m[dk].push(o);});return m;
+  },[fOrders]);
+  const dateKeys=Object.keys(ordersByDate).reverse();
+
+  return(<div>
+    <div style={{display:"flex",gap:6,marginBottom:16,flexWrap:"wrap"}}>
+      <button className="btn btn-sm btn-secondary" onClick={sToday}>Сьогодні</button>
+      <button className="btn btn-sm btn-secondary" onClick={sWeek}>7 днів</button>
+      <button className="btn btn-sm btn-secondary" onClick={sMonth}>Місяць</button>
+      <span style={{fontSize:12,color:"var(--text2)",display:"flex",alignItems:"center",marginLeft:6}}>{dateRange.start?fmtD(dateRange.start):"—"} → {dateRange.end?fmtD(dateRange.end):"..."}</span>
+    </div>
+    {/* Main stats */}
+    <div className="stats-row" style={{gridTemplateColumns:"repeat(3,1fr)"}}>
+      <div className="stat-card"><div className="stat-label">Загальна виручка</div><div className="stat-value pink">{fmt(rev)}</div></div>
+      <div className="stat-card"><div className="stat-label">Витрати</div><div className="stat-value red">{fmt(cost+expTotal)}</div></div>
+      <div className="stat-card"><div className="stat-label">Прибуток</div><div className="stat-value green">{fmt(profit)}</div></div>
+    </div>
+    {/* Split: services vs products */}
+    <div className="stats-row" style={{gridTemplateColumns:"repeat(2,1fr)",marginTop:8}}>
+      <div className="stat-card" style={{borderLeft:"3px solid var(--pink2)"}}>
+        <div className="stat-label">✂️ Стрижки / Послуги</div>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginTop:4}}>
+          <div><span style={{fontSize:11,color:"var(--text2)"}}>Виручка: </span><strong style={{color:"var(--pink2)"}}>{fmt(serviceRev)}</strong></div>
+          <div><span style={{fontSize:11,color:"var(--text2)"}}>Прибуток: </span><strong style={{color:"var(--green)"}}>{fmt(serviceRev-serviceCost)}</strong></div>
+        </div>
+      </div>
+      <div className="stat-card" style={{borderLeft:"3px solid var(--blue)"}}>
+        <div className="stat-label">🛍️ Товари</div>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginTop:4}}>
+          <div><span style={{fontSize:11,color:"var(--text2)"}}>Виручка: </span><strong style={{color:"var(--blue)"}}>{fmt(productRev)}</strong></div>
+          <div><span style={{fontSize:11,color:"var(--text2)"}}>Прибуток: </span><strong style={{color:"var(--green)"}}>{fmt(productRev-productCost)}</strong></div>
+        </div>
+      </div>
+    </div>
+    <div style={{display:"grid",gridTemplateColumns:"1fr 280px",gap:16,marginTop:16}}>
+      <div>
+        {/* Orders grouped by date, expandable */}
+        <div className="card" style={{marginBottom:16}}>
+          <div className="card-title" style={{marginBottom:10}}>Замовлення ({cnt})</div>
+          {fOrders.length===0?<div className="empty-state"><p>Немає замовлень</p></div>:
+          <div>{dateKeys.map(dk=>{
+            const dayOrders=ordersByDate[dk];
+            const dayRev=dayOrders.reduce((s,o)=>s+o.total,0);
+            const isOpen=expandDate?dk===expandDate.toLocaleDateString("uk-UA"):dateKeys.length<=3;
+            return(<div key={dk} style={{marginBottom:8}}>
+              <div onClick={()=>setExpandDate(isOpen&&expandDate?null:(() => {const p=dk.split(".");return new Date(p[2],p[1]-1,p[0]);})())} style={{cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 10px",background:"var(--pink-pale)",borderRadius:8,border:"1px solid var(--border)"}}>
+                <span style={{fontWeight:600,fontSize:13}}>{dk} <span style={{fontWeight:400,color:"var(--text2)",fontSize:12}}>({dayOrders.length} зам.)</span></span>
+                <span style={{fontWeight:700,color:"var(--pink2)",fontSize:13}}>{fmt(dayRev)} {isOpen?"▼":"▶"}</span>
+              </div>
+              {isOpen&&<div style={{padding:"6px 0"}}>{dayOrders.map(o=>(
+                <div key={o.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"6px 10px",borderBottom:"1px solid var(--border)",fontSize:12,gap:6,flexWrap:"wrap"}}>
+                  <div style={{flex:1,minWidth:100}}>
+                    <strong>{o.client}</strong>{o.phone&&<span style={{color:"var(--text2)",marginLeft:6}}>{o.phone}</span>}
+                    {o.deliveryType==="np"&&<span style={{color:"var(--text2)",marginLeft:6}}>НП {o.city}{o.npBranch?` №${o.npBranch}`:""}</span>}
+                    {o.deliveryType==="studio"&&<span style={{color:"var(--pink2)",marginLeft:6}}>Студія</span>}
+                  </div>
+                  <div style={{display:"flex",gap:4,alignItems:"center",flexShrink:0}}>
+                    <span className={`badge ${STCLS[o.status]}`} style={{fontSize:10}}>{STATUSES[o.status]}</span>
+                    <strong style={{minWidth:70,textAlign:"right"}}>{fmt(o.total)}</strong>
+                  </div>
+                  <div style={{width:"100%",paddingLeft:8,color:"var(--text2)",fontSize:11}}>
+                    {o.items.map((it,i)=><span key={i}>{it.name} ×{it.qty}{i<o.items.length-1?", ":""}</span>)}
+                  </div>
+                </div>
+              ))}</div>}
+            </div>);
+          })}</div>}
+        </div>
+        {fExpenses.length>0&&<div className="card">
+          <div className="card-title" style={{marginBottom:10}}>Витрати за період</div>
+          <table className="tbl"><thead><tr><th>Категорія</th><th>Опис</th><th>Сума</th></tr></thead><tbody>
+            {fExpenses.map(x=><tr key={x.id}><td><span className="badge badge-amber">{x.category}</span></td><td>{x.note}</td><td style={{fontWeight:700,color:"var(--red)"}}>{fmt(x.amount)}</td></tr>)}
+          </tbody></table>
+        </div>}
+      </div>
+      <div>
+        <div className="card" style={{marginBottom:12}}><div className="card-title" style={{marginBottom:10}}>Календар</div><Calendar startDate={dateRange.start} endDate={dateRange.end} onSelect={hCal}/><p style={{fontSize:10,color:"var(--text2)",marginTop:8,textAlign:"center"}}>{selStart?"Початкова дата":"Кінцева дата"}</p></div>
+        <div className="card"><div className="card-title" style={{marginBottom:10}}>Низький залишок</div>
+          {products.filter(p=>p.type==="product"&&p.stock<20).map(p=><div key={p.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"4px 0",fontSize:12}}><span>{p.name}</span><span className={`badge ${p.stock<10?'badge-red':'badge-amber'}`}>{p.stock}</span></div>)}
+        </div>
+      </div>
+    </div>
+  </div>);
+}
+
+// ─── NEW ORDER ───
+function NewOrderPage({orders,setOrders,products,setProducts,clients,setClients}){
+  const[raw,setRaw]=useState("");
+  const[parsed,setParsed]=useState({name:"",phone:"",city:"",npBranch:"",payment:"cod"});
+  const[editP,setEditP]=useState(false);
+  const[parsedOpen,setParsedOpen]=useState(true);
+  const[inputOpen,setInputOpen]=useState(true);
+  const[deliv,setDeliv]=useState("np");
+  const[selProd,setSelProd]=useState("");
+  const[addPrice,setAddPrice]=useState("");
+  const[qty,setQty]=useState(1);
+  const[items,setItems]=useState([]);
+  const endRef=useRef(null);
+  useEffect(()=>{endRef.current?.scrollIntoView({behavior:"smooth"});},[orders,items]);
+  useEffect(()=>{if(raw.trim()){setParsed(parseClient(raw));setParsedOpen(true);}else{setParsed({name:"",phone:"",city:"",npBranch:"",payment:"cod"});}},[raw]);
+
+  const addItem=()=>{
+    const p=products.find(x=>x.id===Number(selProd));if(!p)return;
+    if(p.type==="product"&&p.stock<qty){alert("Недостатньо! Залишок: "+p.stock);return;}
+    const finalPrice=addPrice!==""?Number(addPrice):p.price;
+    const ex=items.find(i=>i.productId===p.id);
+    if(ex)setItems(items.map(i=>i.productId===p.id?{...i,qty:i.qty+qty,price:finalPrice}:i));
+    else setItems([...items,{productId:p.id,name:p.name,price:finalPrice,cost:p.cost,qty,type:p.type}]);
+    setSelProd("");setQty(1);setAddPrice("");setParsedOpen(false);setInputOpen(false);
+  };
+  const rmItem=pid=>setItems(items.filter(i=>i.productId!==pid));
+  const submit=()=>{
+    const cn=parsed.name.trim();if(!cn||!items.length){alert("Ім'я + товар");return;}
+    const total=items.reduce((s,i)=>s+i.price*i.qty,0);
+    const totalCost=items.reduce((s,i)=>s+i.cost*i.qty,0);
+    const order={id:Date.now(),client:cn,phone:parsed.phone,city:deliv==="np"?parsed.city:"",npBranch:deliv==="np"?parsed.npBranch:"",payment:deliv==="np"?parsed.payment:"cash",deliveryType:deliv,items:[...items],total,totalCost,date:new Date().toISOString(),status:deliv==="np"?"new":"studio",ttn:""};
+    setProducts(products.map(p=>{const it=items.find(i=>i.productId===p.id);return it&&p.type==="product"?{...p,stock:p.stock-it.qty}:p;}));
+    setOrders([...orders,order]);
+    // Upsert client
+    const cPhone=parsed.phone||cn;
+    const existC=clients.find(c=>c.phone&&c.phone===parsed.phone);
+    if(existC){setClients(clients.map(c=>c.id===existC.id?{...c,name:cn,city:deliv==="np"?parsed.city:c.city,npBranch:deliv==="np"?parsed.npBranch:c.npBranch}:c));}
+    else{setClients([...clients,{id:Date.now(),name:cn,phone:parsed.phone,city:deliv==="np"?parsed.city:"",npBranch:deliv==="np"?parsed.npBranch:"",created:new Date().toISOString()}]);}
+    setRaw("");setItems([]);setEditP(false);setParsedOpen(true);setInputOpen(true);setDeliv("np");
+    setParsed({name:"",phone:"",city:"",npBranch:"",payment:"cod"});
+    const nb=document.createElement("div");nb.textContent="✅ Замовлення додано!";Object.assign(nb.style,{position:"fixed",top:"20px",left:"50%",transform:"translateX(-50%)",background:"#22c55e",color:"#fff",padding:"12px 24px",borderRadius:"12px",fontSize:"15px",fontWeight:"600",zIndex:"9999",boxShadow:"0 4px 20px rgba(0,0,0,.25)"});document.body.appendChild(nb);setTimeout(()=>nb.remove(),2000);
+  };
+  const curTotal=items.reduce((s,i)=>s+i.price*i.qty,0);
+  const curProfit=items.reduce((s,i)=>s+(i.price-i.cost)*i.qty,0);
+
+  return(<div style={{display:"flex",flexDirection:"column",height:"100%"}}>
+    <div style={{flex:1,overflowY:"auto",paddingBottom:12}}>
+      <div className="orders-feed">
+        {items.length===0&&<div style={{background:"var(--pink-pale)",border:"1px solid var(--border)",borderRadius:12,padding:14,textAlign:"center",fontSize:13,color:"var(--pink2)",marginBottom:12}}>Вставте дані клієнта одним повідомленням — ім'я, телефон, місто і номер відділення НП</div>}
+        {items.length>0&&<div className="order-card draft">
+          <div className="oh"><span className="oh-name" style={{color:"var(--pink2)"}}>Нове замовлення {parsed.name&&`— ${parsed.name}`}</span></div>
+          {deliv==="np"&&parsed.city&&<div className="od"><strong>НП</strong> {parsed.city}{parsed.npBranch?` №${parsed.npBranch}`:""} {parsed.payment==="cod"?<span className="badge badge-amber" style={{marginLeft:6}}>Наложка</span>:<span className="badge badge-blue" style={{marginLeft:6}}>Контроль оплати</span>}</div>}
+          <div style={{marginTop:6}}>
+            {items.map((it,i)=><div key={i} style={{display:"flex",alignItems:"center",gap:6,padding:"4px 0",borderBottom:"1px solid var(--border)",fontSize:13,flexWrap:"wrap"}}>
+              <span style={{flex:"1 1 120px",fontWeight:500,fontSize:12}}>{it.name}</span>
+              <div style={{display:"flex",alignItems:"center",gap:3}}>
+                <input type="number" min="1" value={it.qty} onChange={e=>{const v=Math.max(1,Number(e.target.value));setItems(items.map(x=>x.productId===it.productId?{...x,qty:v}:x));}} style={{width:40,padding:"2px 4px",borderRadius:5,border:"1px solid var(--border)",fontSize:12,textAlign:"center"}}/>
+                <span style={{color:"var(--text2)",fontSize:10}}>×</span>
+                <input type="number" min="0" value={it.price} onChange={e=>{const v=Math.max(0,Number(e.target.value));setItems(items.map(x=>x.productId===it.productId?{...x,price:v}:x));}} style={{width:64,padding:"2px 4px",borderRadius:5,border:"1px solid var(--border)",fontSize:12,textAlign:"right"}}/>
+                <span style={{color:"var(--text2)",fontSize:10}}>₴</span>
+              </div>
+              <span style={{fontWeight:700,fontSize:12}}>{fmt(it.price*it.qty)}</span>
+              <button className="btn btn-danger btn-xs" style={{padding:"2px 5px"}} onClick={()=>rmItem(it.productId)}>{I.trash}</button>
+            </div>)}
+          </div>
+          <div className="ot"><span>Разом</span><span>{fmt(curTotal)}</span></div>
+          <div className="op">+{fmt(curProfit)}</div>
+        </div>}
+        <div ref={endRef}/>
+      </div>
+    </div>
+    {/* Input area */}
+    <div style={{borderTop:"2px solid var(--border)",background:"var(--bg)"}}>
+      {/* Collapsed client summary — when input is hidden */}
+      {!inputOpen&&raw.trim()?<div style={{padding:"6px 12px",display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,fontSize:12,cursor:"pointer",background:"var(--pink-pale)",borderBottom:"1px solid var(--border)"}} onClick={()=>setInputOpen(true)}>
+        <span style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center"}}>
+          <strong style={{color:"var(--pink2)"}}>{parsed.name||"?"}</strong>
+          {parsed.phone&&<span style={{color:"var(--text2)"}}>{parsed.phone}</span>}
+          {deliv==="np"&&parsed.city&&<span style={{color:"var(--text2)"}}>{parsed.city}{parsed.npBranch?` №${parsed.npBranch}`:""}</span>}
+          {deliv==="np"&&<span className={`badge ${parsed.payment==="cod"?"badge-amber":"badge-blue"}`} style={{fontSize:9}}>{parsed.payment==="cod"?"Нал":"Контр"}</span>}
+          {items.length>0&&<span style={{color:"var(--text2)"}}>| {items.length} товар(ів): {fmt(curTotal)}</span>}
+        </span>
+        <button className="btn btn-secondary btn-xs" onClick={e=>{e.stopPropagation();setInputOpen(true);}}>Змінити</button>
+      </div>:null}
+      {/* Expanded input */}
+      {inputOpen&&<div style={{padding:"10px 12px 0",display:"flex",flexDirection:"column",gap:6}}>
+        <div style={{display:"flex",gap:5,alignItems:"center"}}>
+          <button className={`filter-pill${deliv==="np"?' active':''}`} onClick={()=>setDeliv("np")}>Нова Пошта</button>
+          <button className={`filter-pill${deliv==="studio"?' active':''}`} onClick={()=>setDeliv("studio")}>Студія</button>
+          {raw.trim()&&<button className="btn btn-secondary btn-xs" style={{marginLeft:"auto"}} onClick={()=>{setInputOpen(false);setParsedOpen(false);}}>Згорнути</button>}
+        </div>
+        <textarea className="form-input" placeholder={"Ім'я\nМісто номер_відділення\n0961234567"} value={raw} onChange={e=>setRaw(e.target.value)} rows={3} style={{fontSize:13}}/>
+        {raw.trim()&&<div className="parsed-preview" style={{padding:parsedOpen?"10px 14px":"6px 14px"}}>
+          {!parsedOpen?<div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,fontSize:12,cursor:"pointer"}} onClick={()=>setParsedOpen(true)}>
+            <span style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center"}}>
+              <strong style={{color:"var(--pink2)"}}>{parsed.name||"?"}</strong>
+              {parsed.phone&&<span style={{color:"var(--text2)"}}>{parsed.phone}</span>}
+              {deliv==="np"&&parsed.city&&<span style={{color:"var(--text2)"}}>{parsed.city}{parsed.npBranch?` №${parsed.npBranch}`:""}</span>}
+              {deliv==="np"&&<span className={`badge ${parsed.payment==="cod"?"badge-amber":"badge-blue"}`} style={{fontSize:9}}>{parsed.payment==="cod"?"Нал":"Контр"}</span>}
+            </span>
+            <button className="btn btn-secondary btn-xs">Розгорнути</button>
+          </div>:
+          <div>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
+              <span style={{fontSize:10,fontWeight:800,textTransform:"uppercase",color:"var(--pink2)"}}>Розпізнано</span>
+              <button className="btn btn-secondary btn-xs" onClick={()=>setEditP(!editP)}>{editP?"Готово":"Редагувати"}</button>
+            </div>
+            {!editP?<>
+              <div className="parsed-row"><span className="parsed-label">Ім'я:</span><span>{parsed.name||"—"}</span></div>
+              <div className="parsed-row"><span className="parsed-label">Тел:</span><span>{parsed.phone||"—"}</span></div>
+              {deliv==="np"&&<><div className="parsed-row"><span className="parsed-label">Місто:</span><span>{parsed.city||"—"}</span></div>
+              <div className="parsed-row"><span className="parsed-label">Відділ:</span><span>{parsed.npBranch?`№${parsed.npBranch}`:"—"}</span></div></>}
+            </>:
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6,marginTop:6}}>
+              <div className="form-group" style={{marginBottom:0}}><label className="form-label">Ім'я</label><input className="form-input" value={parsed.name} onChange={e=>setParsed({...parsed,name:e.target.value})}/></div>
+              <div className="form-group" style={{marginBottom:0}}><label className="form-label">Телефон</label><input className="form-input" value={parsed.phone} onChange={e=>setParsed({...parsed,phone:e.target.value})}/></div>
+              {deliv==="np"&&<><div className="form-group" style={{marginBottom:0}}><label className="form-label">Місто</label><input className="form-input" value={parsed.city} onChange={e=>setParsed({...parsed,city:e.target.value})}/></div>
+              <div className="form-group" style={{marginBottom:0}}><label className="form-label">№ відд</label><input className="form-input" value={parsed.npBranch} onChange={e=>setParsed({...parsed,npBranch:e.target.value})}/></div></>}
+            </div>}
+            {deliv==="np"&&<div style={{marginTop:6}}><select className="form-input" style={{maxWidth:220,fontSize:13,padding:"6px 10px"}} value={parsed.payment} onChange={e=>setParsed({...parsed,payment:e.target.value})}><option value="cod">Наложка</option><option value="control">Контроль оплати</option></select></div>}
+          </div>}
+        </div>}
+      </div>}
+      <div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"flex-end"}}>
+        <div className="form-group" style={{flex:2,marginBottom:0,minWidth:180}}>
+          <select className="form-input" value={selProd} onChange={e=>{setSelProd(e.target.value);const pr=products.find(x=>x.id===Number(e.target.value));setAddPrice(pr?String(pr.price):"");}}>
+            <option value="">Товар / Послуга...</option>
+            {CATEGORIES.slice(1).map(cat=><optgroup key={cat} label={cat}>{products.filter(p=>p.category===cat).map(p=><option key={p.id} value={p.id}>{p.name} — {fmt(p.price)}{p.type==="product"?` (${p.stock})`:""}</option>)}</optgroup>)}
+          </select>
+        </div>
+        <div className="form-group" style={{width:90,marginBottom:0}}><input className="form-input" type="number" min="0" step="1" placeholder="Ціна" value={addPrice} onChange={e=>setAddPrice(e.target.value)} style={{textAlign:"right"}}/></div>
+        <div className="form-group" style={{width:55,marginBottom:0}}><input className="form-input" type="number" min="1" value={qty} onChange={e=>setQty(Math.max(1,Number(e.target.value)))}/></div>
+        <button className="btn btn-secondary" onClick={addItem} disabled={!selProd} style={{height:36}}>{I.plus} Додати</button>
+        <button className="btn btn-primary" onClick={submit} disabled={!items.length||!parsed.name.trim()} style={{height:36}}>{I.send} Оформити</button>
+      </div>
+    </div>
+  </div>);
+}
+
+// ─── ORDERS LIST ───
+function OrdersListPage({orders,setOrders}){
+  const[filter,setFilter]=useState("all");
+  const[ttnM,setTtnM]=useState(null);
+  const[ttnV,setTtnV]=useState("");
+  const[editO,setEditO]=useState(null);// editing order copy
+  const[editItems,setEditItems]=useState([]);
+  const filtered=filter==="all"?orders:orders.filter(o=>o.status===filter);
+  const sorted=[...filtered].reverse();
+  const np=orders.filter(o=>o.deliveryType==="np");
+  const counts={all:orders.length,new:np.filter(o=>o.status==="new").length,ttn:np.filter(o=>o.status==="ttn").length,shipped:np.filter(o=>o.status==="shipped").length,delivered:np.filter(o=>o.status==="delivered").length,studio:orders.filter(o=>o.status==="studio").length};
+  const openTtn=o=>{setTtnM(o);setTtnV(o.ttn||"");};
+  const saveTtn=()=>{if(!ttnM)return;setOrders(orders.map(o=>o.id===ttnM.id?{...o,ttn:ttnV.trim(),status:ttnV.trim()?"ttn":"new"}:o));setTtnM(null);};
+  const updSt=(id,st)=>setOrders(orders.map(o=>o.id===id?{...o,status:st}:o));
+  const openEdit=o=>{setEditO({...o});setEditItems(o.items.map(i=>({...i})));};
+  const saveEdit=()=>{
+    if(!editO)return;
+    const total=editItems.reduce((s,i)=>s+i.price*i.qty,0);
+    const totalCost=editItems.reduce((s,i)=>s+i.cost*i.qty,0);
+    setOrders(orders.map(o=>o.id===editO.id?{...editO,items:editItems,total,totalCost}:o));
+    setEditO(null);
+  };
+  const rmEditItem=idx=>setEditItems(editItems.filter((_,i)=>i!==idx));
+  const updEditItem=(idx,field,val)=>setEditItems(editItems.map((it,i)=>i===idx?{...it,[field]:val}:it));
+
+  return(<div>
+    <div className="filter-pills" style={{marginBottom:16}}>
+      <button className={`filter-pill${filter==="all"?' active':''}`} onClick={()=>setFilter("all")}>Всі ({counts.all})</button>
+      <button className={`filter-pill${filter==="new"?' active':''}`} onClick={()=>setFilter("new")}>Нові ({counts.new})</button>
+      <button className={`filter-pill${filter==="ttn"?' active':''}`} onClick={()=>setFilter("ttn")}>ТТН ({counts.ttn})</button>
+      <button className={`filter-pill${filter==="shipped"?' active':''}`} onClick={()=>setFilter("shipped")}>Відправ. ({counts.shipped})</button>
+      <button className={`filter-pill${filter==="delivered"?' active':''}`} onClick={()=>setFilter("delivered")}>Достав. ({counts.delivered})</button>
+      <button className={`filter-pill${filter==="studio"?' active':''}`} onClick={()=>setFilter("studio")}>Студія ({counts.studio})</button>
+    </div>
+    {sorted.length===0?<div className="empty-state"><p>Немає замовлень</p></div>:
+    <div className="card" style={{padding:0,overflowX:"auto"}}>
+      <table className="tbl"><thead><tr><th>Дата</th><th>Клієнт</th><th>Тел</th><th>Доставка</th><th>Сума</th><th>Оплата</th><th>ТТН</th><th>Статус</th><th></th></tr></thead><tbody>
+        {sorted.map(o=><tr key={o.id}>
+          <td style={{whiteSpace:"nowrap",fontSize:12}}>{new Date(o.date).toLocaleDateString("uk-UA")}</td>
+          <td style={{fontWeight:600}}>{o.client}</td>
+          <td style={{fontSize:12,color:"var(--text2)"}}>{o.phone||"—"}</td>
+          <td style={{fontSize:11}}>{o.deliveryType==="np"?`${o.city}${o.npBranch?` №${o.npBranch}`:""}`:<span style={{color:"var(--pink2)"}}>Студія</span>}</td>
+          <td style={{fontWeight:700}}>{fmt(o.total)}</td>
+          <td>{o.deliveryType==="np"?(o.payment==="cod"?<span className="badge badge-amber">Нал</span>:<span className="badge badge-blue">Контр</span>):"—"}</td>
+          <td>{o.ttn?<span className="ttn-value" onClick={()=>{navigator.clipboard.writeText(o.ttn).catch(()=>{})}} title="Копіювати">{o.ttn}</span>:o.deliveryType==="np"?<span style={{fontSize:11,color:"var(--text2)"}}>—</span>:"—"}</td>
+          <td><span className={`badge ${STCLS[o.status]}`}>{STATUSES[o.status]}</span></td>
+          <td><div style={{display:"flex",gap:3,flexWrap:"wrap"}}>
+            {o.deliveryType==="np"&&<button className="btn btn-np btn-xs" onClick={()=>openTtn(o)}>ТТН</button>}
+            {o.status==="ttn"&&<button className="btn btn-secondary btn-xs" onClick={()=>updSt(o.id,"shipped")}>Відпр</button>}
+            {o.status==="shipped"&&<button className="btn btn-secondary btn-xs" onClick={()=>updSt(o.id,"delivered")}>Дост</button>}
+            <button className="btn btn-secondary btn-xs" onClick={()=>openEdit(o)}>{I.edit}</button>
+          </div></td>
+        </tr>)}
+      </tbody></table>
+    </div>}
+    {/* TTN Modal */}
+    {ttnM&&<Modal title="ТТН — Нова Пошта" onClose={()=>setTtnM(null)}>
+      <div style={{background:"var(--np-light)",borderRadius:10,padding:12,marginBottom:14,fontSize:13}}>
+        <div><strong>Клієнт:</strong> {ttnM.client}</div>
+        <div><strong>Тел:</strong> {ttnM.phone||"—"}</div>
+        <div><strong>Місто:</strong> {ttnM.city||"—"}</div>
+        <div><strong>Відділ:</strong> {ttnM.npBranch?`№${ttnM.npBranch}`:"—"}</div>
+        <div><strong>Оплата:</strong> {ttnM.payment==="cod"?"Наложка":"Контроль оплати"}</div>
+        {ttnM.payment==="cod"&&<div><strong>Сума наложки:</strong> {fmt(ttnM.total)}</div>}
+      </div>
+      <div style={{fontSize:12,color:"var(--text2)",marginBottom:10}}>Товари: {ttnM.items.map(i=>`${i.name} ×${i.qty}`).join(", ")}</div>
+      <div className="form-group"><label className="form-label">Номер ТТН</label><input className="form-input" placeholder="59000000000000" value={ttnV} onChange={e=>setTtnV(e.target.value)} style={{fontFamily:"monospace",fontSize:16,letterSpacing:1}}/></div>
+      <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}><button className="btn btn-secondary" onClick={()=>setTtnM(null)}>Скасувати</button><button className="btn btn-np" onClick={saveTtn}>{I.truck} Зберегти</button></div>
+    </Modal>}
+    {/* Edit Order Modal */}
+    {editO&&<Modal title="Редагувати замовлення" onClose={()=>setEditO(null)} wide>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:14}}>
+        <div className="form-group" style={{marginBottom:0}}><label className="form-label">Клієнт</label><input className="form-input" value={editO.client} onChange={e=>setEditO({...editO,client:e.target.value})}/></div>
+        <div className="form-group" style={{marginBottom:0}}><label className="form-label">Телефон</label><input className="form-input" value={editO.phone} onChange={e=>setEditO({...editO,phone:e.target.value})}/></div>
+        {editO.deliveryType==="np"&&<>
+          <div className="form-group" style={{marginBottom:0}}><label className="form-label">Місто</label><input className="form-input" value={editO.city} onChange={e=>setEditO({...editO,city:e.target.value})}/></div>
+          <div className="form-group" style={{marginBottom:0}}><label className="form-label">№ відділення</label><input className="form-input" value={editO.npBranch} onChange={e=>setEditO({...editO,npBranch:e.target.value})}/></div>
+          <div className="form-group" style={{marginBottom:0}}><label className="form-label">Оплата</label><select className="form-input" value={editO.payment} onChange={e=>setEditO({...editO,payment:e.target.value})}><option value="cod">Наложка</option><option value="control">Контроль оплати</option></select></div>
+          <div className="form-group" style={{marginBottom:0}}><label className="form-label">ТТН</label><input className="form-input" value={editO.ttn} onChange={e=>setEditO({...editO,ttn:e.target.value})} style={{fontFamily:"monospace"}}/></div>
+        </>}
+        <div className="form-group" style={{marginBottom:0}}><label className="form-label">Статус</label><select className="form-input" value={editO.status} onChange={e=>setEditO({...editO,status:e.target.value})}>
+          {Object.entries(STATUSES).map(([k,v])=><option key={k} value={k}>{v}</option>)}
+        </select></div>
+      </div>
+      <div style={{marginBottom:12}}>
+        <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",color:"var(--text2)",marginBottom:6}}>Товари</div>
+        {editItems.map((it,idx)=><div key={idx} style={{display:"flex",alignItems:"center",gap:6,padding:"6px 0",borderBottom:"1px solid var(--border)",fontSize:13}}>
+          <span style={{flex:1,fontWeight:500}}>{it.name}</span>
+          <input type="number" min="1" value={it.qty} onChange={e=>updEditItem(idx,"qty",Math.max(1,Number(e.target.value)))} style={{width:48,padding:"4px 6px",borderRadius:6,border:"1px solid var(--border)",fontSize:12,textAlign:"center"}}/>
+          <span style={{color:"var(--text2)",fontSize:11}}>×</span>
+          <input type="number" min="0" value={it.price} onChange={e=>updEditItem(idx,"price",Math.max(0,Number(e.target.value)))} style={{width:80,padding:"4px 6px",borderRadius:6,border:"1px solid var(--border)",fontSize:12,textAlign:"right"}}/>
+          <span style={{fontSize:11,color:"var(--text2)"}}>₴</span>
+          <span style={{fontWeight:700,minWidth:72,textAlign:"right",fontSize:12}}>{fmt(it.price*it.qty)}</span>
+          <button className="btn btn-danger btn-xs" onClick={()=>rmEditItem(idx)}>{I.trash}</button>
+        </div>)}
+        <div style={{display:"flex",justifyContent:"space-between",marginTop:8,paddingTop:8,borderTop:"2px solid var(--border)",fontWeight:700,fontSize:14}}>
+          <span>Разом: {fmt(editItems.reduce((s,i)=>s+i.price*i.qty,0))}</span>
+          <span style={{color:"var(--green)"}}>Прибуток: {fmt(editItems.reduce((s,i)=>s+(i.price-i.cost)*i.qty,0))}</span>
+        </div>
+      </div>
+      <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}>
+        <button className="btn btn-danger" onClick={()=>{if(confirm("Видалити замовлення?")){setOrders(orders.filter(o=>o.id!==editO.id));setEditO(null);}}}>Видалити</button>
+        <button className="btn btn-secondary" onClick={()=>setEditO(null)}>Скасувати</button>
+        <button className="btn btn-primary" onClick={saveEdit}>Зберегти</button>
+      </div>
+    </Modal>}
+  </div>);
+}
+
+// ─── ADMIN ───
+function AdminPage({products,setProducts}){
+  const[filter,setFilter]=useState("Все");
+  const[showM,setShowM]=useState(false);
+  const[editP,setEditP]=useState(null);
+  const[form,setForm]=useState({name:"",sku:"",category:"Стрижки",cost:"",price:"",stock:"",type:"service",photo:""});
+  const filtered=filter==="Все"?products:products.filter(p=>p.category===filter);
+
+  const openNew=()=>{setEditP(null);setForm({name:"",sku:"",category:"Стрижки",cost:"",price:"",stock:"999",type:"service",photo:""});setShowM(true);};
+  const openEdit=p=>{setEditP(p);setForm({name:p.name,sku:p.sku,category:p.category,cost:String(p.cost),price:String(p.price),stock:String(p.stock),type:p.type,photo:p.photo||""});setShowM(true);};
+  const catChange=c=>setForm({...form,category:c,type:c==="Стрижки"?"service":"product",stock:c==="Стрижки"?"999":form.stock});
+  const handlePhoto=e=>{
+    const file=e.target.files[0];if(!file)return;
+    const reader=new FileReader();
+    reader.onload=ev=>setForm({...form,photo:ev.target.result});
+    reader.readAsDataURL(file);
+  };
+  const save=()=>{
+    if(!form.name||!form.sku||!form.price||!form.cost){alert("Заповніть всі поля");return;}
+    const data={...form,cost:Number(form.cost),price:Number(form.price),stock:Number(form.stock)};
+    if(editP)setProducts(products.map(p=>p.id===editP.id?{...p,...data}:p));
+    else setProducts([...products,{...data,id:Date.now()}]);
+    setShowM(false);
+  };
+  const remove=id=>{if(confirm("Видалити?"))setProducts(products.filter(p=>p.id!==id));};
+
+  return(<div>
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14,flexWrap:"wrap",gap:8}}>
+      <div className="filter-pills">{CATEGORIES.map(c=><button key={c} className={`filter-pill${filter===c?' active':''}`} onClick={()=>setFilter(c)}>{c}</button>)}</div>
+      <button className="btn btn-primary" onClick={openNew}>{I.plus} Додати</button>
+    </div>
+    <div className="card" style={{padding:0,overflowX:"auto"}}>
+      <table className="tbl"><thead><tr><th style={{width:44}}></th><th>Назва</th><th>SKU</th><th>Кат.</th><th>Собів.</th><th>Ціна</th><th>Зал.</th><th>Маржа</th><th style={{width:80}}></th></tr></thead><tbody>
+        {filtered.map(p=><tr key={p.id}>
+          <td>{p.photo?<img className="prod-photo" src={p.photo}/>:<div className="prod-photo-placeholder">{p.category==="Стрижки"?"✂":"📦"}</div>}</td>
+          <td style={{fontWeight:600}}>{p.name}</td>
+          <td><code style={{fontSize:11,color:"var(--text2)"}}>{p.sku}</code></td>
+          <td><span className={`badge ${p.category==='Стрижки'?'badge-pink':p.category==='Косметика'?'badge-green':'badge-amber'}`}>{p.category}</span></td>
+          <td>{fmt(p.cost)}</td>
+          <td style={{fontWeight:700}}>{fmt(p.price)}</td>
+          <td>{p.type==="service"?"—":<span className={p.stock<10?'badge badge-red':p.stock<20?'badge badge-amber':''}>{p.stock}</span>}</td>
+          <td><span className="badge badge-green">{Math.round((p.price-p.cost)/p.price*100)}%</span></td>
+          <td><div style={{display:"flex",gap:3}}><button className="btn btn-secondary btn-xs" onClick={()=>openEdit(p)}>{I.edit}</button><button className="btn btn-danger btn-xs" onClick={()=>remove(p.id)}>{I.trash}</button></div></td>
+        </tr>)}
+      </tbody></table>
+    </div>
+    {showM&&<Modal title={editP?"Редагувати":"Новий товар"} onClose={()=>setShowM(false)}>
+      <div style={{display:"flex",gap:14,marginBottom:12}}>
+        <div className="photo-upload">{form.photo?<img src={form.photo}/>:<>{I.cam}</>}<input type="file" accept="image/*" onChange={handlePhoto}/></div>
+        <div style={{flex:1}}>
+          <div className="form-group"><label className="form-label">Назва</label><input className="form-input" value={form.name} onChange={e=>setForm({...form,name:e.target.value})}/></div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+            <div className="form-group"><label className="form-label">SKU</label><input className="form-input" value={form.sku} onChange={e=>setForm({...form,sku:e.target.value})}/></div>
+            <div className="form-group"><label className="form-label">Категорія</label><select className="form-input" value={form.category} onChange={e=>catChange(e.target.value)}><option>Стрижки</option><option>Косметика</option><option>Футболки</option></select></div>
+          </div>
+        </div>
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8}}>
+        <div className="form-group"><label className="form-label">Собівартість ₴</label><input className="form-input" type="number" value={form.cost} onChange={e=>setForm({...form,cost:e.target.value})}/></div>
+        <div className="form-group"><label className="form-label">Ціна ₴</label><input className="form-input" type="number" value={form.price} onChange={e=>setForm({...form,price:e.target.value})}/></div>
+        <div className="form-group"><label className="form-label">Залишок</label><input className="form-input" type="number" value={form.stock} onChange={e=>setForm({...form,stock:e.target.value})} disabled={form.category==="Стрижки"}/></div>
+      </div>
+      <div style={{display:"flex",gap:8,justifyContent:"flex-end",marginTop:8}}><button className="btn btn-secondary" onClick={()=>setShowM(false)}>Скасувати</button><button className="btn btn-primary" onClick={save}>{editP?"Зберегти":"Додати"}</button></div>
+    </Modal>}
+  </div>);
+}
+
+// ─── CLIENTS ───
+function ClientsPage({clients,orders}){
+  const[search,setSearch]=useState("");
+  const[selClient,setSelClient]=useState(null);
+  const filtered=clients.filter(c=>{const q=search.toLowerCase();return c.name.toLowerCase().includes(q)||(c.phone||"").includes(q)||(c.city||"").toLowerCase().includes(q);});
+  const sorted=[...filtered].sort((a,b)=>b.id-a.id);
+  const clientOrders=(c)=>orders.filter(o=>(c.phone&&o.phone===c.phone)||(o.client===c.name&&!c.phone)).sort((a,b)=>new Date(b.date)-new Date(a.date));
+  const clientTotal=(c)=>clientOrders(c).reduce((s,o)=>s+o.total,0);
+
+  return(<div style={{display:"flex",flexDirection:"column",height:"100%"}}>
+    {/* Search */}
+    <div style={{marginBottom:12}}>
+      <input className="form-input" placeholder="Пошук клієнта..." value={search} onChange={e=>setSearch(e.target.value)} style={{maxWidth:400}}/>
+      <div style={{fontSize:12,color:"var(--text2)",marginTop:4}}>Всього клієнтів: {clients.length}</div>
+    </div>
+    {/* List */}
+    <div style={{flex:1,overflowY:"auto"}}>
+      {sorted.length===0?<div className="empty-state"><p>Немає клієнтів</p></div>:
+      <div className="orders-feed">{sorted.map(c=>{
+        const co=clientOrders(c);
+        const isOpen=selClient===c.id;
+        return(<div key={c.id} className="order-card" style={{cursor:"pointer",borderLeft:isOpen?"3px solid var(--pink2)":"3px solid transparent"}} onClick={()=>setSelClient(isOpen?null:c.id)}>
+          <div className="oh">
+            <span className="oh-name" style={{display:"flex",alignItems:"center",gap:6}}>
+              <span style={{width:28,height:28,borderRadius:"50%",background:"var(--pink-pale)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:700,color:"var(--pink2)",flexShrink:0}}>{c.name.charAt(0).toUpperCase()}</span>
+              <span>{c.name}</span>
+            </span>
+            <span style={{fontSize:12,color:"var(--text2)"}}>{co.length} зам.</span>
+          </div>
+          <div style={{display:"flex",gap:12,flexWrap:"wrap",fontSize:12,color:"var(--text2)",marginTop:4}}>
+            {c.phone&&<span>📞 {c.phone}</span>}
+            {c.city&&<span>📍 {c.city}{c.npBranch?` №${c.npBranch}`:""}</span>}
+            <span style={{marginLeft:"auto",fontWeight:700,color:"var(--pink2)"}}>Всього: {fmt(clientTotal(c))}</span>
+          </div>
+          {/* Expanded — order history */}
+          {isOpen&&<div style={{marginTop:10,borderTop:"1px solid var(--border)",paddingTop:8}} onClick={e=>e.stopPropagation()}>
+            <div style={{fontWeight:600,fontSize:12,marginBottom:6,color:"var(--pink2)"}}>Історія замовлень</div>
+            {co.length===0?<div style={{fontSize:12,color:"var(--text2)"}}>Немає замовлень</div>:
+            co.map(o=>(
+              <div key={o.id} style={{padding:"6px 0",borderBottom:"1px solid var(--border)",fontSize:12}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                  <span style={{color:"var(--text2)"}}>{new Date(o.date).toLocaleString("uk-UA",{day:"numeric",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"})}</span>
+                  <div style={{display:"flex",gap:6,alignItems:"center"}}>
+                    <span className={`badge ${STCLS[o.status]}`} style={{fontSize:10}}>{STATUSES[o.status]}</span>
+                    <strong>{fmt(o.total)}</strong>
+                  </div>
+                </div>
+                <div style={{color:"var(--text2)",fontSize:11,marginTop:2}}>
+                  {o.items.map((it,i)=><span key={i}>{it.name} ×{it.qty}{i<o.items.length-1?", ":""}</span>)}
+                </div>
+                {o.deliveryType==="np"&&<div style={{fontSize:10,color:"var(--text2)",marginTop:2}}>НП {o.city}{o.npBranch?` №${o.npBranch}`:""} {o.payment==="cod"?"(Наложка)":"(Контроль оплати)"}{o.ttn?` ТТН: ${o.ttn}`:""}</div>}
+              </div>
+            ))}
+          </div>}
+        </div>);
+      })}</div>}
+    </div>
+  </div>);
+}
+
+// ─── EXPENSES ───
+function ExpensesPage({expenses,setExpenses}){
+  const[cat,setCat]=useState(EXPENSE_CATS[0]);
+  const[amount,setAmount]=useState("");
+  const[note,setNote]=useState("");
+  const endRef=useRef(null);
+  useEffect(()=>{endRef.current?.scrollIntoView({behavior:"smooth"});},[expenses]);
+  const remove=id=>setExpenses(expenses.filter(x=>x.id!==id));
+  const add=()=>{
+    if(!amount){alert("Вкажіть суму");return;}
+    setExpenses([...expenses,{id:Date.now(),category:cat,amount:Number(amount),note,date:new Date().toISOString()}]);
+    setAmount("");setNote("");
+    const nb=document.createElement("div");nb.textContent="✅ Витрату додано!";Object.assign(nb.style,{position:"fixed",top:"20px",left:"50%",transform:"translateX(-50%)",background:"#22c55e",color:"#fff",padding:"12px 24px",borderRadius:"12px",fontSize:"15px",fontWeight:"600",zIndex:"9999",boxShadow:"0 4px 20px rgba(0,0,0,.25)"});document.body.appendChild(nb);setTimeout(()=>nb.remove(),2000);
+  };
+  const monthTotal=expenses.filter(x=>{const d=new Date(x.date),n=new Date();return d.getMonth()===n.getMonth()&&d.getFullYear()===n.getFullYear();}).reduce((s,x)=>s+x.amount,0);
+  const totalByCategory={};expenses.forEach(x=>{totalByCategory[x.category]=(totalByCategory[x.category]||0)+x.amount;});
+
+  return(<div style={{display:"flex",flexDirection:"column",height:"100%"}}>
+    {/* Header stats */}
+    <div style={{padding:"0 0 8px",borderBottom:"1px solid var(--border)",marginBottom:8}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+        <div><span style={{fontSize:13,color:"var(--text2)"}}>За місяць: </span><strong style={{color:"var(--red)",fontSize:18}}>{fmt(monthTotal)}</strong></div>
+      </div>
+      {Object.keys(totalByCategory).length>0&&<div style={{display:"flex",gap:6,flexWrap:"wrap"}}>{Object.entries(totalByCategory).map(([c,a])=><span key={c} style={{background:"var(--pink-pale)",border:"1px solid var(--border)",borderRadius:8,padding:"3px 8px",fontSize:11}}>{c}: <strong style={{color:"var(--red)"}}>{fmt(a)}</strong></span>)}</div>}
+    </div>
+    {/* Feed */}
+    <div style={{flex:1,overflowY:"auto",paddingBottom:12}}>
+      <div className="orders-feed">
+        {expenses.length===0&&<div style={{background:"var(--pink-pale)",border:"1px solid var(--border)",borderRadius:12,padding:14,textAlign:"center",fontSize:13,color:"var(--pink2)",marginBottom:12}}>Додайте витрату — оренда, податки, закупівля...</div>}
+        {expenses.map(x=>(
+          <div key={x.id} className="order-card">
+            <div className="oh">
+              <span className="oh-name"><span className="badge badge-amber" style={{marginRight:6}}>{x.category}</span>{x.note||""}</span>
+              <span className="oh-date">{new Date(x.date).toLocaleString("uk-UA",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})}</span>
+            </div>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:4}}>
+              <strong style={{color:"var(--red)",fontSize:16}}>{fmt(x.amount)}</strong>
+              <button className="btn btn-danger btn-xs" style={{padding:"2px 6px"}} onClick={()=>remove(x.id)}>{I.trash}</button>
+            </div>
+          </div>
+        ))}
+        <div ref={endRef}/>
+      </div>
+    </div>
+    {/* Input bar */}
+    <div style={{borderTop:"2px solid var(--border)",background:"var(--bg)",padding:"8px 0 0"}}>
+      <div style={{display:"flex",gap:6,flexWrap:"wrap",alignItems:"flex-end"}}>
+        <div className="form-group" style={{flex:"2 1 140px",marginBottom:0}}>
+          <select className="form-input" value={cat} onChange={e=>setCat(e.target.value)}>{EXPENSE_CATS.map(c=><option key={c}>{c}</option>)}</select>
+        </div>
+        <div className="form-group" style={{width:90,marginBottom:0}}>
+          <input className="form-input" type="number" min="0" placeholder="Сума ₴" value={amount} onChange={e=>setAmount(e.target.value)} style={{textAlign:"right"}}/>
+        </div>
+        <div className="form-group" style={{flex:"1 1 100px",marginBottom:0}}>
+          <input className="form-input" placeholder="Опис..." value={note} onChange={e=>setNote(e.target.value)}/>
+        </div>
+        <button className="btn btn-primary" onClick={add} disabled={!amount} style={{height:36}}>{I.plus} Додати</button>
+      </div>
+    </div>
+  </div>);
+}
+
+// ─── STORAGE ───
+const LS={
+  get(k,def){try{const v=localStorage.getItem("lyh_"+k);return v?JSON.parse(v):def;}catch{return def;}},
+  set(k,v){try{localStorage.setItem("lyh_"+k,JSON.stringify(v));}catch{}}
+};
+
+// ─── LOGIN ───
+const USERS=[
+  {login:"admin",password:"loveyourhaire2024",name:"Адміністратор",role:"admin"},
+  {login:"yura",password:"yura123",name:"Юра",role:"admin"},
+];
+
+function LoginPage({onLogin}){
+  const[login,setLogin]=useState("");
+  const[pass,setPass]=useState("");
+  const[err,setErr]=useState("");
+  const doLogin=()=>{
+    const u=USERS.find(u=>u.login===login.toLowerCase()&&u.password===pass);
+    if(u){LS.set("user",u);onLogin(u);}
+    else setErr("Невірний логін або пароль");
+  };
+  return(<div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"linear-gradient(135deg,#fff0f3 0%,#ffd6e0 50%,#f5c6a0 100%)"}}>
+    <div style={{background:"#fff",borderRadius:20,padding:"40px 32px",maxWidth:360,width:"100%",boxShadow:"0 20px 60px rgba(180,80,100,.2)",textAlign:"center"}}>
+      <div style={{fontSize:40,marginBottom:4}}>{I.scissors}</div>
+      <h1 style={{fontSize:22,fontWeight:800,color:"var(--pink2)",marginBottom:4}}>Love Your Haire</h1>
+      <p style={{fontSize:13,color:"var(--text2)",marginBottom:24}}>CRM Система</p>
+      <div className="form-group"><input className="form-input" placeholder="Логін" value={login} onChange={e=>{setLogin(e.target.value);setErr("");}} onKeyDown={e=>e.key==="Enter"&&doLogin()} style={{textAlign:"center",fontSize:15}}/></div>
+      <div className="form-group"><input className="form-input" type="password" placeholder="Пароль" value={pass} onChange={e=>{setPass(e.target.value);setErr("");}} onKeyDown={e=>e.key==="Enter"&&doLogin()} style={{textAlign:"center",fontSize:15}}/></div>
+      {err&&<div style={{color:"var(--red)",fontSize:13,marginBottom:12}}>{err}</div>}
+      <button className="btn btn-primary" onClick={doLogin} style={{width:"100%",padding:"10px",fontSize:15}}>Увійти</button>
+    </div>
+  </div>);
+}
+
+// ─── APP ───
+function App(){
+  const[user,setUser]=useState(()=>LS.get("user",null));
+  const[page,setPage]=useState("neworder");
+  const[products,setProducts]=useState(()=>LS.get("products",INIT_PRODUCTS));
+  const[orders,setOrders]=useState(()=>LS.get("orders",[]));
+  const[clients,setClients]=useState(()=>LS.get("clients",[]));
+  const[expenses,setExpenses]=useState(()=>LS.get("expenses",[]));
+  const[dateRange,setDateRange]=useState(()=>{const t=new Date();t.setHours(0,0,0,0);return{start:t,end:t};});
+
+  // Persist to localStorage on changes
+  useEffect(()=>{LS.set("products",products);},[products]);
+  useEffect(()=>{LS.set("orders",orders);},[orders]);
+  useEffect(()=>{LS.set("clients",clients);},[clients]);
+  useEffect(()=>{LS.set("expenses",expenses);},[expenses]);
+
+  const logout=()=>{LS.set("user",null);setUser(null);};
+
+  if(!user) return <LoginPage onLogin={setUser}/>;
+
+  const pages=[
+    {id:"neworder",label:"Замовлення",icon:I.plus2,mob:"Нове"},
+    {id:"orders",label:"Всі замовлення",icon:I.list,mob:"Список"},
+    {id:"admin",label:"Товари",icon:I.bag,mob:"Товари"},
+    {id:"clients",label:"Клієнти",icon:I.users,mob:"Клієнти"},
+    {id:"expenses",label:"Витрати",icon:I.wallet,mob:"Витрати"},
+    {id:"dashboard",label:"Сводка",icon:I.dash,mob:"Сводка"},
+  ];
+  const todayOrders=orders.filter(o=>{const d=new Date(o.date),t=new Date();return sameDay(d,t);});
+  const todayRev=todayOrders.reduce((s,o)=>s+o.total,0);
+  const newCnt=orders.filter(o=>o.status==="new").length;
+
+  return(<div className="app">
+    <div className="sidebar">
+      <div className="sidebar-logo">{I.scissors}<span>Love Your Haire</span></div>
+      <nav className="sidebar-nav">{pages.map(p=><button key={p.id} className={`nav-item${page===p.id?' active':''}`} onClick={()=>setPage(p.id)}>{p.icon}<span>{p.label}</span>{p.id==="orders"&&newCnt>0&&<span className="nav-badge">{newCnt}</span>}</button>)}</nav>
+      <div className="sidebar-stats">
+        <div className="leopard-bg" style={{borderRadius:8,padding:"8px 10px",marginBottom:8}}>
+          <div style={{fontSize:10,fontWeight:700,color:"#5a3a1a"}}>Сьогодні</div>
+          <div style={{fontSize:16,fontWeight:800,color:"#2d1b1b"}}>{fmt(todayRev)}</div>
+          <div style={{fontSize:10,color:"#5a3a1a"}}>{todayOrders.length} замовлень</div>
+        </div>
+        <div style={{padding:"8px 0",borderTop:"1px solid rgba(0,0,0,.1)",marginTop:8}}>
+          <div style={{fontSize:11,color:"#5a3a1a"}}>👤 {user.name}</div>
+          <button onClick={logout} style={{background:"none",border:"none",color:"var(--pink2)",fontSize:11,cursor:"pointer",padding:"4px 0",textDecoration:"underline"}}>Вийти</button>
+        </div>
+      </div>
+    </div>
+    <div className="main">
+      <div className="topbar">
+        <h1>{pages.find(p=>p.id===page)?.label}</h1>
+        <div style={{display:"flex",alignItems:"center",gap:12}}>
+          <span className="topbar-date">{new Date().toLocaleDateString("uk-UA",{weekday:"short",day:"numeric",month:"long"})}</span>
+          <button onClick={logout} className="btn btn-sm btn-secondary" style={{fontSize:11,padding:"4px 10px"}}>Вийти</button>
+        </div>
+      </div>
+      <div className="content">
+        {page==="neworder"&&<NewOrderPage orders={orders} setOrders={setOrders} products={products} setProducts={setProducts} clients={clients} setClients={setClients}/>}
+        {page==="orders"&&<OrdersListPage orders={orders} setOrders={setOrders}/>}
+        {page==="admin"&&<AdminPage products={products} setProducts={setProducts}/>}
+        {page==="clients"&&<ClientsPage clients={clients} orders={orders}/>}
+        {page==="expenses"&&<ExpensesPage expenses={expenses} setExpenses={setExpenses}/>}
+        {page==="dashboard"&&<DashboardPage orders={orders} products={products} expenses={expenses} dateRange={dateRange} setDateRange={setDateRange}/>}
+      </div>
+    </div>
+    {/* Mobile bottom nav */}
+    <div className="mobile-nav"><div className="mobile-nav-inner">
+      {pages.map(p=><button key={p.id} className={`mob-nav-btn${page===p.id?' active':''}`} onClick={()=>setPage(p.id)}>{p.icon}<span>{p.mob}</span></button>)}
+    </div></div>
+  </div>);
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+</body>
+</html>
