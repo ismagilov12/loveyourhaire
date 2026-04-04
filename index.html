@@ -7,6 +7,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -702,7 +703,7 @@ function OrdersListPage({orders,setOrders}){
         </div>
       </div>
       <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}>
-        <button className="btn btn-danger" onClick={()=>{if(confirm("Видалити замовлення?")){setOrders(orders.filter(o=>o.id!==editO.id));setEditO(null);}}}>Видалити</button>
+        <button className="btn btn-danger" onClick={()=>{if(confirm("Видалити замовлення?")){DB.remove("orders",editO.id);setOrders(orders.filter(o=>o.id!==editO.id));setEditO(null);}}}>Видалити</button>
         <button className="btn btn-secondary" onClick={()=>setEditO(null)}>Скасувати</button>
         <button className="btn btn-primary" onClick={saveEdit}>Зберегти</button>
       </div>
@@ -734,7 +735,7 @@ function AdminPage({products,setProducts}){
     else setProducts([...products,{...data,id:Date.now()}]);
     setShowM(false);
   };
-  const remove=id=>{if(confirm("Видалити?"))setProducts(products.filter(p=>p.id!==id));};
+  const remove=id=>{if(confirm("Видалити?")){DB.remove("products",id);setProducts(products.filter(p=>p.id!==id));}};
 
   return(<div>
     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14,flexWrap:"wrap",gap:8}}>
@@ -844,7 +845,7 @@ function ExpensesPage({expenses,setExpenses}){
   const[note,setNote]=useState("");
   const endRef=useRef(null);
   useEffect(()=>{endRef.current?.scrollIntoView({behavior:"smooth"});},[expenses]);
-  const remove=id=>setExpenses(expenses.filter(x=>x.id!==id));
+  const remove=id=>{DB.remove("expenses",id);setExpenses(expenses.filter(x=>x.id!==id));};
   const add=()=>{
     if(!amount){alert("Вкажіть суму");return;}
     setExpenses([...expenses,{id:Date.now(),category:cat,amount:Number(amount),note,date:new Date().toISOString()}]);
@@ -899,14 +900,34 @@ function ExpensesPage({expenses,setExpenses}){
   </div>);
 }
 
-// ─── STORAGE ───
+// ─── STORAGE (localStorage cache + Supabase cloud) ───
 const LS={
   get(k,def){try{const v=localStorage.getItem("lyh_"+k);return v?JSON.parse(v):def;}catch{return def;}},
   set(k,v){try{localStorage.setItem("lyh_"+k,JSON.stringify(v));}catch{}}
 };
 
+// ─── SUPABASE ───
+const SUPABASE_URL="https://fsihlzzjewhxpogvjapu.supabase.co";
+const SUPABASE_KEY="sb_publishable__o56Y-ust_UvMqvi9yWC8Q_qyjjkf0S";
+const supabase=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+
+// Helper: map DB row (snake_case) → app object (camelCase) for orders
+const mapOrderFromDB=r=>({id:r.id,client:r.client,phone:r.phone,city:r.city,npBranch:r.np_branch,payment:r.payment,deliveryType:r.delivery_type,items:r.items,total:Number(r.total),totalCost:Number(r.total_cost),date:r.date,status:r.status,ttn:r.ttn});
+const mapOrderToDB=o=>({id:o.id,client:o.client,phone:o.phone||"",city:o.city||"",np_branch:o.npBranch||"",payment:o.payment||"cod",delivery_type:o.deliveryType||"np",items:o.items,total:o.total,total_cost:o.totalCost,date:o.date,status:o.status,ttn:o.ttn||""});
+
+const mapClientFromDB=r=>({id:r.id,name:r.name,phone:r.phone,city:r.city,npBranch:r.np_branch,created:r.created});
+const mapClientToDB=c=>({id:c.id,name:c.name,phone:c.phone||"",city:c.city||"",np_branch:c.npBranch||"",created:c.created});
+
+// DB helper for CRUD
+const DB={
+  async loadAll(table){const{data,error}=await supabase.from(table).select("*");if(error){console.error("DB load "+table,error);return null;}return data;},
+  async upsert(table,row){const{error}=await supabase.from(table).upsert(row,{onConflict:"id"});if(error)console.error("DB upsert "+table,error);},
+  async upsertMany(table,rows){if(!rows.length)return;const{error}=await supabase.from(table).upsert(rows,{onConflict:"id"});if(error)console.error("DB upsertMany "+table,error);},
+  async remove(table,id){const{error}=await supabase.from(table).delete().eq("id",id);if(error)console.error("DB delete "+table,error);},
+};
+
 // ─── LOGIN ───
-const USERS=[
+const USERS_FALLBACK=[
   {login:"admin",password:"loveyourhaire2024",name:"Адміністратор",role:"admin"},
   {login:"yura",password:"yura123",name:"Юра",role:"admin"},
 ];
@@ -915,8 +936,14 @@ function LoginPage({onLogin}){
   const[login,setLogin]=useState("");
   const[pass,setPass]=useState("");
   const[err,setErr]=useState("");
-  const doLogin=()=>{
-    const u=USERS.find(u=>u.login===login.toLowerCase()&&u.password===pass);
+  const doLogin=async()=>{
+    // Try Supabase first, fallback to hardcoded
+    let u=null;
+    try{
+      const{data}=await supabase.from("app_users").select("*").eq("login",login.toLowerCase()).eq("password",pass).single();
+      if(data) u={login:data.login,password:data.password,name:data.name,role:data.role};
+    }catch{}
+    if(!u) u=USERS_FALLBACK.find(x=>x.login===login.toLowerCase()&&x.password===pass);
     if(u){LS.set("user",u);onLogin(u);}
     else setErr("Невірний логін або пароль");
   };
@@ -942,12 +969,56 @@ function App(){
   const[clients,setClients]=useState(()=>LS.get("clients",[]));
   const[expenses,setExpenses]=useState(()=>LS.get("expenses",[]));
   const[dateRange,setDateRange]=useState(()=>{const t=new Date();t.setHours(0,0,0,0);return{start:t,end:t};});
+  const[synced,setSynced]=useState(false);
+  const[syncErr,setSyncErr]=useState("");
+  const fromRT=useRef(false); // flag to skip sync-back on realtime events
 
-  // Persist to localStorage on changes
-  useEffect(()=>{LS.set("products",products);},[products]);
-  useEffect(()=>{LS.set("orders",orders);},[orders]);
-  useEffect(()=>{LS.set("clients",clients);},[clients]);
-  useEffect(()=>{LS.set("expenses",expenses);},[expenses]);
+  // ─── Load from Supabase on mount ───
+  useEffect(()=>{
+    let cancelled=false;
+    async function load(){
+      try{
+        const[pData,oData,cData,eData]=await Promise.all([
+          DB.loadAll("products"),
+          DB.loadAll("orders"),
+          DB.loadAll("clients"),
+          DB.loadAll("expenses"),
+        ]);
+        if(cancelled)return;
+        if(pData&&pData.length>0){setProducts(pData);LS.set("products",pData);}
+        if(oData){const mapped=oData.map(mapOrderFromDB);setOrders(mapped);LS.set("orders",mapped);}
+        if(cData){const mapped=cData.map(mapClientFromDB);setClients(mapped);LS.set("clients",mapped);}
+        if(eData){setExpenses(eData);LS.set("expenses",eData);}
+        setSynced(true);setSyncErr("");
+      }catch(e){console.error("Sync load error",e);setSyncErr("Офлайн режим");setSynced(true);}
+    }
+    if(user)load();
+    return()=>{cancelled=true;};
+  },[user]);
+
+  // ─── Realtime subscriptions ───
+  useEffect(()=>{
+    if(!user)return;
+    const rtUpdate=(setter,mapper)=>payload=>{
+      fromRT.current=true;
+      if(payload.eventType==="DELETE"){setter(prev=>{const next=prev.filter(x=>x.id!==payload.old.id);return next;});}
+      else{const row=mapper?mapper(payload.new):payload.new;setter(prev=>{const idx=prev.findIndex(x=>x.id===row.id);let next;if(idx>=0){next=[...prev];next[idx]=row;}else{next=[...prev,row];}return next;});}
+      setTimeout(()=>{fromRT.current=false;},100);
+    };
+    const channel=supabase.channel("crm-realtime")
+      .on("postgres_changes",{event:"*",schema:"public",table:"products"},rtUpdate(setProducts,null))
+      .on("postgres_changes",{event:"*",schema:"public",table:"orders"},rtUpdate(setOrders,mapOrderFromDB))
+      .on("postgres_changes",{event:"*",schema:"public",table:"clients"},rtUpdate(setClients,mapClientFromDB))
+      .on("postgres_changes",{event:"*",schema:"public",table:"expenses"},rtUpdate(setExpenses,null))
+      .subscribe();
+    return()=>{supabase.removeChannel(channel);};
+  },[user]);
+
+  // Persist to localStorage + Supabase on changes (skip if update came from realtime)
+  useEffect(()=>{LS.set("products",products);if(synced&&!fromRT.current)DB.upsertMany("products",products);},[products]);
+  useEffect(()=>{LS.set("orders",orders);if(synced&&!fromRT.current)DB.upsertMany("orders",orders.map(mapOrderToDB));},[orders]);
+  useEffect(()=>{LS.set("clients",clients);if(synced&&!fromRT.current)DB.upsertMany("clients",clients.map(mapClientToDB));},[clients]);
+  useEffect(()=>{LS.set("expenses",expenses);if(synced&&!fromRT.current)DB.upsertMany("expenses",expenses);},[expenses]);
 
   const logout=()=>{LS.set("user",null);setUser(null);};
 
@@ -985,6 +1056,7 @@ function App(){
       <div className="topbar">
         <h1>{pages.find(p=>p.id===page)?.label}</h1>
         <div style={{display:"flex",alignItems:"center",gap:12}}>
+          {syncErr?<span style={{fontSize:11,color:"var(--red)",background:"var(--red-light)",padding:"2px 8px",borderRadius:6}}>⚠️ {syncErr}</span>:<span style={{fontSize:11,color:"var(--green)",background:"var(--green-light)",padding:"2px 8px",borderRadius:6}}>☁️ Синхронізовано</span>}
           <span className="topbar-date">{new Date().toLocaleDateString("uk-UA",{weekday:"short",day:"numeric",month:"long"})}</span>
           <button onClick={logout} className="btn btn-sm btn-secondary" style={{fontSize:11,padding:"4px 10px"}}>Вийти</button>
         </div>
