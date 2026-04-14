@@ -688,7 +688,7 @@ function NPWarehousePicker({cityRef,value,onChange}){
   const filter=(txt)=>{
     setQ(txt);
     if(timerRef.current)clearTimeout(timerRef.current);
-    if(\!cityRef)return;
+    if(!cityRef)return;
     timerRef.current=setTimeout(async()=>{
       setLoading(true);
       const w=await NP.getWarehouses(cityRef,txt);
@@ -697,7 +697,7 @@ function NPWarehousePicker({cityRef,value,onChange}){
   };
   const pick=(w)=>{setQ(w.desc);onChange(w.num,w.desc,w.ref);setOpen(false);};
   return(<div style={{position:"relative"}}>
-    <input className="form-input" placeholder="\u0412\u0456\u0434\u0434\u0456\u043b\u0435\u043d\u043d\u044f \u2116..." value={q} onChange={e=>filter(e.target.value)} onFocus={()=>{if(whs.length&&\!open)setOpen(true);}} style={{fontSize:12,marginTop:2}}/>
+    <input className="form-input" placeholder="\u0412\u0456\u0434\u0434\u0456\u043b\u0435\u043d\u043d\u044f \u2116..." value={q} onChange={e=>filter(e.target.value)} onFocus={()=>{if(whs.length&&!open)setOpen(true);}} style={{fontSize:12,marginTop:2}}/>
     {loading&&<div style={{position:"absolute",right:8,top:8,fontSize:10,color:"var(--text2)"}}>...</div>}
     {open&&<div style={{position:"absolute",top:"100%",left:0,right:0,background:"#fff",border:"1px solid var(--border)",borderRadius:8,maxHeight:200,overflowY:"auto",zIndex:100,boxShadow:"0 4px 16px rgba(0,0,0,.1)"}}>
       {whs.map((w,i)=><div key={i} style={{padding:"8px 12px",fontSize:11,cursor:"pointer",borderBottom:"1px solid var(--border)"}} onClick={()=>pick(w)} onMouseOver={e=>e.currentTarget.style.background="var(--pink-pale)"} onMouseOut={e=>e.currentTarget.style.background="#fff"}>{w.desc}</div>)}
@@ -712,11 +712,11 @@ const TTN_STATUS_CLS={"4":"badge-blue","5":"badge-blue","6":"badge-blue","7":"ba
 function TTNStatus({ttn}){
   const[info,setInfo]=useState(null);
   const[loading,setLoading]=useState(false);
-  const track=async()=>{if(\!ttn)return;setLoading(true);const r=await NP.trackTTN(ttn);setInfo(r);setLoading(false);};
+  const track=async()=>{if(!ttn)return;setLoading(true);const r=await NP.trackTTN(ttn);setInfo(r);setLoading(false);};
   useEffect(()=>{if(ttn&&ttn.length>=10)track();},[ttn]);
-  if(\!ttn)return null;
+  if(!ttn)return null;
   if(loading)return <span style={{fontSize:10,color:"var(--text2)"}}>\u0417\u0430\u0432\u0430\u043d\u0442\u0430\u0436\u0435\u043d\u043d\u044f...</span>;
-  if(\!info)return <span style={{fontSize:10,color:"var(--text2)",cursor:"pointer"}} onClick={track}>\u041e\u043d\u043e\u0432\u0438\u0442\u0438 \u0441\u0442\u0430\u0442\u0443\u0441</span>;
+  if(!info)return <span style={{fontSize:10,color:"var(--text2)",cursor:"pointer"}} onClick={track}>\u041e\u043d\u043e\u0432\u0438\u0442\u0438 \u0441\u0442\u0430\u0442\u0443\u0441</span>;
   const cls=TTN_STATUS_CLS[info.statusCode]||"badge-amber";
   return(<div style={{display:"flex",flexDirection:"column",gap:2}}>
     <div style={{display:"flex",alignItems:"center",gap:6}}>
@@ -748,7 +748,7 @@ function CreateTTNModal({order,onClose,onCreated}){
   useEffect(()=>{NP.getSenderInfo().then(s=>{setSenderInfo(s);setLoading(false);});},[]);
 
   const doCreate=async()=>{
-    if(\!senderInfo||\!recipientCityRef||\!warehouseRef){setErr("\u0417\u0430\u043f\u043e\u0432\u043d\u0456\u0442\u044c \u0432\u0441\u0456 \u043f\u043e\u043b\u044f");return;}
+    if(!senderInfo||!recipientCityRef||!warehouseRef){setErr("\u0417\u0430\u043f\u043e\u0432\u043d\u0456\u0442\u044c \u0432\u0441\u0456 \u043f\u043e\u043b\u044f");return;}
     setCreating(true);setErr("");
     const params={
       SenderWarehouseIndex:"",NewAddress:"1",
@@ -781,7 +781,7 @@ function CreateTTNModal({order,onClose,onCreated}){
 
   return(<Modal title="\u0421\u0442\u0432\u043e\u0440\u0438\u0442\u0438 \u0422\u0422\u041d" onClose={onClose} wide>
     {result?<div style={{textAlign:"center",padding:20}}>
-      <div style={{fontSize:20,fontWeight:800,color:"var(--green)",marginBottom:8}}>\u0422\u0422\u041d \u0441\u0442\u0432\u043e\u0440\u0435\u043d\u043e\!</div>
+      <div style={{fontSize:20,fontWeight:800,color:"var(--green)",marginBottom:8}}>\u0422\u0422\u041d \u0441\u0442\u0432\u043e\u0440\u0435\u043d\u043e!</div>
       <div style={{fontSize:28,fontWeight:800,color:"var(--np-red)",background:"var(--np-light)",padding:"12px 20px",borderRadius:12,display:"inline-block"}}>{result.ttn}</div>
       {result.estimated&&<div style={{marginTop:8,fontSize:12,color:"var(--text2)"}}>\u041e\u0447\u0456\u043a. \u0434\u043e\u0441\u0442\u0430\u0432\u043a\u0430: {result.estimated}</div>}
       <div style={{marginTop:16}}><button className="btn btn-primary" onClick={onClose}>\u0417\u0430\u043a\u0440\u0438\u0442\u0438</button></div>
@@ -1290,27 +1290,27 @@ const NP={
         body:JSON.stringify({apiKey:NP_API_KEY,modelName:model,calledMethod:method,methodProperties:props})
       });
       const j=await r.json();
-      if(\!j.success)console.warn("NP API error:",j.errors);
+      if(!j.success)console.warn("NP API error:",j.errors);
       return j;
     }catch(e){console.error("NP fetch error:",e);return{success:false,data:[],errors:[e.message]};}
   },
   async searchCity(q){
-    if(\!q||q.length<2)return[];
+    if(!q||q.length<2)return[];
     const r=await NP.call("Address","searchSettlements",{CityName:q,Limit:"15"});
-    if(\!r.success||\!r.data||\!r.data[0])return[];
+    if(!r.success||!r.data||!r.data[0])return[];
     return(r.data[0].Addresses||[]).map(a=>({ref:a.Ref,name:a.Present,city:a.MainDescription,area:a.Area,region:a.Region}));
   },
   async getWarehouses(cityRef,q=""){
-    if(\!cityRef)return[];
+    if(!cityRef)return[];
     const props={SettlementRef:cityRef,Limit:"50"};
     if(q)props.FindByString=q;
     const r=await NP.call("Address","getWarehouses",props);
     return(r.success?r.data:[]).map(w=>({ref:w.Ref,num:w.Number,desc:w.Description,shortAddr:w.ShortAddress,type:w.TypeOfWarehouse,cityDesc:w.CityDescription}));
   },
   async trackTTN(ttn){
-    if(\!ttn)return null;
+    if(!ttn)return null;
     const r=await NP.call("TrackingDocument","getStatusDocuments",{Documents:[{DocumentNumber:ttn}]});
-    if(\!r.success||\!r.data||\!r.data[0])return null;
+    if(!r.success||!r.data||!r.data[0])return null;
     const d=r.data[0];
     return{status:d.Status,statusCode:d.StatusCode,city:d.CitySender+" \u2192 "+d.CityRecipient,weight:d.DocumentWeight,cost:d.DocumentCost,deliveryCost:d.CostOnSite,scheduledDate:d.ScheduledDeliveryDate,actualDate:d.ActualDeliveryDate,warehouseRecipient:d.WarehouseRecipient,redeliverySum:d.RedeliverySum};
   },
@@ -1320,17 +1320,17 @@ const NP={
       Weight:String(weight||0.5),ServiceType:"WarehouseWarehouse",
       Cost:String(cost||300),CargoType:"Parcel",SeatsAmount:String(seatsAmount)
     });
-    if(\!r.success||\!r.data||\!r.data[0])return null;
+    if(!r.success||!r.data||!r.data[0])return null;
     return{cost:r.data[0].Cost,assessedCost:r.data[0].AssessedCost};
   },
   async createTTN(params){
     const r=await NP.call("InternetDocument","save",params);
-    if(\!r.success)return{ok:false,errors:r.errors};
+    if(!r.success)return{ok:false,errors:r.errors};
     return{ok:true,ttn:r.data[0]?.IntDocNumber,ref:r.data[0]?.Ref,cost:r.data[0]?.CostOnSite,estimated:r.data[0]?.EstimatedDeliveryDate};
   },
   async getSenderInfo(){
     const r=await NP.call("Counterparty","getCounterparties",{CounterpartyProperty:"Sender",Page:"1"});
-    if(\!r.success||\!r.data||\!r.data[0])return null;
+    if(!r.success||!r.data||!r.data[0])return null;
     const sender=r.data[0];
     // Get sender contact
     const c=await NP.call("Counterparty","getCounterpartyContactPersons",{Ref:sender.Ref,Page:"1"});
