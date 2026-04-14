@@ -522,9 +522,9 @@ function parseBulkOrders(rawText,products){
         if(cups.length)notes.push(...cups.map(c=>'чашка: '+c));
         // Check for trailing amount as prepaid: "эминем 200"
         const trailM=low.match(/\s(\d{3,4})\s*$/);
-        if(trailM&&\!prepaid){
+        if(trailM&&!prepaid){
           const amt=Number(trailM[1]);
-          if(\!prods.some(p=>p.price===amt)&&amt>=100&&amt<=5000)prepaid=amt;
+          if(!prods.some(p=>p.price===amt)&&amt>=100&&amt<=5000)prepaid=amt;
         }
         }
         continue;
