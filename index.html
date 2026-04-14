@@ -495,7 +495,7 @@ function parseBulkOrders(rawText,products){
 
       // Complex one-liner with poshtomат
       const complexM=line.match(/([А-ЯІЇЄҐа-яіїєґ]+)\s*,\s*(?:поштомат|почтомат)\s*(\d+)\s*,\s*([А-ЯІЇЄҐа-яіїєґ\s'\u2019]+?)\s*,\s*(\+?3?8?0\d{8,9})/i);
-      if(complexM){city=complexM[1];branch='\u043F\u043E\u0448\u0442\u043E\u043C\u0430\u0442 '+complexM[2];if(!name)name=complexM[3].trim();phone='+38'+complexM[4].replace(/^\+?3?8?/,'');continue;}
+      if(complexM){city=complexM[1];branch='поштомат '+complexM[2];if(!name)name=complexM[3].trim();phone='+38'+complexM[4].replace(/^\+?3?8?/,'');continue;}
 
       // International country detection
       let intlHit=false;
@@ -519,14 +519,13 @@ function parseBulkOrders(rawText,products){
       const{products:prods,cups}=findProds(line);
       if(prods.length>0){
         for(const np of prods){if(!items.find(ei=>ei.productId===np.productId))items.push(np);}
-        if(cups.length)notes.push(...cups.map(c=>'\u0447\u0430\u0448\u043A\u0430: '+c));
+        if(cups.length)notes.push(...cups.map(c=>'чашка: '+c));
         // Check for trailing amount as prepaid: "эминем 200"
-        const nums=low.match(/(\d{2,5})/g);
-        if(nums&&!prepaid){
-          for(const n of nums){
-            const amt=Number(n);
-            if(!prods.some(p=>p.price===amt)&&amt<10000&&amt>=50){prepaid=amt;break;}
-          }
+        const trailM=low.match(/\s(\d{3,4})\s*$/);
+        if(trailM&&\!prepaid){
+          const amt=Number(trailM[1]);
+          if(\!prods.some(p=>p.price===amt)&&amt>=100&&amt<=5000)prepaid=amt;
+        }
         }
         continue;
       }
@@ -548,7 +547,7 @@ function parseBulkOrders(rawText,products){
 
       // Поштомат
       const poshtM=line.match(/(?:поштомат|почтомат)\s*(\d{4,6})/i);
-      if(poshtM){branch='\u043F\u043E\u0448\u0442\u043E\u043C\u0430\u0442 '+poshtM[1];
+      if(poshtM){branch='поштомат '+poshtM[1];
         const before=line.substring(0,line.toLowerCase().indexOf(poshtM[0].toLowerCase())).replace(/[,]/g,'').trim();
         if(before&&!city)city=before;
         continue;
@@ -592,7 +591,7 @@ function parseBulkOrders(rawText,products){
       if(/^(?:м\.?\s*|місто\s+)/i.test(line)&&line.length>3){city=line.replace(/^(?:місто\s+|м\.?\s*)/i,'').trim();continue;}
 
       // Village: "село Стрілковичі", "с. Мала Виска"
-      if(/^(?:село\s+|с\.\s*|смт\.?\s+|пгт\.?\s+|селище\s+)/i.test(line)){if(\!city)city=line;else city=line+', '+city;continue;}
+      if(/^(?:село\s+|с\.\s*|смт\.?\s+|пгт\.?\s+|селище\s+)/i.test(line)){if(!city)city=line;else city=line+', '+city;continue;}
 
       // City + branch: "Ужгород 4", "киев 321"
       const cbM=line.match(/^([А-ЯІЇЄҐа-яіїєґ'\u2019\-]+(?:\s+[А-ЯІЇЄҐа-яіїєґ'\u2019\-]+)*)\s+(\d{1,4})$/);
@@ -684,11 +683,11 @@ function DashboardPage({orders,products,expenses,dateRange,setDateRange}){
   const[selStart,setSelStart]=useState(true);
   const[expandDate,setExpandDate]=useState(null);
   const fOrders=useMemo(()=>{
-    if(\!dateRange.start||\!dateRange.end)return orders;
+    if(!dateRange.start||!dateRange.end)return orders;
     return orders.filter(o=>{const d=new Date(o.date);const s=new Date(dateRange.start);s.setHours(0,0,0,0);const e=new Date(dateRange.end);e.setHours(23,59,59,999);return d>=s&&d<=e;});
   },[orders,dateRange]);
   const fExpenses=useMemo(()=>{
-    if(\!dateRange.start||\!dateRange.end)return expenses;
+    if(!dateRange.start||!dateRange.end)return expenses;
     return expenses.filter(x=>{const d=new Date(x.date);const s=new Date(dateRange.start);s.setHours(0,0,0,0);const e=new Date(dateRange.end);e.setHours(23,59,59,999);return d>=s&&d<=e;});
   },[expenses,dateRange]);
 
@@ -711,7 +710,7 @@ function DashboardPage({orders,products,expenses,dateRange,setDateRange}){
     const m={};
     fOrders.forEach(o=>o.items.forEach(it=>{
       const k=it.name;
-      if(\!m[k])m[k]={name:k,qty:0,rev:0,profit:0};
+      if(!m[k])m[k]={name:k,qty:0,rev:0,profit:0};
       m[k].qty+=it.qty;m[k].rev+=it.price*it.qty;m[k].profit+=(it.price-it.cost)*it.qty;
     }));
     return Object.values(m).sort((a,b)=>b.qty-a.qty).slice(0,8);
@@ -722,7 +721,7 @@ function DashboardPage({orders,products,expenses,dateRange,setDateRange}){
     const m={};
     fOrders.forEach(o=>{
       const k=o.client;
-      if(\!m[k])m[k]={name:k,orders:0,total:0};
+      if(!m[k])m[k]={name:k,orders:0,total:0};
       m[k].orders++;m[k].total+=o.total;
     });
     return Object.values(m).sort((a,b)=>b.total-a.total).slice(0,5);
@@ -745,7 +744,7 @@ function DashboardPage({orders,products,expenses,dateRange,setDateRange}){
   // Status breakdown
   const statusCounts=useMemo(()=>{
     const m={new:0,ttn:0,shipped:0,delivered:0,studio:0};
-    fOrders.forEach(o=>{if(m[o.status]\!==undefined)m[o.status]++;});
+    fOrders.forEach(o=>{if(m[o.status]!==undefined)m[o.status]++;});
     return m;
   },[fOrders]);
 
@@ -766,7 +765,7 @@ function DashboardPage({orders,products,expenses,dateRange,setDateRange}){
 
   // Group orders by date
   const ordersByDate=useMemo(()=>{
-    const m={};fOrders.forEach(o=>{const dk=new Date(o.date).toLocaleDateString("uk-UA");if(\!m[dk])m[dk]=[];m[dk].push(o);});return m;
+    const m={};fOrders.forEach(o=>{const dk=new Date(o.date).toLocaleDateString("uk-UA");if(!m[dk])m[dk]=[];m[dk].push(o);});return m;
   },[fOrders]);
   const dateKeys=Object.keys(ordersByDate).reverse();
 
