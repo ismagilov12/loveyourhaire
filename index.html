@@ -526,7 +526,6 @@ function parseBulkOrders(rawText,products){
           const amt=Number(trailM[1]);
           if(!prods.some(p=>p.price===amt)&&amt>=100&&amt<=5000)prepaid=amt;
         }
-        }
         continue;
       }
       if(/чашк|кружк/i.test(low)){notes.push(line);continue;}
