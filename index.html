@@ -219,7 +219,7 @@ const INIT_PRODUCTS=[
   {id:8,name:'Футболка "LYH" біла',sku:"TSH-001",category:"Футболки",cost:180,price:650,stock:40,type:"product",photo:""},
   {id:9,name:'Футболка "LYH" чорна',sku:"TSH-002",category:"Футболки",cost:180,price:650,stock:35,type:"product",photo:""},
 ];
-const CATEGORIES=["Все","Стрижки","Косметика","Футболки"];
+const CATEGORIES=["Все","Oversize футболки","Косметика для волосся"];
 const MONTHS=["Січень","Лютий","Березень","Квітень","Травень","Червень","Липень","Серпень","Вересень","Жовтень","Листопад","Грудень"];
 const DAYS=["Пн","Вт","Ср","Чт","Пт","Сб","Нд"];
 const STATUSES={new:"Новий",ttn:"ТТН",shipped:"Відправлено",delivered:"Доставлено",studio:"Студія"};
@@ -300,6 +300,189 @@ function parseClient(text){
   return{name,phone,city,npBranch:branch,payment};
 }
 
+// ─── Bulk Order Parser ───
+function parseBulkOrders(rawText,products){
+  const prodIndex=products.map(p=>{
+    const kws=[];
+    const qm=p.name.match(/[""«](.*?)[""»]/);
+    if(qm){kws.push(qm[1].toLowerCase());qm[1].toLowerCase().split(/[\s&]+/).forEach(w=>{if(w.length>2)kws.push(w);});}
+    const cl=p.name.replace(/^футболка\s*/i,"").replace(/[""«»—]/g,"").trim().toLowerCase();
+    if(cl.length>2)kws.push(cl);
+    return{product:p,kws:[...new Set(kws)]};
+  });
+  const ALIASES={
+    'еминем':'eminem','єминем':'eminem','эминем':'eminem',
+    'памела':'pamela',
+    'брітні':'britney','бритни':'britney','брітн':'britney',
+    'краш':'crush','чувак':'beavis','бівіс':'beavis',
+    'ліндсі':'lindsay','линдси':'lindsay','лохан':'lohan',
+    'снуп':'snoop','продіджі':'prodigy','плейбой':'playboy',
+    'паста':'текстуруюча','спрей':'beach','біч':'beach',
+    'кондиціонер':'conditioner','кондиционер':'conditioner',
+    'шампунь глиб':'deep clean','діп клін':'deep clean',
+  };
+  function matchAlias(text){
+    for(const[alias,canon]of Object.entries(ALIASES)){
+      if(text.includes(alias)){
+        for(const{product,kws}of prodIndex){
+          if(kws.some(k=>k.includes(canon))||product.name.toLowerCase().includes(canon))return product;
+        }
+      }
+    }
+    return null;
+  }
+  function findProds(line){
+    const low=line.toLowerCase();
+    const parts=low.includes(',')?low.split(',').map(s=>s.trim()).filter(Boolean):[low];
+    const found=[];const cups=[];
+    for(const pt of parts){
+      let matched=false;
+      // Direct keyword match
+      for(const{product,kws}of prodIndex){
+        if(kws.some(k=>pt.includes(k))&&!found.find(f=>f.id===product.id)){found.push(product);matched=true;break;}
+      }
+      if(!matched){
+        // Alias match — try each word combo
+        const words=pt.split(/\s+/);
+        for(let w=0;w<words.length;w++){
+          const chunk=words.slice(w).join(' ');
+          const p=matchAlias(chunk);
+          if(p&&!found.find(f=>f.id===p.id)){found.push(p);matched=true;break;}
+        }
+      }
+      // Cup/mug detection
+      if(/чашк|кружк/i.test(pt)){cups.push(pt);if(!matched)matched=true;}
+    }
+    // Also scan the full line for aliases (handles "Памела и чувак белая")
+    if(parts.length===1){
+      for(const[alias,canon]of Object.entries(ALIASES)){
+        if(low.includes(alias)){
+          const p=matchAlias(alias);
+          if(p&&!found.find(f=>f.id===p.id))found.push(p);
+        }
+      }
+    }
+    return{products:found,cups};
+  }
+
+  const CITIES_LIST=["київ","киев","харків","харьков","одеса","одесса","дніпро","днепр","львів","львов","запоріжжя","полтава","вінниця","херсон","чернігів","суми","житомир","рівне","тернопіль","ужгород","хмельниц","чернівці","кривий ріг","бровари","кременчук","ізмаїл","шепетівка","ніжин","гельмязів","северинівка","берестин","красноград","кишинів","краматорськ","мелітополь","бердянськ","павлоград","конотоп","умань","біла церква","новомосковськ"];
+
+  // Check if line is about payment
+  function parsePay(low){
+    // "500 грн предоплата", "200 гр предоплата", "предоплата 500 грн", "предопоала 500 грн"
+    let m=low.match(/(\d+)\s*(?:грн?|гр)?\s*(?:предоплат|предолат|предопо)/);
+    if(m)return{type:'prepaid',amount:Number(m[1])};
+    m=low.match(/(?:предоплат|предолат|предопо)[а-яіїєґё]*\s*(\d+)/);
+    if(m)return{type:'prepaid',amount:Number(m[1])};
+    // "ОПЛАЧЕН", "1400 оплаченно", "2600 оплачен", "опалчен"
+    m=low.match(/(\d*)\s*(?:оплач|опалч)/);
+    if(m){
+      let amt=0;
+      if(m[1])amt=Number(m[1]);
+      else{const a2=low.match(/(\d+)/);if(a2)amt=Number(a2[1]);}
+      return{type:'paid',amount:amt};
+    }
+    return null;
+  }
+
+  function parseBlock(block){
+    const lines=block.split('\n').map(l=>l.trim()).filter(l=>l&&!/^(?:международка|міжнародка)$/i.test(l));
+    let name='',phone='',city='',branch='',prepaid=0,paid=false,items=[],notes=[];
+
+    for(const line of lines){
+      const low=line.toLowerCase();
+
+      // 0. Complex one-liner: "Одесса, почтомат 46006,Богатырева Айгуль, 0957890106"
+      const complexM=line.match(/([А-ЯІЇЄҐа-яіїєґ]+)\s*,\s*(?:поштомат|почтомат)\s*(\d+)\s*,\s*([А-ЯІЇЄҐа-яіїєґ\s'ʼ]+?)\s*,\s*(\+?3?8?0\d{8,9})/i);
+      if(complexM){city=complexM[1];branch=complexM[2];if(!name)name=complexM[3].trim();phone='+38'+complexM[4].replace(/^\+?3?8?/,'');continue;}
+
+      // 1. Payment check
+      const payR=parsePay(low);
+      if(payR&&!/еминем|памела|брітні|краш|britney|eminem|pamela|crush|snoop|prodigy|футболк/i.test(low)){
+        if(payR.type==='prepaid'){prepaid=payR.amount;}
+        else{paid=true;prepaid=payR.amount;}
+        continue;
+      }
+
+      // 2. Product line
+      const{products:prods,cups}=findProds(line);
+      if(prods.length>0){
+        items.push(...prods.map(p=>({productId:p.id,name:p.name,price:Number(p.price),cost:Number(p.cost||0),qty:1})));
+        if(cups.length)notes.push(...cups.map(c=>'чашка: '+c));
+        continue;
+      }
+      // "чашку", "добавить чашку", "чашка лео"
+      if(/чашк|кружк/i.test(low)){notes.push(line);continue;}
+
+      // 3. Phone
+      const phM=line.match(/(\+?3?8?)\s*(0[\s\.\-]?\d[\s\.\-]?\d[\s\.\-]?\d[\s\.\-]?\d[\s\.\-]?\d[\s\.\-]?\d[\s\.\-]?\d[\s\.\-]?\d[\s\.\-]?\d?)/);
+      if(phM){
+        const digits=phM[2].replace(/[\s\.\-]/g,'');
+        if(digits.length>=9){
+          if(!phone)phone='+38'+digits;
+          const rest=line.replace(phM[0],'').replace(/\+?380?\s*/g,'').replace(/Укр\.?\s*номер/gi,'').replace(/Молдав\w+\s*номер/gi,'').trim();
+          if(rest&&rest.length>3&&/^[А-ЯІЇЄҐа-яіїєґA-Za-z\s'ʼ`.\-]+$/.test(rest)&&!name)name=rest;
+          continue;
+        }
+      }
+      if(/^\+?\d[\d\s\.\-]{7,}$/.test(line.trim()))continue;
+
+      // 4. Branch keywords: "відділення 311", "НП 6", "101 отделение", "нової пошти 83", "Від1", "Новая почта 2"
+      const brPatterns=[
+        /(?:нп|нова[яї]?\s*пошт[аи]?|відділення|відд|отделение|поштомат|почтомат|від)\s*(?:нової\s*пошти\s*)?#?\s*(?:номер\s*)?(\d{1,6})/i,
+        /(\d{1,5})\s*(?:відділення|отделение|від\b)/i,
+      ];
+      let brFound=false;
+      for(const brRe of brPatterns){
+        const brM=line.match(brRe);
+        if(brM&&!branch){branch=brM[1];
+          const idx=line.toLowerCase().indexOf(brM[0].toLowerCase());
+          const before=line.substring(0,idx).trim();
+          if(before){const c=before.replace(/^(?:м\.\s*|місто\s+)/i,'').replace(/[,]/g,'').trim();if(c&&!city&&/^[А-ЯІЇЄҐа-яіїєґ\s\-'ʼ]+$/i.test(c))city=c;}
+          brFound=true;break;
+        }
+      }
+      if(brFound)continue;
+
+      // 5. City: known city
+      let isCity=false;
+      for(const c of CITIES_LIST){if(low.includes(c)){isCity=true;
+        city=line.replace(/^(?:місто\s+|м\.?\s*)/i,'').trim();
+        const afterM=low.match(new RegExp(c.replace(/\s/g,'\\s*')+'\\s+(\\d{1,5})'));
+        if(afterM&&!branch){branch=afterM[1];city=city.replace(/\s+\d{1,5}/,'').trim();}
+        // Clean up complex city strings
+        city=city.replace(/,?\s*(?:нова[яї]?\s*пошт\w*|новая\s*почта)\s*\d*/gi,'').replace(/(?:^|,)\s*\bгород\b\s*/gi,'').replace(/\(.*?\)/g,'').replace(/\s{2,}/g,' ').trim();
+        break;}}
+      if(isCity)continue;
+      if(/обл\.?$|обл\b|область|район/i.test(low)){if(!city)city=line;else city=line+', '+city;continue;}
+      if(/^(?:м\.?\s*|місто\s+)/i.test(line)&&line.length>3){city=line.replace(/^(?:місто\s+|м\.?\s*)/i,'').trim();continue;}
+
+      // 6. City + branch: "Ужгород 4", "киев 321"
+      const cbM=line.match(/^([А-ЯІЇЄҐа-яіїєґ'ʼ\-]+(?:\s+[А-ЯІЇЄҐа-яіїєґ'ʼ\-]+)*)\s+(\d{1,5})$/);
+      if(cbM&&!city){city=cbM[1].trim();if(!branch)branch=cbM[2];continue;}
+
+      // 7. Name: 2+ Cyrillic words
+      if(/^[А-ЯІЇЄҐа-яіїєґA-Za-z\s'ʼ`.\-()]+$/.test(line)&&line.split(/\s+/).length>=2&&!name){
+        if(!/обл|район|область/i.test(line)){name=line.replace(/\(.*?\)/g,'').trim();continue;}
+      }
+
+      // 8. Single Cyrillic word
+      if(/^[А-ЯІЇЄҐа-яіїєґ'ʼ\-]+$/.test(line.trim())&&line.length>2){
+        if(!city)city=line;else if(!name)name=line;continue;
+      }
+
+      if(line.trim())notes.push(line);
+    }
+
+    const total=items.reduce((s,i)=>s+i.price*i.qty,0);
+    const payment=paid?'control':(prepaid>0?'control':'cod');
+    return{name,phone,city,branch,items,total,prepaid,paid,payment,notes};
+  }
+
+  const blocks=rawText.split(/\n\s*[-_]{3,}\s*(?:\n|$)/).map(b=>b.trim()).filter(Boolean);
+  return blocks.map(parseBlock);
+}
+
 // ─── Icons ───
 const I={
   dash:<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>,
@@ -318,6 +501,7 @@ const I={
   copy:<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>,
   users:<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>,
   eye:<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>,
+  bulk:<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>,
   cam:<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>,
 };
 
@@ -960,6 +1144,128 @@ function LoginPage({onLogin}){
   </div>);
 }
 
+// ─── BULK IMPORT ───
+function BulkImportPage({orders,setOrders,products,clients,setClients}){
+  const[text,setText]=useState('');
+  const[parsed,setParsed]=useState([]);
+  const[step,setStep]=useState('input');
+  const[addProd,setAddProd]=useState({});// {orderIdx: productId}
+
+  const doParse=()=>{const r=parseBulkOrders(text,products);setParsed(r);setStep('review');};
+  const upd=(idx,f,v)=>setParsed(p=>p.map((o,i)=>i===idx?{...o,[f]:v}:o));
+  const rmOrder=idx=>setParsed(p=>p.filter((_,i)=>i!==idx));
+  const rmItem=(oi,ii)=>setParsed(p=>p.map((o,i)=>{if(i!==oi)return o;const ni=o.items.filter((_,j)=>j!==ii);return{...o,items:ni,total:ni.reduce((s,x)=>s+x.price*x.qty,0)};}));
+  const addItemTo=(oi)=>{
+    const pid=addProd[oi];if(!pid)return;
+    const p=products.find(x=>x.id===Number(pid));if(!p)return;
+    setParsed(prev=>prev.map((o,i)=>{if(i!==oi)return o;
+      const ex=o.items.find(x=>x.productId===p.id);
+      let ni;if(ex)ni=o.items.map(x=>x.productId===p.id?{...x,qty:x.qty+1}:x);
+      else ni=[...o.items,{productId:p.id,name:p.name,price:Number(p.price),cost:Number(p.cost||0),qty:1}];
+      return{...o,items:ni,total:ni.reduce((s,x)=>s+x.price*x.qty,0)};
+    }));
+    setAddProd(prev=>({...prev,[oi]:''}));
+  };
+
+  const saveAll=()=>{
+    const newOrders=[];const newClients=[];
+    parsed.forEach((o,idx)=>{
+      if(!o.name||!o.items.length)return;
+      const total=o.items.reduce((s,i)=>s+i.price*i.qty,0);
+      const totalCost=o.items.reduce((s,i)=>s+(i.cost||0)*i.qty,0);
+      newOrders.push({id:Date.now()+idx*7,client:o.name,phone:o.phone,city:o.city,npBranch:o.branch,payment:o.payment,deliveryType:'np',items:[...o.items],total,totalCost,date:new Date().toISOString(),status:'new',ttn:''});
+      if(o.phone&&!clients.find(c=>c.phone===o.phone)&&!newClients.find(c=>c.phone===o.phone)){
+        newClients.push({id:Date.now()+idx*7+1,name:o.name,phone:o.phone,city:o.city,npBranch:o.branch,created:new Date().toISOString()});
+      }
+    });
+    setOrders(prev=>[...prev,...newOrders]);
+    if(newClients.length)setClients(prev=>[...prev,...newClients]);
+    const nb=document.createElement("div");nb.textContent=`✅ Додано ${newOrders.length} замовлень!`;Object.assign(nb.style,{position:"fixed",top:"20px",left:"50%",transform:"translateX(-50%)",background:"#22c55e",color:"#fff",padding:"12px 24px",borderRadius:"12px",fontSize:"15px",fontWeight:"600",zIndex:"9999",boxShadow:"0 4px 20px rgba(0,0,0,.25)"});document.body.appendChild(nb);setTimeout(()=>nb.remove(),3000);
+    setText('');setParsed([]);setStep('input');
+  };
+
+  if(step==='input')return(<div style={{maxWidth:700,margin:"0 auto"}}>
+    <div className="card" style={{marginBottom:16}}>
+      <div className="card-header"><span className="card-title">Масове завантаження замовлень</span></div>
+      <p style={{fontSize:13,color:"var(--text2)",marginBottom:12}}>Вставте список замовлень з месенджера. Кожне замовлення розділяйте рискою (---) або підкресленням (___).</p>
+      <textarea className="form-input" placeholder={"Іванова Марія\n0931234567\nКиїв 321\nЕмінем розова\nОПЛАЧЕН\n-----\nНаступне замовлення..."} value={text} onChange={e=>setText(e.target.value)} rows={15} style={{fontSize:13,lineHeight:1.6,fontFamily:"monospace"}}/>
+      <div style={{marginTop:12,display:"flex",gap:8}}>
+        <button className="btn btn-primary" onClick={doParse} disabled={!text.trim()} style={{padding:"10px 24px"}}>{I.eye} Розпізнати замовлення</button>
+        <button className="btn btn-secondary" onClick={()=>setText('')} disabled={!text.trim()}>Очистити</button>
+      </div>
+    </div>
+  </div>);
+
+  // Review step
+  const validCount=parsed.filter(o=>o.name&&o.items.length).length;
+  return(<div style={{maxWidth:800,margin:"0 auto"}}>
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16,flexWrap:"wrap",gap:8}}>
+      <div>
+        <h2 style={{fontSize:16,fontWeight:700,color:"var(--pink2)"}}>Розпізнано {parsed.length} замовлень</h2>
+        <span style={{fontSize:12,color:"var(--text2)"}}>{validCount} готові до збереження · Перевірте дані</span>
+      </div>
+      <div style={{display:"flex",gap:8}}>
+        <button className="btn btn-secondary" onClick={()=>setStep('input')}>← Назад</button>
+        <button className="btn btn-primary" onClick={saveAll} disabled={!validCount}>Зберегти {validCount} замовлень</button>
+      </div>
+    </div>
+
+    {parsed.map((o,idx)=>{const hasItems=o.items.length>0;const hasName=!!o.name;const ok=hasItems&&hasName;
+    return(<div key={idx} className="card" style={{marginBottom:12,borderLeft:`3px solid var(--${ok?'green':'red'})`}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+        <div style={{display:"flex",alignItems:"center",gap:8}}>
+          <span style={{fontSize:14,fontWeight:700,color:ok?"var(--green)":"var(--red)"}}>#{idx+1}</span>
+          {!ok&&<span style={{fontSize:11,color:"var(--red)",background:"var(--red-light)",padding:"1px 8px",borderRadius:6}}>⚠️ {!hasName?"Немає імені":""}{!hasItems?"Немає товару":""}</span>}
+        </div>
+        <button className="btn btn-danger btn-xs" onClick={()=>rmOrder(idx)}>{I.trash}</button>
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:10}}>
+        <div><label style={{fontSize:10,fontWeight:700,color:"var(--text2)"}}>Ім'я</label><input className="form-input" value={o.name} onChange={e=>upd(idx,'name',e.target.value)} style={{fontSize:12,marginTop:2}}/></div>
+        <div><label style={{fontSize:10,fontWeight:700,color:"var(--text2)"}}>Телефон</label><input className="form-input" value={o.phone} onChange={e=>upd(idx,'phone',e.target.value)} style={{fontSize:12,marginTop:2}}/></div>
+        <div><label style={{fontSize:10,fontWeight:700,color:"var(--text2)"}}>Місто</label><input className="form-input" value={o.city} onChange={e=>upd(idx,'city',e.target.value)} style={{fontSize:12,marginTop:2}}/></div>
+        <div><label style={{fontSize:10,fontWeight:700,color:"var(--text2)"}}>Відділення НП</label><input className="form-input" value={o.branch} onChange={e=>upd(idx,'branch',e.target.value)} style={{fontSize:12,marginTop:2}}/></div>
+      </div>
+      <div style={{marginBottom:8}}>
+        <span style={{fontSize:10,fontWeight:700,color:"var(--text2)"}}>ТОВАРИ</span>
+        {o.items.map((it,j)=>(<div key={j} style={{display:"flex",alignItems:"center",gap:6,padding:"4px 0",borderBottom:"1px solid var(--border)",fontSize:12}}>
+          <span style={{flex:1,fontWeight:500}}>{it.name}</span>
+          <input type="number" min="1" value={it.qty} onChange={e=>{const v=Math.max(1,Number(e.target.value));setParsed(p=>p.map((o2,i2)=>{if(i2!==idx)return o2;const ni=o2.items.map((x,k)=>k===j?{...x,qty:v}:x);return{...o2,items:ni,total:ni.reduce((s,x)=>s+x.price*x.qty,0)};}));}} style={{width:40,padding:"2px 4px",borderRadius:5,border:"1px solid var(--border)",fontSize:11,textAlign:"center"}}/>
+          <span style={{color:"var(--text2)",fontSize:10}}>×</span>
+          <input type="number" min="0" value={it.price} onChange={e=>{const v=Math.max(0,Number(e.target.value));setParsed(p=>p.map((o2,i2)=>{if(i2!==idx)return o2;const ni=o2.items.map((x,k)=>k===j?{...x,price:v}:x);return{...o2,items:ni,total:ni.reduce((s,x)=>s+x.price*x.qty,0)};}));}} style={{width:60,padding:"2px 4px",borderRadius:5,border:"1px solid var(--border)",fontSize:11,textAlign:"right"}}/>
+          <span style={{fontSize:10}}>₴</span>
+          <span style={{fontWeight:700,minWidth:50,textAlign:"right"}}>{fmt(it.price*it.qty)}</span>
+          <button style={{background:"none",border:"none",color:"var(--red)",cursor:"pointer",fontSize:14,padding:"0 2px"}} onClick={()=>rmItem(idx,j)}>×</button>
+        </div>))}
+        <div style={{display:"flex",gap:4,marginTop:6,alignItems:"center"}}>
+          <select className="form-input" value={addProd[idx]||''} onChange={e=>setAddProd(p=>({...p,[idx]:e.target.value}))} style={{fontSize:11,padding:"4px 6px",flex:1}}>
+            <option value="">+ Додати товар...</option>
+            {products.map(p=><option key={p.id} value={p.id}>{p.name} — {fmt(Number(p.price))}</option>)}
+          </select>
+          <button className="btn btn-secondary btn-xs" onClick={()=>addItemTo(idx)} disabled={!addProd[idx]}>+</button>
+        </div>
+      </div>
+      <div style={{display:"flex",gap:12,alignItems:"center",flexWrap:"wrap",fontSize:12}}>
+        <div style={{display:"flex",alignItems:"center",gap:4}}>
+          <span style={{color:"var(--text2)"}}>Оплата:</span>
+          <select className="form-input" value={o.payment} onChange={e=>upd(idx,'payment',e.target.value)} style={{fontSize:11,padding:"3px 6px",width:"auto"}}>
+            <option value="cod">Наложка</option>
+            <option value="control">Оплачено/Передоплата</option>
+          </select>
+        </div>
+        {o.paid&&<span className="badge badge-green" style={{fontSize:10}}>Оплачено{o.prepaid>0?` ${o.prepaid} ₴`:''}</span>}
+        {!o.paid&&o.prepaid>0&&<span className="badge badge-blue" style={{fontSize:10}}>Передоплата {o.prepaid} ₴</span>}
+        {o.items.length>0&&<span style={{fontWeight:700,marginLeft:"auto"}}>Разом: {fmt(o.items.reduce((s,x)=>s+x.price*x.qty,0))}</span>}
+      </div>
+      {o.notes&&o.notes.length>0&&<div style={{marginTop:6,fontSize:11,color:"var(--text2)",fontStyle:"italic"}}>📝 {o.notes.join(' · ')}</div>}
+    </div>);})}
+
+    <div style={{marginTop:16,display:"flex",gap:8,justifyContent:"center",paddingBottom:40}}>
+      <button className="btn btn-secondary" onClick={()=>setStep('input')}>← Назад до тексту</button>
+      <button className="btn btn-primary" onClick={saveAll} disabled={!validCount} style={{padding:"10px 30px"}}>✅ Зберегти {validCount} замовлень</button>
+    </div>
+  </div>);
+}
+
 // ─── APP ───
 function App(){
   const[user,setUser]=useState(()=>LS.get("user",null));
@@ -1030,6 +1336,7 @@ function App(){
     {id:"admin",label:"Товари",icon:I.bag,mob:"Товари"},
     {id:"clients",label:"Клієнти",icon:I.users,mob:"Клієнти"},
     {id:"expenses",label:"Витрати",icon:I.wallet,mob:"Витрати"},
+    {id:"bulk",label:"Масове",icon:I.bulk,mob:"Масове"},
     {id:"dashboard",label:"Сводка",icon:I.dash,mob:"Сводка"},
   ];
   const todayOrders=orders.filter(o=>{const d=new Date(o.date),t=new Date();return sameDay(d,t);});
@@ -1056,28 +1363,4 @@ function App(){
       <div className="topbar">
         <h1>{pages.find(p=>p.id===page)?.label}</h1>
         <div style={{display:"flex",alignItems:"center",gap:12}}>
-          {syncErr?<span style={{fontSize:11,color:"var(--red)",background:"var(--red-light)",padding:"2px 8px",borderRadius:6}}>⚠️ {syncErr}</span>:<span style={{fontSize:11,color:"var(--green)",background:"var(--green-light)",padding:"2px 8px",borderRadius:6}}>☁️ Синхронізовано</span>}
-          <span className="topbar-date">{new Date().toLocaleDateString("uk-UA",{weekday:"short",day:"numeric",month:"long"})}</span>
-          <button onClick={logout} className="btn btn-sm btn-secondary" style={{fontSize:11,padding:"4px 10px"}}>Вийти</button>
-        </div>
-      </div>
-      <div className="content">
-        {page==="neworder"&&<NewOrderPage orders={orders} setOrders={setOrders} products={products} setProducts={setProducts} clients={clients} setClients={setClients}/>}
-        {page==="orders"&&<OrdersListPage orders={orders} setOrders={setOrders}/>}
-        {page==="admin"&&<AdminPage products={products} setProducts={setProducts}/>}
-        {page==="clients"&&<ClientsPage clients={clients} orders={orders}/>}
-        {page==="expenses"&&<ExpensesPage expenses={expenses} setExpenses={setExpenses}/>}
-        {page==="dashboard"&&<DashboardPage orders={orders} products={products} expenses={expenses} dateRange={dateRange} setDateRange={setDateRange}/>}
-      </div>
-    </div>
-    {/* Mobile bottom nav */}
-    <div className="mobile-nav"><div className="mobile-nav-inner">
-      {pages.map(p=><button key={p.id} className={`mob-nav-btn${page===p.id?' active':''}`} onClick={()=>setPage(p.id)}>{p.icon}<span>{p.mob}</span></button>)}
-    </div></div>
-  </div>);
-}
-
-ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
-</script>
-</body>
-</html>
+          {syncErr?<span style={{fontSize:11,color:"var(--red)",background:"var(--red-light)",padding:"2px 8px",borderRadius:6}}>⚠️ {syncErr}</span>:<span style={{fontSize:11,color:"var(--green)",backgroun
