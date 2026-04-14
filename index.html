@@ -1363,4 +1363,29 @@ function App(){
       <div className="topbar">
         <h1>{pages.find(p=>p.id===page)?.label}</h1>
         <div style={{display:"flex",alignItems:"center",gap:12}}>
-          {syncErr?<span style={{fontSize:11,color:"var(--red)",background:"var(--red-light)",padding:"2px 8px",borderRadius:6}}>⚠️ {syncErr}</span>:<span style={{fontSize:11,color:"var(--green)",backgroun
+          {syncErr
+            ?<span style={{fontSize:11,color:"var(--red)",background:"var(--red-light)",padding:"2px 8px",borderRadius:6}}>{"\u26A0\uFE0F"} {syncErr}</span>
+            :<span style={{fontSize:11,color:"var(--green)",background:"var(--green-light)",padding:"2px 8px",borderRadius:6}}>{"\u2601\uFE0F"} {"Синхронізовано"}</span>
+          }
+          <span className="topbar-date">{new Date().toLocaleDateString("uk-UA",{weekday:"short",day:"numeric",month:"long"})}</span>
+          <button onClick={logout} className="btn btn-sm btn-secondary" style={{fontSize:11,padding:"4px 10px"}}>Вийти</button>
+        </div>
+      </div>
+      <div className="content">
+        {page==="neworder"&&<NewOrderPage orders={orders} setOrders={setOrders} products={products} setProducts={setProducts} clients={clients} setClients={setClients}/>}
+        {page==="orders"&&<OrdersListPage orders={orders} setOrders={setOrders}/>}
+        {page==="admin"&&<AdminPage products={products} setProducts={setProducts}/>}
+        {page==="clients"&&<ClientsPage clients={clients} orders={orders}/>}
+        {page==="expenses"&&<ExpensesPage expenses={expenses} setExpenses={setExpenses}/>}
+        {page==="bulk"&&<BulkImportPage orders={orders} setOrders={setOrders} products={products} clients={clients} setClients={setClients}/>}
+        {page==="dashboard"&&<DashboardPage orders={orders} products={products} expenses={expenses} dateRange={dateRange} setDateRange={setDateRange}/>}
+      </div>
+    </div>
+    {/* Mobile bottom nav */}
+    <div className="mobile-nav"><div className="mobile-nav-inner">
+      {pages.map(p=><button key={p.id} className={`mob-nav-btn${page===p.id?' active':''}`} onClick={()=>setPage(p.id)}>{p.icon}<span>{p.mob}</span></button>)}
+    </div></div>
+  </div>);
+}
+
+ReactDOM.createRoot(document.getEl
