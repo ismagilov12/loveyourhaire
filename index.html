@@ -458,14 +458,14 @@ function parseBulkOrders(rawText,products){
     const ph=extractPhone(left);
     if(ph){
       const{products:prods}=findProds(right);
-      const amtM=right.match(/\s+(\d{2,5})\s*$/);
-      let prep=0;if(amtM)prep=Number(amtM[1]);
+      const amtM=right.match(/\s+(\d{3,4})\s*$/);
+      let prep=0;if(amtM&&Number(amtM[1])>=100&&Number(amtM[1])<=5000)prep=Number(amtM[1]);
       if(prods.length>0)return{phone:ph.phone,phoneName:left.replace(ph.full,'').trim(),items:prods,prepaid:prep};
     }
     if(/^[a-zA-Z0-9_\.]+$/.test(left)||left.includes('@')){
       const{products:prods}=findProds(right);
-      const amtM=right.match(/\s+(\d{2,5})\s*$/);
-      let prep=0;if(amtM)prep=Number(amtM[1]);
+      const amtM=right.match(/\s+(\d{3,4})\s*$/);
+      let prep=0;if(amtM&&Number(amtM[1])>=100&&Number(amtM[1])<=5000)prep=Number(amtM[1]);
       if(prods.length>0)return{instagram:left,items:prods,prepaid:prep};
     }
     return null;
@@ -554,6 +554,14 @@ function parseBulkOrders(rawText,products){
         continue;
       }
 
+      // For international orders, remaining address lines go to city, skip branch detection
+      if(isInternational){
+        if(/^[A-Za-z\u0410-\u044F\u0406\u0407\u0404\u0490\u0456\u0457\u0454\u0491\s,.\-'\u20190-9\/]+$/.test(line)&&line.length>2){
+          if(city)city=city+', '+line;else city=line;
+          continue;
+        }
+      }
+
       // Branch keywords
       const brPatterns=[
         /(?:нп|нова[яї]?\s*пошт[аи]?|відділення|відд|отделение|від)\s*(?:нової\s*пошти\s*)?#?\s*(?:номер\s*)?(\d{1,6})/i,
@@ -583,8 +591,11 @@ function parseBulkOrders(rawText,products){
       if(/обл\.?$|обл\b|область|район/i.test(low)){if(!city)city=line;else city=line+', '+city;continue;}
       if(/^(?:м\.?\s*|місто\s+)/i.test(line)&&line.length>3){city=line.replace(/^(?:місто\s+|м\.?\s*)/i,'').trim();continue;}
 
+      // Village: "село Стрілковичі", "с. Мала Виска"
+      if(/^(?:село\s+|с\.\s*|смт\.?\s+|пгт\.?\s+|селище\s+)/i.test(line)){if(\!city)city=line;else city=line+', '+city;continue;}
+
       // City + branch: "Ужгород 4", "киев 321"
-      const cbM=line.match(/^([А-ЯІЇЄҐа-яіїєґ'\u2019\-]+(?:\s+[А-ЯІЇЄҐа-яіїєґ'\u2019\-]+)*)\s+(\d{1,5})$/);
+      const cbM=line.match(/^([А-ЯІЇЄҐа-яіїєґ'\u2019\-]+(?:\s+[А-ЯІЇЄҐа-яіїєґ'\u2019\-]+)*)\s+(\d{1,4})$/);
       if(cbM&&!city){city=cbM[1].trim();if(!branch)branch=cbM[2];continue;}
 
       // Name: 2+ Cyrillic words
@@ -622,8 +633,7 @@ function parseBulkOrders(rawText,products){
   } else {
     blocks=[rawText.trim()];
   }
-  return blocks.map(parseBlock).filter(b=>b.items.length>0||b.name||b.phone);
-}
+  return blocks.map(parseBlock).filter(b=>b.items.length>0||b.name|
 
 // ─── Icons ───
 const I={
@@ -674,11 +684,11 @@ function DashboardPage({orders,products,expenses,dateRange,setDateRange}){
   const[selStart,setSelStart]=useState(true);
   const[expandDate,setExpandDate]=useState(null);
   const fOrders=useMemo(()=>{
-    if(!dateRange.start||!dateRange.end)return orders;
+    if(\!dateRange.start||\!dateRange.end)return orders;
     return orders.filter(o=>{const d=new Date(o.date);const s=new Date(dateRange.start);s.setHours(0,0,0,0);const e=new Date(dateRange.end);e.setHours(23,59,59,999);return d>=s&&d<=e;});
   },[orders,dateRange]);
   const fExpenses=useMemo(()=>{
-    if(!dateRange.start||!dateRange.end)return expenses;
+    if(\!dateRange.start||\!dateRange.end)return expenses;
     return expenses.filter(x=>{const d=new Date(x.date);const s=new Date(dateRange.start);s.setHours(0,0,0,0);const e=new Date(dateRange.end);e.setHours(23,59,59,999);return d>=s&&d<=e;});
   },[expenses,dateRange]);
 
@@ -701,7 +711,7 @@ function DashboardPage({orders,products,expenses,dateRange,setDateRange}){
     const m={};
     fOrders.forEach(o=>o.items.forEach(it=>{
       const k=it.name;
-      if(!m[k])m[k]={name:k,qty:0,rev:0,profit:0};
+      if(\!m[k])m[k]={name:k,qty:0,rev:0,profit:0};
       m[k].qty+=it.qty;m[k].rev+=it.price*it.qty;m[k].profit+=(it.price-it.cost)*it.qty;
     }));
     return Object.values(m).sort((a,b)=>b.qty-a.qty).slice(0,8);
@@ -712,7 +722,7 @@ function DashboardPage({orders,products,expenses,dateRange,setDateRange}){
     const m={};
     fOrders.forEach(o=>{
       const k=o.client;
-      if(!m[k])m[k]={name:k,orders:0,total:0};
+      if(\!m[k])m[k]={name:k,orders:0,total:0};
       m[k].orders++;m[k].total+=o.total;
     });
     return Object.values(m).sort((a,b)=>b.total-a.total).slice(0,5);
@@ -735,7 +745,7 @@ function DashboardPage({orders,products,expenses,dateRange,setDateRange}){
   // Status breakdown
   const statusCounts=useMemo(()=>{
     const m={new:0,ttn:0,shipped:0,delivered:0,studio:0};
-    fOrders.forEach(o=>{if(m[o.status]!==undefined)m[o.status]++;});
+    fOrders.forEach(o=>{if(m[o.status]\!==undefined)m[o.status]++;});
     return m;
   },[fOrders]);
 
@@ -756,7 +766,7 @@ function DashboardPage({orders,products,expenses,dateRange,setDateRange}){
 
   // Group orders by date
   const ordersByDate=useMemo(()=>{
-    const m={};fOrders.forEach(o=>{const dk=new Date(o.date).toLocaleDateString("uk-UA");if(!m[dk])m[dk]=[];m[dk].push(o);});return m;
+    const m={};fOrders.forEach(o=>{const dk=new Date(o.date).toLocaleDateString("uk-UA");if(\!m[dk])m[dk]=[];m[dk].push(o);});return m;
   },[fOrders]);
   const dateKeys=Object.keys(ordersByDate).reverse();
 
