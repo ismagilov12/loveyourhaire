@@ -212,16 +212,16 @@ const INIT_PRODUCTS=[
   {id:1,name:'Футболка "Pamela 90s"',sku:"T-PAM",category:"Oversize футболки",cost:450,price:1400,stock:50,type:"product",photo:""},
   {id:2,name:'Футболка "Eminem"',sku:"T-EM",category:"Oversize футболки",cost:450,price:1400,stock:50,type:"product",photo:""},
   {id:3,name:'Футболка "Britney"',sku:"T-BR",category:"Oversize футболки",cost:450,price:1400,stock:50,type:"product",photo:""},
-  {id:4,name:'Футболка "Beavis & Butthead"',sku:"T-BEA",category:"Oversize футболки",cost:450,price:1400,stock:50,type:"product",photo:""},
+  {id:4,name:'Футболка "Beavis"',sku:"T-BV",category:"Oversize футболки",cost:450,price:1400,stock:50,type:"product",photo:""},
   {id:5,name:'Футболка "Crush"',sku:"T-CR",category:"Oversize футболки",cost:450,price:1400,stock:50,type:"product",photo:""},
-  {id:6,name:'Футболка "Why Britney Shaped?"',sku:"T-WBS",category:"Oversize футболки",cost:450,price:1400,stock:50,type:"product",photo:""},
+  {id:6,name:'Футболка "Why Britney shaped the 2000s"',sku:"T-WB",category:"Oversize футболки",cost:450,price:1400,stock:50,type:"product",photo:""},
   {id:7,name:'Футболка "Lindsay Lohan"',sku:"T-LL",category:"Oversize футболки",cost:450,price:1400,stock:50,type:"product",photo:""},
-  {id:8,name:'Футболка "Love is..."',sku:"T-LI",category:"Oversize футболки",cost:450,price:1400,stock:50,type:"product",photo:""},
+  {id:8,name:'Футболка "Love is"',sku:"T-LI",category:"Oversize футболки",cost:450,price:1400,stock:50,type:"product",photo:""},
   {id:9,name:'Футболка "Pam & Tommy"',sku:"T-PT",category:"Oversize футболки",cost:450,price:1400,stock:50,type:"product",photo:""},
   {id:10,name:'Футболка "Playboy"',sku:"T-PB",category:"Oversize футболки",cost:450,price:1400,stock:50,type:"product",photo:""},
-  {id:11,name:'Футболка "Masturbation"',sku:"T-MAS",category:"Oversize футболки",cost:450,price:1400,stock:50,type:"product",photo:""},
+  {id:11,name:'Футболка "Masturbation"',sku:"T-MS",category:"Oversize футболки",cost:450,price:1400,stock:50,type:"product",photo:""},
   {id:12,name:'Футболка "Snoop Dogg"',sku:"T-SD",category:"Oversize футболки",cost:450,price:1400,stock:50,type:"product",photo:""},
-  {id:13,name:'Футболка "The Prodigy"',sku:"T-PR",category:"Oversize футболки",cost:450,price:1400,stock:50,type:"product",photo:""},
+  {id:13,name:'Футболка "Prodigy"',sku:"T-PR",category:"Oversize футболки",cost:450,price:1400,stock:50,type:"product",photo:""},
   {id:14,name:'Футболка "Soft Rebel"',sku:"T-SR",category:"Oversize футболки",cost:450,price:1400,stock:50,type:"product",photo:""},
   {id:15,name:'Футболка "Giant Pussy"',sku:"T-GP",category:"Oversize футболки",cost:450,price:1400,stock:50,type:"product",photo:""},
   {id:16,name:"Deep Clean Shampoo",sku:"COS-DC",category:"Косметика для волосся",cost:300,price:950,stock:30,type:"product",photo:""},
@@ -312,21 +312,19 @@ function parseClient(text){
   return{name,phone,city,npBranch:branch,payment};
 }
 
-// ─── Bulk Order Parser v2 ───
+// --- Bulk Order Parser v2 ---
 function parseBulkOrders(rawText,products){
-  // ── Product index with keywords ──
-  const prodIndex=products.map(p=>{
-    const kws=[];
-    const qm=p.name.match(/[""«](.*?)[""»]/);
-    if(qm){kws.push(qm[1].toLowerCase());qm[1].toLowerCase().split(/[\s&]+/).forEach(w=>{if(w.length>2)kws.push(w);});}
-    const cl=p.name.replace(/^футболка\s*/i,"").replace(/[""«»—]/g,"").trim().toLowerCase();
+  var prodIndex=products.map(function(p){
+    var kws=[];
+    var qm=p.name.match(/["\u201C\u00AB](.*?)["\u201D\u00BB]/);
+    if(qm){kws.push(qm[1].toLowerCase());qm[1].toLowerCase().split(/[\s&]+/).forEach(function(w){if(w.length>2)kws.push(w);});}
+    var cl=p.name.replace(/^\u0444\u0443\u0442\u0431\u043E\u043B\u043A\u0430\s*/i,"").replace(/["\u201C\u201D\u00AB\u00BB\u2014]/g,"").trim().toLowerCase();
     if(cl.length>2)kws.push(cl);
     kws.push(p.name.toLowerCase());
-    return{product:p,kws:[...new Set(kws)]};
+    return{product:p,kws:kws.filter(function(v,i,a){return a.indexOf(v)===i;})};
   });
 
-  // ── Extended aliases: typos, slang, short names ──
-  const ALIASES={
+  var ALIASES={
     'еминем':'eminem','эминем':'eminem','эмигем':'eminem','єминем':'eminem','еміне':'eminem','эмине':'eminem',
     'памела':'pamela','памел':'pamela',
     'брітні':'britney','бритни':'britney','брітн':'britney','бритн':'britney',
@@ -347,165 +345,152 @@ function parseBulkOrders(rawText,products){
     'кондиціонер':'hydration conditioner','кондиционер':'hydration conditioner',
     'шампунь глиб':'deep clean shampoo','діп клін':'deep clean shampoo','deep clean':'deep clean shampoo',
     'шампунь щод':'everyday shampoo','everyday shampoo':'everyday shampoo',
-    'крем гель':'curly cream gel','кьорлі':'curly cream gel','curly':'curly cream gel',
+    'крем гель':'curly cream gel','кьорлі':'curly cream gel','curly':'curly cream gel'
   };
 
-  // ── Match product by alias ──
   function matchAlias(text){
-    const t=text.toLowerCase();
-    for(const[alias,canon]of Object.entries(ALIASES)){
-      if(t.includes(alias)){
-        for(const{product,kws}of prodIndex){
-          if(kws.some(k=>k.includes(canon))||product.name.toLowerCase().includes(canon))return product;
+    var t=text.toLowerCase();
+    for(var alias in ALIASES){
+      if(t.indexOf(alias)\!==-1){
+        var canon=ALIASES[alias];
+        for(var k=0;k<prodIndex.length;k++){
+          var pi=prodIndex[k];
+          if(pi.kws.some(function(kw){return kw.indexOf(canon)\!==-1;})||pi.product.name.toLowerCase().indexOf(canon)\!==-1)return pi.product;
         }
       }
     }
     return null;
   }
 
-  // ── Quantity words ──
-  const QTY_WORDS={'одна':1,'одну':1,'один':1,'одне':1,'два':2,'дві':2,'двi':2,'три':3,'чотири':4,'четыре':4};
+  var QTY_WORDS={'одна':1,'одну':1,'один':1,'одне':1,'два':2,'дві':2,'двi':2,'три':3,'чотири':4,'четыре':4};
 
-  // ── Extract products + quantities from text ──
   function findProds(text){
-    let low=text.toLowerCase().replace(/[^\u0000-\u2599\u2800-\uFDFF\uFF00-\uFFFF]/g,'').trim();
-    // Split by "и"/"і"/"+" separators for multi-product
-    const segments=low.split(/\s+(?:и|і|\+)\s+/).map(s=>s.trim()).filter(Boolean);
-    const found=[];const cups=[];
-    for(const seg of segments){
-      // Check for cup/mug
+    var low=text.toLowerCase().replace(/[^\u0000-\u2599\u2800-\uFDFF\uFF00-\uFFFF]/g,'').trim();
+    var segments=low.split(/\s+(?:и|і|\+)\s+/).map(function(s){return s.trim();}).filter(Boolean);
+    var found=[];var cups=[];
+    for(var si=0;si<segments.length;si++){
+      var seg=segments[si];
       if(/чашк|кружк/i.test(seg)){cups.push(seg);continue;}
-      // Try qty word: "две эминема", "два краша"
-      let qty=1;
-      let cleanSeg=seg;
-      for(const[qw,qv]of Object.entries(QTY_WORDS)){
-        const qre=new RegExp('(?:^|\\s)'+qw+'(?:\\s|$)','i');
-        if(qre.test(cleanSeg)){qty=qv;cleanSeg=cleanSeg.replace(qre,' ').trim();break;}
+      var qty=1;
+      var cleanSeg=seg;
+      for(var qw in QTY_WORDS){
+        var qre=new RegExp('(?:^|\\s)'+qw+'(?:\\s|$)','i');
+        if(qre.test(cleanSeg)){qty=QTY_WORDS[qw];cleanSeg=cleanSeg.replace(qre,' ').trim();break;}
       }
-      // Try numeric qty: "2 эминема", "x2", "3 бритни"
-      const numQtyM=cleanSeg.match(/^(\d+)\s+(.+)$/);
+      var numQtyM=cleanSeg.match(/^(\d+)\s+(.+)$/);
       if(numQtyM&&Number(numQtyM[1])<=20){qty=Number(numQtyM[1]);cleanSeg=numQtyM[2];}
-      const xQty=cleanSeg.match(/^(.+?)\s*[xх](\d+)$/i);
+      var xQty=cleanSeg.match(/^(.+?)\s*[x\u0445](\d+)$/i);
       if(xQty&&Number(xQty[2])<=20){qty=Number(xQty[2]);cleanSeg=xQty[1].trim();}
-      // Direct keyword match
-      let matched=false;
-      for(const{product,kws}of prodIndex){
-        if(kws.some(k=>cleanSeg.includes(k))&&!found.find(f=>f.productId===product.id)){
-          found.push({productId:product.id,name:product.name,price:Number(product.price),cost:Number(product.cost||0),qty});matched=true;break;
+      var matched=false;
+      for(var ki=0;ki<prodIndex.length;ki++){
+        var pi=prodIndex[ki];
+        if(pi.kws.some(function(kw){return cleanSeg.indexOf(kw)\!==-1;})&&\!found.find(function(f){return f.productId===pi.product.id;})){
+          found.push({productId:pi.product.id,name:pi.product.name,price:Number(pi.product.price),cost:Number(pi.product.cost||0),qty:qty});matched=true;break;
         }
       }
-      if(!matched){
-        const p=matchAlias(cleanSeg);
-        if(p&&!found.find(f=>f.productId===p.id)){
-          found.push({productId:p.id,name:p.name,price:Number(p.price),cost:Number(p.cost||0),qty});matched=true;
+      if(\!matched){
+        var p=matchAlias(cleanSeg);
+        if(p&&\!found.find(function(f){return f.productId===p.id;})){
+          found.push({productId:p.id,name:p.name,price:Number(p.price),cost:Number(p.cost||0),qty:qty});matched=true;
         }
       }
-      if(!matched&&/чашк|кружк/i.test(seg)){cups.push(seg);}
+      if(\!matched&&/чашк|кружк/i.test(seg)){cups.push(seg);}
     }
-    // Also scan full text for aliases not caught by segments
-    for(const[alias]of Object.entries(ALIASES)){
-      if(low.includes(alias)){
-        const p=matchAlias(alias);
-        if(p&&!found.find(f=>f.productId===p.id)){
-          found.push({productId:p.id,name:p.name,price:Number(p.price),cost:Number(p.cost||0),qty:1});
+    for(var alias in ALIASES){
+      if(low.indexOf(alias)\!==-1){
+        var pa=matchAlias(alias);
+        if(pa&&\!found.find(function(f){return f.productId===pa.id;})){
+          found.push({productId:pa.id,name:pa.name,price:Number(pa.price),cost:Number(pa.cost||0),qty:1});
         }
       }
     }
-    return{products:found,cups};
+    return{products:found,cups:cups};
   }
 
-  const CITIES_LIST=["київ","киев","харків","харьков","одеса","одесса","дніпро","днепр","львів","львов","запоріжжя","запорожье","полтава","вінниця","винница","херсон","чернігів","чернигов","суми","сумы","житомир","рівне","ровно","тернопіль","ужгород","хмельниц","чернівці","кривий ріг","бровари","кременчук","ізмаїл","шепетівка","ніжин","гельмязів","северинівка","берестин","красноград","кишинів","краматорськ","мелітополь","бердянськ","павлоград","конотоп","умань","біла церква","новомосковськ","нова каховка","олександрія","шостка","прилуки","коростень","нікополь","миколаїв","кропивницький","івано-франківськ","луцьк","маріуполь","черкаси","обухів","фастів","бориспіль","васильків","ірпінь","вишневе","буча","славутич"];
-  const INTL_COUNTRIES=["литва","lithuania","германия","germany","німеччина","deutschland","польща","polska","poland","чехія","czech","молдова","moldova","румунія","romania","естонія","estonia","латвія","latvia","італія","italy","іспанія","spain","франція","france","сша","usa","канада","canada","великобританія","uk","англія","england","туреччина","turkey","грузія","georgia","ізраїль","israel"];
+  var CITIES_LIST=["київ","киев","харків","харьков","одеса","одесса","дніпро","днепр","львів","львов","запоріжжя","запорожье","полтава","вінниця","винница","херсон","чернігів","чернигов","суми","сумы","житомир","рівне","ровно","тернопіль","ужгород","хмельниц","чернівці","кривий ріг","бровари","кременчук","ізмаїл","шепетівка","ніжин","гельмязів","северинівка","берестин","красноград","кишинів","краматорськ","мелітополь","бердянськ","павлоград","конотоп","умань","біла церква","новомосковськ","нова каховка","олександрія","шостка","прилуки","коростень","нікополь","миколаїв","кропивницький","івано-франківськ","луцьк","маріуполь","черкаси","обухів","фастів","бориспіль","васильків","ірпінь","вишневе","буча","славутич"];
+  var INTL_COUNTRIES=["литва","lithuania","германия","germany","німеччина","deutschland","польща","polska","poland","чехія","czech","молдова","moldova","румунія","romania","естонія","estonia","латвія","latvia","італія","italy","іспанія","spain","франція","france","сша","usa","канада","canada","великобританія","uk","англія","england","туреччина","turkey","грузія","georgia","ізраїль","israel"];
 
-  // ── Payment parser ──
   function parsePay(low){
     if(/полн(?:ая|а|ой)\s*(?:оплат|предоплат)?|повн(?:а|ої)\s*(?:оплат|передоплат)?/i.test(low))return{type:'full',amount:0};
     if(/бартер/i.test(low))return{type:'barter',amount:0};
-    let m=low.match(/(\d+)\s*(?:грн?|гр)?\s*(?:предоплат|предолат|предопо)/);
+    var m=low.match(/(\d+)\s*(?:грн?|гр)?\s*(?:предоплат|предолат|предопо)/);
     if(m)return{type:'prepaid',amount:Number(m[1])};
     m=low.match(/(?:предоплат|предолат|предопо)[а-яіїєґё]*\s*(\d+)/);
     if(m)return{type:'prepaid',amount:Number(m[1])};
     m=low.match(/(\d*)\s*(?:оплач|опалч)/);
     if(m){
-      let amt=0;
+      var amt=0;
       if(m[1])amt=Number(m[1]);
-      else{const a2=low.match(/(\d+)/);if(a2)amt=Number(a2[1]);}
+      else{var a2=low.match(/(\d+)/);if(a2)amt=Number(a2[1]);}
       return{type:'paid',amount:amt};
     }
     return null;
   }
 
-  // ── Phone extraction (UA + international) ──
   function extractPhone(text){
-    let m=text.match(/(\+?3?8?)\s*(0[\s\.\-]?\d[\s\.\-]?\d[\s\.\-]?\d[\s\.\-]?\d[\s\.\-]?\d[\s\.\-]?\d[\s\.\-]?\d[\s\.\-]?\d[\s\.\-]?\d?)/);
-    if(m){const d=m[2].replace(/[\s\.\-]/g,'');if(d.length>=9)return{phone:'+38'+d,full:m[0]};}
+    var m=text.match(/(\+?3?8?)\s*(0[\s\.\-]?\d[\s\.\-]?\d[\s\.\-]?\d[\s\.\-]?\d[\s\.\-]?\d[\s\.\-]?\d[\s\.\-]?\d[\s\.\-]?\d[\s\.\-]?\d?)/);
+    if(m){var d=m[2].replace(/[\s\.\-]/g,'');if(d.length>=9)return{phone:'+38'+d,full:m[0]};}
     m=text.match(/(\+\d{1,3}\d{7,12})/);
     if(m)return{phone:m[1],full:m[0]};
     return null;
   }
 
-  // ── Strip emoji ──
   function stripEmoji(text){
     return text.replace(/[^\u0000-\u2599\u2800-\uFDFF\uFF00-\uFFFF]/g,'').trim();
   }
 
-  // ── Try one-liner dash format: "phone-product amount" or "handle-product" ──
   function tryOneLiner(line){
-    const dashM=line.match(/^(.+?)\s*[-\u2013]\s*(.+)$/);
-    if(!dashM)return null;
-    const left=dashM[1].trim();
-    const right=dashM[2].trim();
-    const ph=extractPhone(left);
+    var dashM=line.match(/^(.+?)\s*[-\u2013]\s*(.+)$/);
+    if(\!dashM)return null;
+    var left=dashM[1].trim();
+    var right=dashM[2].trim();
+    var ph=extractPhone(left);
     if(ph){
-      const{products:prods}=findProds(right);
-      const amtM=right.match(/\s+(\d{3,4})\s*$/);
-      let prep=0;if(amtM&&Number(amtM[1])>=100&&Number(amtM[1])<=5000)prep=Number(amtM[1]);
-      if(prods.length>0)return{phone:ph.phone,phoneName:left.replace(ph.full,'').trim(),items:prods,prepaid:prep};
+      var r=findProds(right);
+      var amtM=right.match(/\s+(\d{3,4})\s*$/);
+      var prep=0;if(amtM&&Number(amtM[1])>=100&&Number(amtM[1])<=5000)prep=Number(amtM[1]);
+      if(r.products.length>0)return{phone:ph.phone,phoneName:left.replace(ph.full,'').trim(),items:r.products,prepaid:prep};
     }
-    if(/^[a-zA-Z0-9_\.]+$/.test(left)||left.includes('@')){
-      const{products:prods}=findProds(right);
-      const amtM=right.match(/\s+(\d{3,4})\s*$/);
-      let prep=0;if(amtM&&Number(amtM[1])>=100&&Number(amtM[1])<=5000)prep=Number(amtM[1]);
-      if(prods.length>0)return{instagram:left,items:prods,prepaid:prep};
+    if(/^[a-zA-Z0-9_\.]+$/.test(left)||left.indexOf('@')\!==-1){
+      var r2=findProds(right);
+      var amtM2=right.match(/\s+(\d{3,4})\s*$/);
+      var prep2=0;if(amtM2&&Number(amtM2[1])>=100&&Number(amtM2[1])<=5000)prep2=Number(amtM2[1]);
+      if(r2.products.length>0)return{instagram:left,items:r2.products,prepaid:prep2};
     }
     return null;
   }
 
-  // ── Main block parser ──
   function parseBlock(block){
-    let lines=block.split('\n').map(l=>stripEmoji(l).trim()).filter(l=>l&&l.length>1&&!/^(?:международка|міжнародка|международна)$/i.test(l));
-    let name='',phone='',city='',branch='',prepaid=0,paid=false,barterFlag=false,items=[],notes=[],isInternational=false;
+    var lines=block.split('\n').map(function(l){return stripEmoji(l).trim();}).filter(function(l){return l&&l.length>1&&\!/^(?:международка|міжнародка|международна)$/i.test(l);});
+    var name='',phone='',city='',branch='',prepaid=0,paid=false,barterFlag=false,items=[],notes=[],isInternational=false;
 
-    // Pre-scan for one-liner dash format
-    for(let i=0;i<lines.length;i++){
-      const ol=tryOneLiner(lines[i]);
+    for(var oi=0;oi<lines.length;oi++){
+      var ol=tryOneLiner(lines[oi]);
       if(ol){
-        if(ol.phone&&!phone)phone=ol.phone;
-        if(ol.phoneName&&ol.phoneName.length>2&&!name)name=ol.phoneName;
+        if(ol.phone&&\!phone)phone=ol.phone;
+        if(ol.phoneName&&ol.phoneName.length>2&&\!name)name=ol.phoneName;
         if(ol.instagram)notes.push('IG: '+ol.instagram);
-        if(ol.items)items.push(...ol.items);
+        if(ol.items)items=items.concat(ol.items);
         if(ol.prepaid)prepaid=ol.prepaid;
-        lines.splice(i,1);i--;
+        lines.splice(oi,1);oi--;
       }
     }
 
-    for(const line of lines){
-      const low=line.toLowerCase();
-      if(!line||line.length<2)continue;
+    for(var li=0;li<lines.length;li++){
+      var line=lines[li];
+      var low=line.toLowerCase();
+      if(\!line||line.length<2)continue;
 
-      // Complex one-liner with poshtomат
-      const complexM=line.match(/([А-ЯІЇЄҐа-яіїєґ]+)\s*,\s*(?:поштомат|почтомат)\s*(\d+)\s*,\s*([А-ЯІЇЄҐа-яіїєґ\s'\u2019]+?)\s*,\s*(\+?3?8?0\d{8,9})/i);
-      if(complexM){city=complexM[1];branch='поштомат '+complexM[2];if(!name)name=complexM[3].trim();phone='+38'+complexM[4].replace(/^\+?3?8?/,'');continue;}
+      var complexM=line.match(/([А-ЯІЇЄҐа-яіїєґ]+)\s*,\s*(?:поштомат|почтомат)\s*(\d+)\s*,\s*([А-ЯІЇЄҐа-яіїєґ\s'\u2019]+?)\s*,\s*(\+?3?8?0\d{8,9})/i);
+      if(complexM){city=complexM[1];branch='\u043F\u043E\u0448\u0442\u043E\u043C\u0430\u0442 '+complexM[2];if(\!name)name=complexM[3].trim();phone='+38'+complexM[4].replace(/^\+?3?8?/,'');continue;}
 
-      // International country detection
-      let intlHit=false;
-      for(const co of INTL_COUNTRIES){if(low.includes(co)){isInternational=true;intlHit=true;if(!city)city=line;break;}}
+      var intlHit=false;
+      for(var ci=0;ci<INTL_COUNTRIES.length;ci++){if(low.indexOf(INTL_COUNTRIES[ci])\!==-1){isInternational=true;intlHit=true;if(\!city)city=line;break;}}
       if(intlHit)continue;
 
-      // Payment check (skip lines that look like products)
-      const hasProductHint=/еминем|эминем|эмигем|памела|бр[іи]тн|краш|crush|eminem|pamela|snoop|prodigy|футболк|чашк|паста|спрей|кондиц|шампунь|lohan|lindsay|playboy|beavis|love is|rebel|pussy|masturbat|tommy|curly|beach|deep clean|everyday/i.test(low);
-      if(!hasProductHint){
-        const payR=parsePay(low);
+      var hasProductHint=/еминем|эминем|эмигем|памела|бр[іи]тн|краш|crush|eminem|pamela|snoop|prodigy|футболк|чашк|паста|спрей|кондиц|шампунь|lohan|lindsay|playboy|beavis|love is|rebel|pussy|masturbat|tommy|curly|beach|deep clean|everyday/i.test(low);
+      if(\!hasProductHint){
+        var payR=parsePay(low);
         if(payR){
           if(payR.type==='full'){paid=true;}
           else if(payR.type==='barter'){barterFlag=true;}
@@ -515,123 +500,105 @@ function parseBulkOrders(rawText,products){
         }
       }
 
-      // Product line
-      const{products:prods,cups}=findProds(line);
+      var prodResult=findProds(line);
+      var prods=prodResult.products;
+      var cups=prodResult.cups;
       if(prods.length>0){
-        for(const np of prods){if(!items.find(ei=>ei.productId===np.productId))items.push(np);}
-        if(cups.length)notes.push(...cups.map(c=>'чашка: '+c));
-        // Check for trailing amount as prepaid: "эминем 200"
-        const trailM=low.match(/\s(\d{3,4})\s*$/);
-        if(trailM&&!prepaid){
-          const amt=Number(trailM[1]);
-          if(!prods.some(p=>p.price===amt)&&amt>=100&&amt<=5000)prepaid=amt;
+        for(var pi2=0;pi2<prods.length;pi2++){
+          if(\!items.find(function(ei){return ei.productId===prods[pi2].productId;}))items.push(prods[pi2]);
+        }
+        if(cups.length>0){for(var ci2=0;ci2<cups.length;ci2++)notes.push('\u0447\u0430\u0448\u043A\u0430: '+cups[ci2]);}
+        var trailM=low.match(/\s(\d{3,4})\s*$/);
+        if(trailM&&\!prepaid){
+          var tAmt=Number(trailM[1]);
+          if(\!prods.some(function(pp){return pp.price===tAmt;})&&tAmt>=100&&tAmt<=5000)prepaid=tAmt;
         }
         continue;
       }
       if(/чашк|кружк/i.test(low)){notes.push(line);continue;}
 
-      // Phone
-      const phResult=extractPhone(line);
+      var phResult=extractPhone(line);
       if(phResult&&phResult.phone.length>=10){
-        if(!phone)phone=phResult.phone;
-        let rest=line.replace(phResult.full,'').replace(/\+?380?\s*/g,'').replace(/Укр\.?\s*номер/gi,'').replace(/Молдав\w+\s*номер/gi,'').trim();
-        if(rest&&rest.length>3&&/^[А-ЯІЇЄҐа-яіїєґA-Za-z\s'\u2019`.\-]+$/.test(rest)&&!name)name=rest;
+        if(\!phone)phone=phResult.phone;
+        var rest=line.replace(phResult.full,'').replace(/\+?380?\s*/g,'').replace(/Укр\.?\s*номер/gi,'').replace(/Молдав\w+\s*номер/gi,'').trim();
+        if(rest&&rest.length>3&&/^[А-ЯІЇЄҐа-яіїєґA-Za-z\s'\u2019`.\-]+$/.test(rest)&&\!name)name=rest;
         continue;
       }
       if(/^\+?\d[\d\s\.\-]{7,}$/.test(line.trim())){
-        const d=line.replace(/[\s\.\-]/g,'');
-        if(!phone)phone=d.startsWith('+')?d:(d.startsWith('0')?'+38'+d:'+'+d);
+        var dd=line.replace(/[\s\.\-]/g,'');
+        if(\!phone)phone=dd.charAt(0)==='+'?dd:(dd.charAt(0)==='0'?'+38'+dd:'+'+dd);
         continue;
       }
 
-      // Поштомат
-      const poshtM=line.match(/(?:поштомат|почтомат)\s*(\d{4,6})/i);
-      if(poshtM){branch='поштомат '+poshtM[1];
-        const before=line.substring(0,line.toLowerCase().indexOf(poshtM[0].toLowerCase())).replace(/[,]/g,'').trim();
-        if(before&&!city)city=before;
-        continue;
-      }
-
-      // For international orders, remaining address lines go to city, skip branch detection
       if(isInternational){
         if(/^[A-Za-z\u0410-\u044F\u0406\u0407\u0404\u0490\u0456\u0457\u0454\u0491\s,.\-'\u20190-9\/]+$/.test(line)&&line.length>2){
-          if(city)city=city+', '+line;else city=line;
-          continue;
+          if(\!city)city=line;
+          else city=city+', '+line;
         }
+        continue;
       }
 
-      // Branch keywords
-      const brPatterns=[
+      var poshtM=line.match(/(?:поштомат|почтомат)\s*(\d{4,6})/i);
+      if(poshtM){branch='\u043F\u043E\u0448\u0442\u043E\u043C\u0430\u0442 '+poshtM[1];
+        var before=line.substring(0,line.toLowerCase().indexOf(poshtM[0].toLowerCase())).replace(/[,]/g,'').trim();
+        if(before&&\!city)city=before;
+        continue;
+      }
+
+      var brPatterns=[
         /(?:нп|нова[яї]?\s*пошт[аи]?|відділення|відд|отделение|від)\s*(?:нової\s*пошти\s*)?#?\s*(?:номер\s*)?(\d{1,6})/i,
-        /(\d{1,5})\s*(?:відділення|отделение|від\b)/i,
+        /(\d{1,5})\s*(?:відділення|отделение|від(?:\s|$))/i
       ];
-      let brFound=false;
-      for(const brRe of brPatterns){
-        const brM=line.match(brRe);
-        if(brM&&!branch){branch=brM[1];
-          const idx=line.toLowerCase().indexOf(brM[0].toLowerCase());
-          const before=line.substring(0,idx).trim();
-          if(before){const c=before.replace(/^(?:м\.\s*|місто\s+)/i,'').replace(/[,]/g,'').trim();if(c&&!city&&/^[А-ЯІЇЄҐа-яіїєґ\s\-'\u2019]+$/i.test(c))city=c;}
+      var brFound=false;
+      for(var bi=0;bi<brPatterns.length;bi++){
+        var brM=line.match(brPatterns[bi]);
+        if(brM&&\!branch){branch=brM[1];
+          var bIdx=line.toLowerCase().indexOf(brM[0].toLowerCase());
+          var bBefore=line.substring(0,bIdx).trim();
+          if(bBefore){var bc=bBefore.replace(/^(?:м\.\s*|місто\s+|село\s+|с\.\s*|смт\.?\s*|пгт\.?\s*|селище\s+)/i,'').replace(/[,]/g,'').trim();if(bc&&\!city&&/^[А-ЯІЇЄҐа-яіїєґ\s\-'\u2019]+$/i.test(bc))city=bc;}
           brFound=true;break;
         }
       }
       if(brFound)continue;
 
-      // Known city
-      let isCity=false;
-      for(const c of CITIES_LIST){if(low.includes(c)){isCity=true;
-        city=line.replace(/^(?:місто\s+|м\.?\s*)/i,'').trim();
-        const afterM=low.match(new RegExp(c.replace(/['\u2019]/g,"['\u2019]?").replace(/\s/g,'\\s*')+'\\s+(\\d{1,5})'));
-        if(afterM&&!branch){branch=afterM[1];city=city.replace(/\s+\d{1,5}/,'').trim();}
-        city=city.replace(/,?\s*(?:нова[яї]?\s*пошт\w*|новая\s*почта)\s*\d*/gi,'').replace(/(?:^|,)\s*\bгород\b\s*/gi,'').replace(/\(.*?\)/g,'').replace(/\s{2,}/g,' ').trim();
-        break;}}
-      if(isCity)continue;
-      if(/обл\.?$|обл\b|область|район/i.test(low)){if(!city)city=line;else city=line+', '+city;continue;}
-      if(/^(?:м\.?\s*|місто\s+)/i.test(line)&&line.length>3){city=line.replace(/^(?:місто\s+|м\.?\s*)/i,'').trim();continue;}
+      var isCity2=false;
+      for(var ci3=0;ci3<CITIES_LIST.length;ci3++){
+        if(low.indexOf(CITIES_LIST[ci3])\!==-1){isCity2=true;
+          city=line.replace(/^(?:місто\s+|м\.?\s*)/i,'').trim();
+          var cRe=new RegExp(CITIES_LIST[ci3].replace(/\s/g,'\\s*')+'\\s+(\\d{1,5})');
+          var afterM=low.match(cRe);
+          if(afterM&&\!branch){branch=afterM[1];city=city.replace(/\s+\d{1,5}/,'').trim();}
+          city=city.replace(/,?\s*(?:нова[яї]?\s*пошт\w*|новая\s*почта)\s*\d*/gi,'').replace(/(?:^|,)\s*\bгород\b\s*/gi,'').replace(/\(.*?\)/g,'').replace(/\s{2,}/g,' ').trim();
+          break;
+        }
+      }
+      if(isCity2)continue;
+      if(/обл\.?$|обл(?:\s|$)|область|район/i.test(low)){if(\!city)city=line;else city=line+', '+city;continue;}
+      if(/^(?:м\.?\s*|місто\s+|село\s+|с\.\s*|смт\.?\s*|пгт\.?\s*|селище\s+)/i.test(line)&&line.length>3){city=line.replace(/^(?:місто\s+|м\.?\s*|село\s+|с\.\s*|смт\.?\s*|пгт\.?\s*|селище\s+)/i,'').trim();continue;}
 
-      // Village: "село Стрілковичі", "с. Мала Виска"
-      if(/^(?:село\s+|с\.\s*|смт\.?\s+|пгт\.?\s+|селище\s+)/i.test(line)){if(!city)city=line;else city=line+', '+city;continue;}
+      var cbM=line.match(/^([А-ЯІЇЄҐа-яіїєґ'\u2019\-]+(?:\s+[А-ЯІЇЄҐа-яіїєґ'\u2019\-]+)*)\s+(\d{1,5})$/);
+      if(cbM&&\!city){city=cbM[1].trim();if(\!branch)branch=cbM[2];continue;}
 
-      // City + branch: "Ужгород 4", "киев 321"
-      const cbM=line.match(/^([А-ЯІЇЄҐа-яіїєґ'\u2019\-]+(?:\s+[А-ЯІЇЄҐа-яіїєґ'\u2019\-]+)*)\s+(\d{1,4})$/);
-      if(cbM&&!city){city=cbM[1].trim();if(!branch)branch=cbM[2];continue;}
-
-      // Name: 2+ Cyrillic words
-      if(/^[А-ЯІЇЄҐа-яіїєґA-Za-z\s'\u2019`.\-()]+$/.test(line)&&line.split(/\s+/).length>=2&&!name){
-        if(!/обл|район|область/i.test(line)){name=line.replace(/\(.*?\)/g,'').trim();continue;}
+      if(/^[А-ЯІЇЄҐа-яіїєґA-Za-z\s'\u2019`.\-()]+$/.test(line)&&line.split(/\s+/).length>=2&&\!name){
+        if(\!/обл|район|область/i.test(line)){name=line.replace(/\(.*?\)/g,'').trim();continue;}
       }
 
-      // Instagram handle
-      if(/^@?[a-zA-Z0-9_\.]{3,30}$/.test(line.trim())){notes.push('IG: '+line.trim());continue;}
-
-      // Single Cyrillic word
       if(/^[А-ЯІЇЄҐа-яіїєґ'\u2019\-]+$/.test(line.trim())&&line.length>2){
-        if(!city)city=line;else if(!name)name=line;continue;
+        if(\!city)city=line;else if(\!name)name=line;continue;
       }
 
       if(line.trim())notes.push(line);
     }
 
-    const total=items.reduce((s,i)=>s+i.price*i.qty,0);
-    let payment='cod';
-    if(paid)payment='control';
-    else if(barterFlag)payment='barter';
-    else if(prepaid>0)payment='control';
-    return{name,phone,city,branch,items,total,prepaid,paid,payment,notes,isInternational};
+    var total=items.reduce(function(s,i){return s+i.price*i.qty;},0);
+    var payment=paid?'control':(prepaid>0?'control':(barterFlag?'barter':'cod'));
+    return{name:name,phone:phone,city:city,branch:branch,items:items,total:total,prepaid:prepaid,paid:paid,payment:payment,notes:notes};
   }
 
-  // ── Split raw text into order blocks ──
-  let blocks;
-  if(/\n\s*[-_]{3,}\s*\n/.test(rawText)){
-    blocks=rawText.split(/\n\s*[-_]{3,}\s*(?:\n|$)/).map(b=>b.trim()).filter(Boolean);
-  } else if(/^\s*\d+[\.\)]\s/m.test(rawText)){
-    blocks=rawText.split(/(?=^\s*\d+[\.\)]\s)/m).map(b=>b.replace(/^\s*\d+[\.\)]\s*/,'').trim()).filter(Boolean);
-  } else if(/\n\s*\n/.test(rawText)){
-    blocks=rawText.split(/\n\s*\n/).map(b=>b.trim()).filter(Boolean);
-  } else {
-    blocks=[rawText.trim()];
-  }
-  return blocks.map(parseBlock).filter(b=>b.items.length>0||b.name|
+  var blocks=rawText.split(/\n\s*[-_]{3,}\s*(?:\n|$)/).map(function(b){return b.trim();}).filter(Boolean);
+  return blocks.map(parseBlock);
+}
+
 
 // ─── Icons ───
 const I={
@@ -682,11 +649,11 @@ function DashboardPage({orders,products,expenses,dateRange,setDateRange}){
   const[selStart,setSelStart]=useState(true);
   const[expandDate,setExpandDate]=useState(null);
   const fOrders=useMemo(()=>{
-    if(!dateRange.start||!dateRange.end)return orders;
+    if(\!dateRange.start||\!dateRange.end)return orders;
     return orders.filter(o=>{const d=new Date(o.date);const s=new Date(dateRange.start);s.setHours(0,0,0,0);const e=new Date(dateRange.end);e.setHours(23,59,59,999);return d>=s&&d<=e;});
   },[orders,dateRange]);
   const fExpenses=useMemo(()=>{
-    if(!dateRange.start||!dateRange.end)return expenses;
+    if(\!dateRange.start||\!dateRange.end)return expenses;
     return expenses.filter(x=>{const d=new Date(x.date);const s=new Date(dateRange.start);s.setHours(0,0,0,0);const e=new Date(dateRange.end);e.setHours(23,59,59,999);return d>=s&&d<=e;});
   },[expenses,dateRange]);
 
@@ -709,7 +676,7 @@ function DashboardPage({orders,products,expenses,dateRange,setDateRange}){
     const m={};
     fOrders.forEach(o=>o.items.forEach(it=>{
       const k=it.name;
-      if(!m[k])m[k]={name:k,qty:0,rev:0,profit:0};
+      if(\!m[k])m[k]={name:k,qty:0,rev:0,profit:0};
       m[k].qty+=it.qty;m[k].rev+=it.price*it.qty;m[k].profit+=(it.price-it.cost)*it.qty;
     }));
     return Object.values(m).sort((a,b)=>b.qty-a.qty).slice(0,8);
@@ -720,7 +687,7 @@ function DashboardPage({orders,products,expenses,dateRange,setDateRange}){
     const m={};
     fOrders.forEach(o=>{
       const k=o.client;
-      if(!m[k])m[k]={name:k,orders:0,total:0};
+      if(\!m[k])m[k]={name:k,orders:0,total:0};
       m[k].orders++;m[k].total+=o.total;
     });
     return Object.values(m).sort((a,b)=>b.total-a.total).slice(0,5);
@@ -743,7 +710,7 @@ function DashboardPage({orders,products,expenses,dateRange,setDateRange}){
   // Status breakdown
   const statusCounts=useMemo(()=>{
     const m={new:0,ttn:0,shipped:0,delivered:0,studio:0};
-    fOrders.forEach(o=>{if(m[o.status]!==undefined)m[o.status]++;});
+    fOrders.forEach(o=>{if(m[o.status]\!==undefined)m[o.status]++;});
     return m;
   },[fOrders]);
 
@@ -764,7 +731,7 @@ function DashboardPage({orders,products,expenses,dateRange,setDateRange}){
 
   // Group orders by date
   const ordersByDate=useMemo(()=>{
-    const m={};fOrders.forEach(o=>{const dk=new Date(o.date).toLocaleDateString("uk-UA");if(!m[dk])m[dk]=[];m[dk].push(o);});return m;
+    const m={};fOrders.forEach(o=>{const dk=new Date(o.date).toLocaleDateString("uk-UA");if(\!m[dk])m[dk]=[];m[dk].push(o);});return m;
   },[fOrders]);
   const dateKeys=Object.keys(ordersByDate).reverse();
 
