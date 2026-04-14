@@ -523,7 +523,7 @@ function Calendar({startDate,endDate,onSelect}){
 
 function Modal({title,onClose,children,wide}){
   return(<div className="modal-overlay" onClick={onClose}><div className="modal" style={wide?{maxWidth:640}:{}} onClick={e=>e.stopPropagation()}>
-    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}><div className="modal-title">{title}</div><button className="btn btn-secondary btn-sm" onClick={onClose}>✕</button></div>{children}
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}><div className="modal-title">{title}</div><button className="btn btn-secondary btn-sm" onClick={onClose}>\u2715</button></div>{children}
   </div></div>);
 }
 
@@ -582,14 +582,14 @@ function DashboardPage({orders,products,expenses,dateRange,setDateRange}){
     {/* Split: services vs products */}
     <div className="stats-row" style={{gridTemplateColumns:"repeat(2,1fr)",marginTop:8}}>
       <div className="stat-card" style={{borderLeft:"3px solid var(--pink2)"}}>
-        <div className="stat-label">✂️ Стрижки / Послуги</div>
+        <div className="stat-label">\u2702\uFE0F Стрижки / Послуги</div>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginTop:4}}>
           <div><span style={{fontSize:11,color:"var(--text2)"}}>Виручка: </span><strong style={{color:"var(--pink2)"}}>{fmt(serviceRev)}</strong></div>
           <div><span style={{fontSize:11,color:"var(--text2)"}}>Прибуток: </span><strong style={{color:"var(--green)"}}>{fmt(serviceRev-serviceCost)}</strong></div>
         </div>
       </div>
       <div className="stat-card" style={{borderLeft:"3px solid var(--blue)"}}>
-        <div className="stat-label">🛍️ Товари</div>
+        <div className="stat-label">\uD83D\uDECD\uFE0F Товари</div>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginTop:4}}>
           <div><span style={{fontSize:11,color:"var(--text2)"}}>Виручка: </span><strong style={{color:"var(--blue)"}}>{fmt(productRev)}</strong></div>
           <div><span style={{fontSize:11,color:"var(--text2)"}}>Прибуток: </span><strong style={{color:"var(--green)"}}>{fmt(productRev-productCost)}</strong></div>
@@ -609,7 +609,7 @@ function DashboardPage({orders,products,expenses,dateRange,setDateRange}){
             return(<div key={dk} style={{marginBottom:8}}>
               <div onClick={()=>setExpandDate(isOpen&&expandDate?null:(() => {const p=dk.split(".");return new Date(p[2],p[1]-1,p[0]);})())} style={{cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 10px",background:"var(--pink-pale)",borderRadius:8,border:"1px solid var(--border)"}}>
                 <span style={{fontWeight:600,fontSize:13}}>{dk} <span style={{fontWeight:400,color:"var(--text2)",fontSize:12}}>({dayOrders.length} зам.)</span></span>
-                <span style={{fontWeight:700,color:"var(--pink2)",fontSize:13}}>{fmt(dayRev)} {isOpen?"▼":"▶"}</span>
+                <span style={{fontWeight:700,color:"var(--pink2)",fontSize:13}}>{fmt(dayRev)} {isOpen?"\u25BC":"\u25B6"}</span>
               </div>
               {isOpen&&<div style={{padding:"6px 0"}}>{dayOrders.map(o=>(
                 <div key={o.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"6px 10px",borderBottom:"1px solid var(--border)",fontSize:12,gap:6,flexWrap:"wrap"}}>
@@ -687,7 +687,7 @@ function NewOrderPage({orders,setOrders,products,setProducts,clients,setClients}
     else{setClients([...clients,{id:Date.now(),name:cn,phone:parsed.phone,city:deliv==="np"?parsed.city:"",npBranch:deliv==="np"?parsed.npBranch:"",created:new Date().toISOString()}]);}
     setRaw("");setItems([]);setEditP(false);setParsedOpen(true);setInputOpen(true);setDeliv("np");
     setParsed({name:"",phone:"",city:"",npBranch:"",payment:"cod"});
-    const nb=document.createElement("div");nb.textContent="✅ Замовлення додано!";Object.assign(nb.style,{position:"fixed",top:"20px",left:"50%",transform:"translateX(-50%)",background:"#22c55e",color:"#fff",padding:"12px 24px",borderRadius:"12px",fontSize:"15px",fontWeight:"600",zIndex:"9999",boxShadow:"0 4px 20px rgba(0,0,0,.25)"});document.body.appendChild(nb);setTimeout(()=>nb.remove(),2000);
+    const nb=document.createElement("div");nb.textContent="\u2705 Замовлення додано!";Object.assign(nb.style,{position:"fixed",top:"20px",left:"50%",transform:"translateX(-50%)",background:"#22c55e",color:"#fff",padding:"12px 24px",borderRadius:"12px",fontSize:"15px",fontWeight:"600",zIndex:"9999",boxShadow:"0 4px 20px rgba(0,0,0,.25)"});document.body.appendChild(nb);setTimeout(()=>nb.remove(),2000);
   };
   const curTotal=items.reduce((s,i)=>s+i.price*i.qty,0);
   const curProfit=items.reduce((s,i)=>s+(i.price-i.cost)*i.qty,0);
@@ -929,7 +929,7 @@ function AdminPage({products,setProducts}){
     <div className="card" style={{padding:0,overflowX:"auto"}}>
       <table className="tbl"><thead><tr><th style={{width:44}}></th><th>Назва</th><th>SKU</th><th>Кат.</th><th>Собів.</th><th>Ціна</th><th>Зал.</th><th>Маржа</th><th style={{width:80}}></th></tr></thead><tbody>
         {filtered.map(p=><tr key={p.id}>
-          <td>{p.photo?<img className="prod-photo" src={p.photo}/>:<div className="prod-photo-placeholder">{p.category==="Стрижки"?"✂":"📦"}</div>}</td>
+          <td>{p.photo?<img className="prod-photo" src={p.photo}/>:<div className="prod-photo-placeholder">{p.category==="Стрижки"?"\u2702":"\uD83D\uDCE6"}</div>}</td>
           <td style={{fontWeight:600}}>{p.name}</td>
           <td><code style={{fontSize:11,color:"var(--text2)"}}>{p.sku}</code></td>
           <td><span className={`badge ${p.category==='Стрижки'?'badge-pink':p.category==='Косметика'?'badge-green':'badge-amber'}`}>{p.category}</span></td>
@@ -992,8 +992,8 @@ function ClientsPage({clients,orders}){
             <span style={{fontSize:12,color:"var(--text2)"}}>{co.length} зам.</span>
           </div>
           <div style={{display:"flex",gap:12,flexWrap:"wrap",fontSize:12,color:"var(--text2)",marginTop:4}}>
-            {c.phone&&<span>📞 {c.phone}</span>}
-            {c.city&&<span>📍 {c.city}{c.npBranch?` №${c.npBranch}`:""}</span>}
+            {c.phone&&<span>\uD83D\uDCDE {c.phone}</span>}
+            {c.city&&<span>\uD83D\uDCCD {c.city}{c.npBranch?` №${c.npBranch}`:""}</span>}
             <span style={{marginLeft:"auto",fontWeight:700,color:"var(--pink2)"}}>Всього: {fmt(clientTotal(c))}</span>
           </div>
           {/* Expanded — order history */}
@@ -1034,7 +1034,7 @@ function ExpensesPage({expenses,setExpenses}){
     if(!amount){alert("Вкажіть суму");return;}
     setExpenses([...expenses,{id:Date.now(),category:cat,amount:Number(amount),note,date:new Date().toISOString()}]);
     setAmount("");setNote("");
-    const nb=document.createElement("div");nb.textContent="✅ Витрату додано!";Object.assign(nb.style,{position:"fixed",top:"20px",left:"50%",transform:"translateX(-50%)",background:"#22c55e",color:"#fff",padding:"12px 24px",borderRadius:"12px",fontSize:"15px",fontWeight:"600",zIndex:"9999",boxShadow:"0 4px 20px rgba(0,0,0,.25)"});document.body.appendChild(nb);setTimeout(()=>nb.remove(),2000);
+    const nb=document.createElement("div");nb.textContent="\u2705 Витрату додано!";Object.assign(nb.style,{position:"fixed",top:"20px",left:"50%",transform:"translateX(-50%)",background:"#22c55e",color:"#fff",padding:"12px 24px",borderRadius:"12px",fontSize:"15px",fontWeight:"600",zIndex:"9999",boxShadow:"0 4px 20px rgba(0,0,0,.25)"});document.body.appendChild(nb);setTimeout(()=>nb.remove(),2000);
   };
   const monthTotal=expenses.filter(x=>{const d=new Date(x.date),n=new Date();return d.getMonth()===n.getMonth()&&d.getFullYear()===n.getFullYear();}).reduce((s,x)=>s+x.amount,0);
   const totalByCategory={};expenses.forEach(x=>{totalByCategory[x.category]=(totalByCategory[x.category]||0)+x.amount;});
@@ -1180,7 +1180,7 @@ function BulkImportPage({orders,setOrders,products,clients,setClients}){
     });
     setOrders(prev=>[...prev,...newOrders]);
     if(newClients.length)setClients(prev=>[...prev,...newClients]);
-    const nb=document.createElement("div");nb.textContent=`✅ Додано ${newOrders.length} замовлень!`;Object.assign(nb.style,{position:"fixed",top:"20px",left:"50%",transform:"translateX(-50%)",background:"#22c55e",color:"#fff",padding:"12px 24px",borderRadius:"12px",fontSize:"15px",fontWeight:"600",zIndex:"9999",boxShadow:"0 4px 20px rgba(0,0,0,.25)"});document.body.appendChild(nb);setTimeout(()=>nb.remove(),3000);
+    const nb=document.createElement("div");nb.textContent=`\u2705 Додано ${newOrders.length} замовлень!`;Object.assign(nb.style,{position:"fixed",top:"20px",left:"50%",transform:"translateX(-50%)",background:"#22c55e",color:"#fff",padding:"12px 24px",borderRadius:"12px",fontSize:"15px",fontWeight:"600",zIndex:"9999",boxShadow:"0 4px 20px rgba(0,0,0,.25)"});document.body.appendChild(nb);setTimeout(()=>nb.remove(),3000);
     setText('');setParsed([]);setStep('input');
   };
 
@@ -1215,7 +1215,7 @@ function BulkImportPage({orders,setOrders,products,clients,setClients}){
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
         <div style={{display:"flex",alignItems:"center",gap:8}}>
           <span style={{fontSize:14,fontWeight:700,color:ok?"var(--green)":"var(--red)"}}>#{idx+1}</span>
-          {!ok&&<span style={{fontSize:11,color:"var(--red)",background:"var(--red-light)",padding:"1px 8px",borderRadius:6}}>⚠️ {!hasName?"Немає імені":""}{!hasItems?"Немає товару":""}</span>}
+          {!ok&&<span style={{fontSize:11,color:"var(--red)",background:"var(--red-light)",padding:"1px 8px",borderRadius:6}}>\u26A0\uFE0F {!hasName?"Немає імені":""}{!hasItems?"Немає товару":""}</span>}
         </div>
         <button className="btn btn-danger btn-xs" onClick={()=>rmOrder(idx)}>{I.trash}</button>
       </div>
@@ -1256,12 +1256,12 @@ function BulkImportPage({orders,setOrders,products,clients,setClients}){
         {!o.paid&&o.prepaid>0&&<span className="badge badge-blue" style={{fontSize:10}}>Передоплата {o.prepaid} ₴</span>}
         {o.items.length>0&&<span style={{fontWeight:700,marginLeft:"auto"}}>Разом: {fmt(o.items.reduce((s,x)=>s+x.price*x.qty,0))}</span>}
       </div>
-      {o.notes&&o.notes.length>0&&<div style={{marginTop:6,fontSize:11,color:"var(--text2)",fontStyle:"italic"}}>📝 {o.notes.join(' · ')}</div>}
+      {o.notes&&o.notes.length>0&&<div style={{marginTop:6,fontSize:11,color:"var(--text2)",fontStyle:"italic"}}>\uD83D\uDCDD {o.notes.join(' · ')}</div>}
     </div>);})}
 
     <div style={{marginTop:16,display:"flex",gap:8,justifyContent:"center",paddingBottom:40}}>
       <button className="btn btn-secondary" onClick={()=>setStep('input')}>← Назад до тексту</button>
-      <button className="btn btn-primary" onClick={saveAll} disabled={!validCount} style={{padding:"10px 30px"}}>✅ Зберегти {validCount} замовлень</button>
+      <button className="btn btn-primary" onClick={saveAll} disabled={!validCount} style={{padding:"10px 30px"}}>\u2705 Зберегти {validCount} замовлень</button>
     </div>
   </div>);
 }
@@ -1354,7 +1354,7 @@ function App(){
           <div style={{fontSize:10,color:"#5a3a1a"}}>{todayOrders.length} замовлень</div>
         </div>
         <div style={{padding:"8px 0",borderTop:"1px solid rgba(0,0,0,.1)",marginTop:8}}>
-          <div style={{fontSize:11,color:"#5a3a1a"}}>👤 {user.name}</div>
+          <div style={{fontSize:11,color:"#5a3a1a"}}>\uD83D\uDC64 {user.name}</div>
           <button onClick={logout} style={{background:"none",border:"none",color:"var(--pink2)",fontSize:11,cursor:"pointer",padding:"4px 0",textDecoration:"underline"}}>Вийти</button>
         </div>
       </div>
@@ -1388,4 +1388,7 @@ function App(){
   </div>);
 }
 
-ReactDOM.createRoot(document.getEl
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+</body>
+</html>
