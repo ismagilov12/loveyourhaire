@@ -1081,6 +1081,9 @@ function NewOrderPage({orders,setOrders,products,setProducts,clients,setClients}
   const[items,setItems]=useState([]);
   const[cityRef,setCityRef]=useState("");
   const[whRef,setWhRef]=useState("");
+  const[codAmount,setCodAmount]=useState("");
+  const[prepay,setPrepay]=useState("");
+  const[comment,setComment]=useState("");
   const endRef=useRef(null);
   useEffect(()=>{endRef.current?.scrollIntoView({behavior:"smooth"});},[orders,items]);
   useEffect(()=>{if(raw.trim()){setParsed(parseClient(raw));setParsedOpen(true);}else{setParsed({name:"",phone:"",city:"",npBranch:"",payment:"cod"});}},[raw]);
@@ -1099,7 +1102,7 @@ function NewOrderPage({orders,setOrders,products,setProducts,clients,setClients}
     const cn=parsed.name.trim();if(!cn||!items.length){alert("Ім'я + товар");return;}
     const total=items.reduce((s,i)=>s+i.price*i.qty,0);
     const totalCost=items.reduce((s,i)=>s+i.cost*i.qty,0);
-    const order={id:Date.now(),client:cn,phone:parsed.phone,city:deliv==="np"?parsed.city:"",npBranch:deliv==="np"?parsed.npBranch:"",payment:deliv==="np"?parsed.payment:"cash",deliveryType:deliv,items:[...items],total,totalCost,date:new Date().toISOString(),status:deliv==="np"?"new":"studio",ttn:""};
+    const order={id:Date.now(),client:cn,phone:parsed.phone,city:deliv==="np"?parsed.city:"",npBranch:deliv==="np"?parsed.npBranch:"",payment:deliv==="np"?parsed.payment:"cash",deliveryType:deliv,items:[...items],total,totalCost,date:new Date().toISOString(),status:deliv==="np"?"new":"studio",ttn:"",codAmount:codAmount!==""?Number(codAmount):null,prepayment:prepay!==""?Number(prepay):null,comment:comment.trim()};
     setProducts(products.map(p=>{const it=items.find(i=>i.productId===p.id);return it&&p.type==="product"?{...p,stock:p.stock-it.qty}:p;}));
     setOrders([...orders,order]);
     // Upsert client
@@ -1108,7 +1111,7 @@ function NewOrderPage({orders,setOrders,products,setProducts,clients,setClients}
     if(existC){setClients(clients.map(c=>c.id===existC.id?{...c,name:cn,city:deliv==="np"?parsed.city:c.city,npBranch:deliv==="np"?parsed.npBranch:c.npBranch}:c));}
     else{setClients([...clients,{id:Date.now(),name:cn,phone:parsed.phone,city:deliv==="np"?parsed.city:"",npBranch:deliv==="np"?parsed.npBranch:"",created:new Date().toISOString()}]);}
     setRaw("");setItems([]);setEditP(false);setParsedOpen(true);setInputOpen(true);setDeliv("np");
-    setParsed({name:"",phone:"",city:"",npBranch:"",payment:"cod"});
+    setParsed({name:"",phone:"",city:"",npBranch:"",payment:"cod"});setCodAmount("");setPrepay("");setComment("");
     const nb=document.createElement("div");nb.textContent="\u2705 Замовлення додано!";Object.assign(nb.style,{position:"fixed",top:"20px",left:"50%",transform:"translateX(-50%)",background:"#22c55e",color:"#fff",padding:"12px 24px",borderRadius:"12px",fontSize:"15px",fontWeight:"600",zIndex:"9999",boxShadow:"0 4px 20px rgba(0,0,0,.25)"});document.body.appendChild(nb);setTimeout(()=>nb.remove(),2000);
   };
   const curTotal=items.reduce((s,i)=>s+i.price*i.qty,0);
@@ -1189,6 +1192,11 @@ function NewOrderPage({orders,setOrders,products,setProducts,clients,setClients}
               <div className="form-group" style={{marginBottom:0}}><label className="form-label">Відділення</label><NPWarehousePicker cityRef={cityRef} value={parsed.npBranch} onChange={(n,d,r)=>{setParsed({...parsed,npBranch:n});setWhRef(r);}}/></div></>}
             </div>}
             {deliv==="np"&&<div style={{marginTop:6}}><select className="form-input" style={{maxWidth:220,fontSize:13,padding:"6px 10px"}} value={parsed.payment} onChange={e=>setParsed({...parsed,payment:e.target.value})}><option value="cod">Наложка</option><option value="control">Контроль оплати</option></select></div>}
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6,marginTop:8}}>
+              <div className="form-group" style={{marginBottom:0}}><label style={{fontSize:10,fontWeight:700,color:"var(--text2)"}}>Сума наложки \u20B4</label><input className="form-input" type="number" min="0" placeholder="0" value={codAmount} onChange={e=>setCodAmount(e.target.value)} style={{fontSize:12}}/></div>
+              <div className="form-group" style={{marginBottom:0}}><label style={{fontSize:10,fontWeight:700,color:"var(--text2)"}}>Передоплата \u20B4</label><input className="form-input" type="number" min="0" placeholder="0" value={prepay} onChange={e=>setPrepay(e.target.value)} style={{fontSize:12}}/></div>
+            </div>
+            <div className="form-group" style={{marginBottom:0,marginTop:6}}><label style={{fontSize:10,fontWeight:700,color:"var(--text2)"}}>Коментар</label><input className="form-input" placeholder="Нотатка до замовлення..." value={comment} onChange={e=>setComment(e.target.value)} style={{fontSize:12}}/></div>
           </div>}
         </div>}
       </div>}
@@ -1248,10 +1256,10 @@ function OrdersListPage({orders,setOrders}){
       <table className="tbl"><thead><tr><th>Дата</th><th>Клієнт</th><th>Тел</th><th>Доставка</th><th>Сума</th><th>Оплата</th><th>ТТН</th><th>Статус</th><th></th></tr></thead><tbody>
         {sorted.map(o=><tr key={o.id}>
           <td style={{whiteSpace:"nowrap",fontSize:12}}>{new Date(o.date).toLocaleDateString("uk-UA")}</td>
-          <td style={{fontWeight:600}}>{o.client}</td>
+          <td><div style={{fontWeight:600}}>{o.client}</div>{o.comment&&<div style={{fontSize:10,color:"var(--text2)",maxWidth:160,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}} title={o.comment}>{o.comment}</div>}</td>
           <td style={{fontSize:12,color:"var(--text2)"}}>{o.phone||"—"}</td>
           <td style={{fontSize:11}}>{o.deliveryType==="np"?`${o.city}${o.npBranch?` №${o.npBranch}`:""}`:<span style={{color:"var(--pink2)"}}>Студія</span>}</td>
-          <td style={{fontWeight:700}}>{fmt(o.total)}</td>
+          <td><div style={{fontWeight:700}}>{fmt(o.total)}</div>{o.codAmount!=null&&<div style={{fontSize:10,color:"var(--gold)"}}>Нал: {fmt(o.codAmount)}</div>}{o.prepayment!=null&&o.prepayment>0&&<div style={{fontSize:10,color:"var(--green)"}}>Передопл: {fmt(o.prepayment)}</div>}</td>
           <td>{o.deliveryType==="np"?(o.payment==="cod"?<span className="badge badge-amber">Нал</span>:<span className="badge badge-blue">Контр</span>):"—"}</td>
           <td>{o.ttn?<div><span className="ttn-value" onClick={()=>{navigator.clipboard.writeText(o.ttn).catch(()=>{})}} title="Копіювати">{o.ttn}</span><TTNStatus ttn={o.ttn}/></div>:o.deliveryType==="np"?<span style={{fontSize:11,color:"var(--text2)"}}>{"—"}</span>:"—"}</td>
           <td><span className={`badge ${STCLS[o.status]}`}>{STATUSES[o.status]}</span></td>
@@ -1293,6 +1301,9 @@ function OrdersListPage({orders,setOrders}){
         <div className="form-group" style={{marginBottom:0}}><label className="form-label">Статус</label><select className="form-input" value={editO.status} onChange={e=>setEditO({...editO,status:e.target.value})}>
           {Object.entries(STATUSES).map(([k,v])=><option key={k} value={k}>{v}</option>)}
         </select></div>
+        <div className="form-group" style={{marginBottom:0}}><label className="form-label">Сума наложки \u20B4</label><input className="form-input" type="number" min="0" value={editO.codAmount!=null?editO.codAmount:""} onChange={e=>setEditO({...editO,codAmount:e.target.value!==""?Number(e.target.value):null})}/></div>
+        <div className="form-group" style={{marginBottom:0}}><label className="form-label">Передоплата \u20B4</label><input className="form-input" type="number" min="0" value={editO.prepayment!=null?editO.prepayment:""} onChange={e=>setEditO({...editO,prepayment:e.target.value!==""?Number(e.target.value):null})}/></div>
+        <div className="form-group" style={{marginBottom:0,gridColumn:"1 / -1"}}><label className="form-label">Коментар</label><input className="form-input" placeholder="Нотатка до замовлення..." value={editO.comment||""} onChange={e=>setEditO({...editO,comment:e.target.value})}/></div>
       </div>
       <div style={{marginBottom:12}}>
         <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",color:"var(--text2)",marginBottom:6}}>Товари</div>
@@ -1521,8 +1532,8 @@ const SUPABASE_KEY="sb_publishable__o56Y-ust_UvMqvi9yWC8Q_qyjjkf0S";
 const supabase=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 
 // Helper: map DB row (snake_case) → app object (camelCase) for orders
-const mapOrderFromDB=r=>({id:r.id,client:r.client,phone:r.phone,city:r.city,npBranch:r.np_branch,payment:r.payment,deliveryType:r.delivery_type,items:r.items,total:Number(r.total),totalCost:Number(r.total_cost),date:r.date,status:r.status,ttn:r.ttn});
-const mapOrderToDB=o=>({id:o.id,client:o.client,phone:o.phone||"",city:o.city||"",np_branch:o.npBranch||"",payment:o.payment||"cod",delivery_type:o.deliveryType||"np",items:o.items,total:o.total,total_cost:o.totalCost,date:o.date,status:o.status,ttn:o.ttn||""});
+const mapOrderFromDB=r=>({id:r.id,client:r.client,phone:r.phone,city:r.city,npBranch:r.np_branch,payment:r.payment,deliveryType:r.delivery_type,items:r.items,total:Number(r.total),totalCost:Number(r.total_cost),date:r.date,status:r.status,ttn:r.ttn,codAmount:r.cod_amount!=null?Number(r.cod_amount):null,prepayment:r.prepayment!=null?Number(r.prepayment):null,comment:r.comment||""});
+const mapOrderToDB=o=>({id:o.id,client:o.client,phone:o.phone||"",city:o.city||"",np_branch:o.npBranch||"",payment:o.payment||"cod",delivery_type:o.deliveryType||"np",items:o.items,total:o.total,total_cost:o.totalCost,date:o.date,status:o.status,ttn:o.ttn||"",cod_amount:o.codAmount!=null?o.codAmount:null,prepayment:o.prepayment!=null?o.prepayment:null,comment:o.comment||""});
 
 const mapClientFromDB=r=>({id:r.id,name:r.name,phone:r.phone,city:r.city,npBranch:r.np_branch,created:r.created});
 const mapClientToDB=c=>({id:c.id,name:c.name,phone:c.phone||"",city:c.city||"",np_branch:c.npBranch||"",created:c.created});
@@ -1662,7 +1673,7 @@ function BulkImportPage({orders,setOrders,products,clients,setClients}){
       if(!o.name||!o.items.length)return;
       const total=o.items.reduce((s,i)=>s+i.price*i.qty,0);
       const totalCost=o.items.reduce((s,i)=>s+(i.cost||0)*i.qty,0);
-      newOrders.push({id:Date.now()+idx*7,client:o.name,phone:o.phone,city:o.city,npBranch:o.branch,payment:o.payment,deliveryType:'np',items:[...o.items],total,totalCost,date:new Date().toISOString(),status:'new',ttn:''});
+      newOrders.push({id:Date.now()+idx*7,client:o.name,phone:o.phone,city:o.city,npBranch:o.branch,payment:o.payment,deliveryType:'np',items:[...o.items],total,totalCost,date:new Date().toISOString(),status:'new',ttn:'',codAmount:o.codAmount!=null?o.codAmount:null,prepayment:o.prepayAmount!=null?o.prepayAmount:null,comment:o.comment||""});
       if(o.phone&&!clients.find(c=>c.phone===o.phone)&&!newClients.find(c=>c.phone===o.phone)){
         newClients.push({id:Date.now()+idx*7+1,name:o.name,phone:o.phone,city:o.city,npBranch:o.branch,created:new Date().toISOString()});
       }
@@ -1733,7 +1744,7 @@ function BulkImportPage({orders,setOrders,products,clients,setClients}){
           <button className="btn btn-secondary btn-xs" onClick={()=>addItemTo(idx)} disabled={!addProd[idx]}>+</button>
         </div>
       </div>
-      <div style={{display:"flex",gap:12,alignItems:"center",flexWrap:"wrap",fontSize:12}}>
+      <div style={{display:"grid",gridTemplateColumns:"auto 1fr 1fr 1fr",gap:8,alignItems:"center",fontSize:12,marginBottom:8}}>
         <div style={{display:"flex",alignItems:"center",gap:4}}>
           <span style={{color:"var(--text2)"}}>Оплата:</span>
           <select className="form-input" value={o.payment} onChange={e=>upd(idx,'payment',e.target.value)} style={{fontSize:11,padding:"3px 6px",width:"auto"}}>
@@ -1741,11 +1752,16 @@ function BulkImportPage({orders,setOrders,products,clients,setClients}){
             <option value="control">Оплачено/Передоплата</option>
           </select>
         </div>
-        {o.paid&&<span className="badge badge-green" style={{fontSize:10}}>Оплачено{o.prepaid>0?` ${o.prepaid} ₴`:''}</span>}
-        {!o.paid&&o.prepaid>0&&<span className="badge badge-blue" style={{fontSize:10}}>Передоплата {o.prepaid} ₴</span>}
+        <div><label style={{fontSize:10,fontWeight:700,color:"var(--text2)"}}>Наложка \u20B4</label><input className="form-input" type="number" min="0" placeholder="0" value={o.codAmount!=null?o.codAmount:""} onChange={e=>upd(idx,'codAmount',e.target.value!==""?Number(e.target.value):null)} style={{fontSize:11,marginTop:2,padding:"3px 6px"}}/></div>
+        <div><label style={{fontSize:10,fontWeight:700,color:"var(--text2)"}}>Передоплата \u20B4</label><input className="form-input" type="number" min="0" placeholder="0" value={o.prepayAmount!=null?o.prepayAmount:""} onChange={e=>upd(idx,'prepayAmount',e.target.value!==""?Number(e.target.value):null)} style={{fontSize:11,marginTop:2,padding:"3px 6px"}}/></div>
+        <div><label style={{fontSize:10,fontWeight:700,color:"var(--text2)"}}>Коментар</label><input className="form-input" placeholder="..." value={o.comment||""} onChange={e=>upd(idx,'comment',e.target.value)} style={{fontSize:11,marginTop:2,padding:"3px 6px"}}/></div>
+      </div>
+      <div style={{display:"flex",gap:12,alignItems:"center",flexWrap:"wrap",fontSize:12}}>
+        {o.paid&&<span className="badge badge-green" style={{fontSize:10}}>Оплачено{o.prepaid>0?` ${o.prepaid} \u20B4`:''}</span>}
+        {!o.paid&&o.prepaid>0&&<span className="badge badge-blue" style={{fontSize:10}}>Передоплата {o.prepaid} \u20B4</span>}
         {o.items.length>0&&<span style={{fontWeight:700,marginLeft:"auto"}}>Разом: {fmt(o.items.reduce((s,x)=>s+x.price*x.qty,0))}</span>}
       </div>
-      {o.notes&&o.notes.length>0&&<div style={{marginTop:6,fontSize:11,color:"var(--text2)",fontStyle:"italic"}}>{"\uD83D\uDCDD"} {o.notes.join(' · ')}</div>}
+      {o.notes&&o.notes.length>0&&<div style={{marginTop:6,fontSize:11,color:"var(--text2)",fontStyle:"italic"}}>{"\uD83D\uDCDD"} {o.notes.join(' \u00B7 ')}</div>}
     </div>);})}
 
     <div style={{marginTop:16,display:"flex",gap:8,justifyContent:"center",paddingBottom:40}}>
@@ -1819,71 +1835,4 @@ function App(){
   useEffect(()=>{LS.set("products",products);if(synced&&!fromRT.current)DB.upsertMany("products",products);},[products]);
   useEffect(()=>{LS.set("orders",orders);if(synced&&!fromRT.current)DB.upsertMany("orders",orders.map(mapOrderToDB));},[orders]);
   useEffect(()=>{LS.set("clients",clients);if(synced&&!fromRT.current)DB.upsertMany("clients",clients.map(mapClientToDB));},[clients]);
-  useEffect(()=>{LS.set("expenses",expenses);if(synced&&!fromRT.current)DB.upsertMany("expenses",expenses);},[expenses]);
-
-  const logout=()=>{LS.set("user",null);setUser(null);};
-
-  if(!user) return <LoginPage onLogin={setUser}/>;
-
-  const pages=[
-    {id:"neworder",label:"Замовлення",icon:I.plus2,mob:"Нове"},
-    {id:"orders",label:"Всі замовлення",icon:I.list,mob:"Список"},
-    {id:"admin",label:"Товари",icon:I.bag,mob:"Товари"},
-    {id:"clients",label:"Клієнти",icon:I.users,mob:"Клієнти"},
-    {id:"expenses",label:"Витрати",icon:I.wallet,mob:"Витрати"},
-    {id:"bulk",label:"Масове",icon:I.bulk,mob:"Масове"},
-    {id:"dashboard",label:"Сводка",icon:I.dash,mob:"Сводка"},
-  ];
-  const todayOrders=orders.filter(o=>{const d=new Date(o.date),t=new Date();return sameDay(d,t);});
-  const todayRev=todayOrders.reduce((s,o)=>s+o.total,0);
-  const newCnt=orders.filter(o=>o.status==="new").length;
-
-  return(<div className="app">
-    <div className="sidebar">
-      <div className="sidebar-logo">{I.scissors}<span>Love Your Haire</span></div>
-      <nav className="sidebar-nav">{pages.map(p=><button key={p.id} className={`nav-item${page===p.id?' active':''}`} onClick={()=>setPage(p.id)}>{p.icon}<span>{p.label}</span>{p.id==="orders"&&newCnt>0&&<span className="nav-badge">{newCnt}</span>}</button>)}</nav>
-      <div className="sidebar-stats">
-        <div className="leopard-bg" style={{borderRadius:8,padding:"8px 10px",marginBottom:8}}>
-          <div style={{fontSize:10,fontWeight:700,color:"#5a3a1a"}}>Сьогодні</div>
-          <div style={{fontSize:16,fontWeight:800,color:"#2d1b1b"}}>{fmt(todayRev)}</div>
-          <div style={{fontSize:10,color:"#5a3a1a"}}>{todayOrders.length} замовлень</div>
-        </div>
-        <div style={{padding:"8px 0",borderTop:"1px solid rgba(0,0,0,.1)",marginTop:8}}>
-          <div style={{fontSize:11,color:"#5a3a1a"}}>{"\uD83D\uDC64"} {user.name}</div>
-          <button onClick={logout} style={{background:"none",border:"none",color:"var(--pink2)",fontSize:11,cursor:"pointer",padding:"4px 0",textDecoration:"underline"}}>Вийти</button>
-        </div>
-      </div>
-    </div>
-    <div className="main">
-      <div className="topbar">
-        <h1>{pages.find(p=>p.id===page)?.label}</h1>
-        <div style={{display:"flex",alignItems:"center",gap:12}}>
-          {syncErr
-            ?<span style={{fontSize:11,color:"var(--red)",background:"var(--red-light)",padding:"2px 8px",borderRadius:6}}>{"\u26A0\uFE0F"} {syncErr}</span>
-            :<span style={{fontSize:11,color:"var(--green)",background:"var(--green-light)",padding:"2px 8px",borderRadius:6}}>{"\u2601\uFE0F"} {"Синхронізовано"}</span>
-          }
-          <span className="topbar-date">{new Date().toLocaleDateString("uk-UA",{weekday:"short",day:"numeric",month:"long"})}</span>
-          <button onClick={logout} className="btn btn-sm btn-secondary" style={{fontSize:11,padding:"4px 10px"}}>Вийти</button>
-        </div>
-      </div>
-      <div className="content">
-        {page==="neworder"&&<NewOrderPage orders={orders} setOrders={setOrders} products={products} setProducts={setProducts} clients={clients} setClients={setClients}/>}
-        {page==="orders"&&<OrdersListPage orders={orders} setOrders={setOrders}/>}
-        {page==="admin"&&<AdminPage products={products} setProducts={setProducts}/>}
-        {page==="clients"&&<ClientsPage clients={clients} orders={orders}/>}
-        {page==="expenses"&&<ExpensesPage expenses={expenses} setExpenses={setExpenses}/>}
-        {page==="bulk"&&<BulkImportPage orders={orders} setOrders={setOrders} products={products} clients={clients} setClients={setClients}/>}
-        {page==="dashboard"&&<DashboardPage orders={orders} products={products} expenses={expenses} dateRange={dateRange} setDateRange={setDateRange}/>}
-      </div>
-    </div>
-    {/* Mobile bottom nav */}
-    <div className="mobile-nav"><div className="mobile-nav-inner">
-      {pages.map(p=><button key={p.id} className={`mob-nav-btn${page===p.id?' active':''}`} onClick={()=>setPage(p.id)}>{p.icon}<span>{p.mob}</span></button>)}
-    </div></div>
-  </div>);
-}
-
-ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
-</script>
-</body>
-</html>
+  useE
