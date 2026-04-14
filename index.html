@@ -351,11 +351,11 @@ function parseBulkOrders(rawText,products){
   function matchAlias(text){
     var t=text.toLowerCase();
     for(var alias in ALIASES){
-      if(t.indexOf(alias)\!==-1){
+      if(t.indexOf(alias)!==-1){
         var canon=ALIASES[alias];
         for(var k=0;k<prodIndex.length;k++){
           var pi=prodIndex[k];
-          if(pi.kws.some(function(kw){return kw.indexOf(canon)\!==-1;})||pi.product.name.toLowerCase().indexOf(canon)\!==-1)return pi.product;
+          if(pi.kws.some(function(kw){return kw.indexOf(canon)!==-1;})||pi.product.name.toLowerCase().indexOf(canon)!==-1)return pi.product;
         }
       }
     }
@@ -384,22 +384,22 @@ function parseBulkOrders(rawText,products){
       var matched=false;
       for(var ki=0;ki<prodIndex.length;ki++){
         var pi=prodIndex[ki];
-        if(pi.kws.some(function(kw){return cleanSeg.indexOf(kw)\!==-1;})&&\!found.find(function(f){return f.productId===pi.product.id;})){
+        if(pi.kws.some(function(kw){return cleanSeg.indexOf(kw)!==-1;})&&!found.find(function(f){return f.productId===pi.product.id;})){
           found.push({productId:pi.product.id,name:pi.product.name,price:Number(pi.product.price),cost:Number(pi.product.cost||0),qty:qty});matched=true;break;
         }
       }
-      if(\!matched){
+      if(!matched){
         var p=matchAlias(cleanSeg);
-        if(p&&\!found.find(function(f){return f.productId===p.id;})){
+        if(p&&!found.find(function(f){return f.productId===p.id;})){
           found.push({productId:p.id,name:p.name,price:Number(p.price),cost:Number(p.cost||0),qty:qty});matched=true;
         }
       }
-      if(\!matched&&/чашк|кружк/i.test(seg)){cups.push(seg);}
+      if(!matched&&/чашк|кружк/i.test(seg)){cups.push(seg);}
     }
     for(var alias in ALIASES){
-      if(low.indexOf(alias)\!==-1){
+      if(low.indexOf(alias)!==-1){
         var pa=matchAlias(alias);
-        if(pa&&\!found.find(function(f){return f.productId===pa.id;})){
+        if(pa&&!found.find(function(f){return f.productId===pa.id;})){
           found.push({productId:pa.id,name:pa.name,price:Number(pa.price),cost:Number(pa.cost||0),qty:1});
         }
       }
@@ -441,7 +441,7 @@ function parseBulkOrders(rawText,products){
 
   function tryOneLiner(line){
     var dashM=line.match(/^(.+?)\s*[-\u2013]\s*(.+)$/);
-    if(\!dashM)return null;
+    if(!dashM)return null;
     var left=dashM[1].trim();
     var right=dashM[2].trim();
     var ph=extractPhone(left);
@@ -451,7 +451,7 @@ function parseBulkOrders(rawText,products){
       var prep=0;if(amtM&&Number(amtM[1])>=100&&Number(amtM[1])<=5000)prep=Number(amtM[1]);
       if(r.products.length>0)return{phone:ph.phone,phoneName:left.replace(ph.full,'').trim(),items:r.products,prepaid:prep};
     }
-    if(/^[a-zA-Z0-9_\.]+$/.test(left)||left.indexOf('@')\!==-1){
+    if(/^[a-zA-Z0-9_\.]+$/.test(left)||left.indexOf('@')!==-1){
       var r2=findProds(right);
       var amtM2=right.match(/\s+(\d{3,4})\s*$/);
       var prep2=0;if(amtM2&&Number(amtM2[1])>=100&&Number(amtM2[1])<=5000)prep2=Number(amtM2[1]);
@@ -461,14 +461,14 @@ function parseBulkOrders(rawText,products){
   }
 
   function parseBlock(block){
-    var lines=block.split('\n').map(function(l){return stripEmoji(l).trim();}).filter(function(l){return l&&l.length>1&&\!/^(?:международка|міжнародка|международна)$/i.test(l);});
+    var lines=block.split('\n').map(function(l){return stripEmoji(l).trim();}).filter(function(l){return l&&l.length>1&&!/^(?:международка|міжнародка|международна)$/i.test(l);});
     var name='',phone='',city='',branch='',prepaid=0,paid=false,barterFlag=false,items=[],notes=[],isInternational=false;
 
     for(var oi=0;oi<lines.length;oi++){
       var ol=tryOneLiner(lines[oi]);
       if(ol){
-        if(ol.phone&&\!phone)phone=ol.phone;
-        if(ol.phoneName&&ol.phoneName.length>2&&\!name)name=ol.phoneName;
+        if(ol.phone&&!phone)phone=ol.phone;
+        if(ol.phoneName&&ol.phoneName.length>2&&!name)name=ol.phoneName;
         if(ol.instagram)notes.push('IG: '+ol.instagram);
         if(ol.items)items=items.concat(ol.items);
         if(ol.prepaid)prepaid=ol.prepaid;
@@ -479,17 +479,17 @@ function parseBulkOrders(rawText,products){
     for(var li=0;li<lines.length;li++){
       var line=lines[li];
       var low=line.toLowerCase();
-      if(\!line||line.length<2)continue;
+      if(!line||line.length<2)continue;
 
       var complexM=line.match(/([А-ЯІЇЄҐа-яіїєґ]+)\s*,\s*(?:поштомат|почтомат)\s*(\d+)\s*,\s*([А-ЯІЇЄҐа-яіїєґ\s'\u2019]+?)\s*,\s*(\+?3?8?0\d{8,9})/i);
-      if(complexM){city=complexM[1];branch='\u043F\u043E\u0448\u0442\u043E\u043C\u0430\u0442 '+complexM[2];if(\!name)name=complexM[3].trim();phone='+38'+complexM[4].replace(/^\+?3?8?/,'');continue;}
+      if(complexM){city=complexM[1];branch='\u043F\u043E\u0448\u0442\u043E\u043C\u0430\u0442 '+complexM[2];if(!name)name=complexM[3].trim();phone='+38'+complexM[4].replace(/^\+?3?8?/,'');continue;}
 
       var intlHit=false;
-      for(var ci=0;ci<INTL_COUNTRIES.length;ci++){if(low.indexOf(INTL_COUNTRIES[ci])\!==-1){isInternational=true;intlHit=true;if(\!city)city=line;break;}}
+      for(var ci=0;ci<INTL_COUNTRIES.length;ci++){if(low.indexOf(INTL_COUNTRIES[ci])!==-1){isInternational=true;intlHit=true;if(!city)city=line;break;}}
       if(intlHit)continue;
 
       var hasProductHint=/еминем|эминем|эмигем|памела|бр[іи]тн|краш|crush|eminem|pamela|snoop|prodigy|футболк|чашк|паста|спрей|кондиц|шампунь|lohan|lindsay|playboy|beavis|love is|rebel|pussy|masturbat|tommy|curly|beach|deep clean|everyday/i.test(low);
-      if(\!hasProductHint){
+      if(!hasProductHint){
         var payR=parsePay(low);
         if(payR){
           if(payR.type==='full'){paid=true;}
@@ -505,13 +505,13 @@ function parseBulkOrders(rawText,products){
       var cups=prodResult.cups;
       if(prods.length>0){
         for(var pi2=0;pi2<prods.length;pi2++){
-          if(\!items.find(function(ei){return ei.productId===prods[pi2].productId;}))items.push(prods[pi2]);
+          if(!items.find(function(ei){return ei.productId===prods[pi2].productId;}))items.push(prods[pi2]);
         }
         if(cups.length>0){for(var ci2=0;ci2<cups.length;ci2++)notes.push('\u0447\u0430\u0448\u043A\u0430: '+cups[ci2]);}
         var trailM=low.match(/\s(\d{3,4})\s*$/);
-        if(trailM&&\!prepaid){
+        if(trailM&&!prepaid){
           var tAmt=Number(trailM[1]);
-          if(\!prods.some(function(pp){return pp.price===tAmt;})&&tAmt>=100&&tAmt<=5000)prepaid=tAmt;
+          if(!prods.some(function(pp){return pp.price===tAmt;})&&tAmt>=100&&tAmt<=5000)prepaid=tAmt;
         }
         continue;
       }
@@ -519,20 +519,20 @@ function parseBulkOrders(rawText,products){
 
       var phResult=extractPhone(line);
       if(phResult&&phResult.phone.length>=10){
-        if(\!phone)phone=phResult.phone;
+        if(!phone)phone=phResult.phone;
         var rest=line.replace(phResult.full,'').replace(/\+?380?\s*/g,'').replace(/Укр\.?\s*номер/gi,'').replace(/Молдав\w+\s*номер/gi,'').trim();
-        if(rest&&rest.length>3&&/^[А-ЯІЇЄҐа-яіїєґA-Za-z\s'\u2019`.\-]+$/.test(rest)&&\!name)name=rest;
+        if(rest&&rest.length>3&&/^[А-ЯІЇЄҐа-яіїєґA-Za-z\s'\u2019`.\-]+$/.test(rest)&&!name)name=rest;
         continue;
       }
       if(/^\+?\d[\d\s\.\-]{7,}$/.test(line.trim())){
         var dd=line.replace(/[\s\.\-]/g,'');
-        if(\!phone)phone=dd.charAt(0)==='+'?dd:(dd.charAt(0)==='0'?'+38'+dd:'+'+dd);
+        if(!phone)phone=dd.charAt(0)==='+'?dd:(dd.charAt(0)==='0'?'+38'+dd:'+'+dd);
         continue;
       }
 
       if(isInternational){
         if(/^[A-Za-z\u0410-\u044F\u0406\u0407\u0404\u0490\u0456\u0457\u0454\u0491\s,.\-'\u20190-9\/]+$/.test(line)&&line.length>2){
-          if(\!city)city=line;
+          if(!city)city=line;
           else city=city+', '+line;
         }
         continue;
@@ -541,7 +541,7 @@ function parseBulkOrders(rawText,products){
       var poshtM=line.match(/(?:поштомат|почтомат)\s*(\d{4,6})/i);
       if(poshtM){branch='\u043F\u043E\u0448\u0442\u043E\u043C\u0430\u0442 '+poshtM[1];
         var before=line.substring(0,line.toLowerCase().indexOf(poshtM[0].toLowerCase())).replace(/[,]/g,'').trim();
-        if(before&&\!city)city=before;
+        if(before&&!city)city=before;
         continue;
       }
 
@@ -552,10 +552,10 @@ function parseBulkOrders(rawText,products){
       var brFound=false;
       for(var bi=0;bi<brPatterns.length;bi++){
         var brM=line.match(brPatterns[bi]);
-        if(brM&&\!branch){branch=brM[1];
+        if(brM&&!branch){branch=brM[1];
           var bIdx=line.toLowerCase().indexOf(brM[0].toLowerCase());
           var bBefore=line.substring(0,bIdx).trim();
-          if(bBefore){var bc=bBefore.replace(/^(?:м\.\s*|місто\s+|село\s+|с\.\s*|смт\.?\s*|пгт\.?\s*|селище\s+)/i,'').replace(/[,]/g,'').trim();if(bc&&\!city&&/^[А-ЯІЇЄҐа-яіїєґ\s\-'\u2019]+$/i.test(bc))city=bc;}
+          if(bBefore){var bc=bBefore.replace(/^(?:м\.\s*|місто\s+|село\s+|с\.\s*|смт\.?\s*|пгт\.?\s*|селище\s+)/i,'').replace(/[,]/g,'').trim();if(bc&&!city&&/^[А-ЯІЇЄҐа-яіїєґ\s\-'\u2019]+$/i.test(bc))city=bc;}
           brFound=true;break;
         }
       }
@@ -563,28 +563,28 @@ function parseBulkOrders(rawText,products){
 
       var isCity2=false;
       for(var ci3=0;ci3<CITIES_LIST.length;ci3++){
-        if(low.indexOf(CITIES_LIST[ci3])\!==-1){isCity2=true;
+        if(low.indexOf(CITIES_LIST[ci3])!==-1){isCity2=true;
           city=line.replace(/^(?:місто\s+|м\.?\s*)/i,'').trim();
           var cRe=new RegExp(CITIES_LIST[ci3].replace(/\s/g,'\\s*')+'\\s+(\\d{1,5})');
           var afterM=low.match(cRe);
-          if(afterM&&\!branch){branch=afterM[1];city=city.replace(/\s+\d{1,5}/,'').trim();}
+          if(afterM&&!branch){branch=afterM[1];city=city.replace(/\s+\d{1,5}/,'').trim();}
           city=city.replace(/,?\s*(?:нова[яї]?\s*пошт\w*|новая\s*почта)\s*\d*/gi,'').replace(/(?:^|,)\s*\bгород\b\s*/gi,'').replace(/\(.*?\)/g,'').replace(/\s{2,}/g,' ').trim();
           break;
         }
       }
       if(isCity2)continue;
-      if(/обл\.?$|обл(?:\s|$)|область|район/i.test(low)){if(\!city)city=line;else city=line+', '+city;continue;}
+      if(/обл\.?$|обл(?:\s|$)|область|район/i.test(low)){if(!city)city=line;else city=line+', '+city;continue;}
       if(/^(?:м\.?\s*|місто\s+|село\s+|с\.\s*|смт\.?\s*|пгт\.?\s*|селище\s+)/i.test(line)&&line.length>3){city=line.replace(/^(?:місто\s+|м\.?\s*|село\s+|с\.\s*|смт\.?\s*|пгт\.?\s*|селище\s+)/i,'').trim();continue;}
 
       var cbM=line.match(/^([А-ЯІЇЄҐа-яіїєґ'\u2019\-]+(?:\s+[А-ЯІЇЄҐа-яіїєґ'\u2019\-]+)*)\s+(\d{1,5})$/);
-      if(cbM&&\!city){city=cbM[1].trim();if(\!branch)branch=cbM[2];continue;}
+      if(cbM&&!city){city=cbM[1].trim();if(!branch)branch=cbM[2];continue;}
 
-      if(/^[А-ЯІЇЄҐа-яіїєґA-Za-z\s'\u2019`.\-()]+$/.test(line)&&line.split(/\s+/).length>=2&&\!name){
-        if(\!/обл|район|область/i.test(line)){name=line.replace(/\(.*?\)/g,'').trim();continue;}
+      if(/^[А-ЯІЇЄҐа-яіїєґA-Za-z\s'\u2019`.\-()]+$/.test(line)&&line.split(/\s+/).length>=2&&!name){
+        if(!/обл|район|область/i.test(line)){name=line.replace(/\(.*?\)/g,'').trim();continue;}
       }
 
       if(/^[А-ЯІЇЄҐа-яіїєґ'\u2019\-]+$/.test(line.trim())&&line.length>2){
-        if(\!city)city=line;else if(\!name)name=line;continue;
+        if(!city)city=line;else if(!name)name=line;continue;
       }
 
       if(line.trim())notes.push(line);
@@ -649,11 +649,11 @@ function DashboardPage({orders,products,expenses,dateRange,setDateRange}){
   const[selStart,setSelStart]=useState(true);
   const[expandDate,setExpandDate]=useState(null);
   const fOrders=useMemo(()=>{
-    if(\!dateRange.start||\!dateRange.end)return orders;
+    if(!dateRange.start||!dateRange.end)return orders;
     return orders.filter(o=>{const d=new Date(o.date);const s=new Date(dateRange.start);s.setHours(0,0,0,0);const e=new Date(dateRange.end);e.setHours(23,59,59,999);return d>=s&&d<=e;});
   },[orders,dateRange]);
   const fExpenses=useMemo(()=>{
-    if(\!dateRange.start||\!dateRange.end)return expenses;
+    if(!dateRange.start||!dateRange.end)return expenses;
     return expenses.filter(x=>{const d=new Date(x.date);const s=new Date(dateRange.start);s.setHours(0,0,0,0);const e=new Date(dateRange.end);e.setHours(23,59,59,999);return d>=s&&d<=e;});
   },[expenses,dateRange]);
 
@@ -676,7 +676,7 @@ function DashboardPage({orders,products,expenses,dateRange,setDateRange}){
     const m={};
     fOrders.forEach(o=>o.items.forEach(it=>{
       const k=it.name;
-      if(\!m[k])m[k]={name:k,qty:0,rev:0,profit:0};
+      if(!m[k])m[k]={name:k,qty:0,rev:0,profit:0};
       m[k].qty+=it.qty;m[k].rev+=it.price*it.qty;m[k].profit+=(it.price-it.cost)*it.qty;
     }));
     return Object.values(m).sort((a,b)=>b.qty-a.qty).slice(0,8);
@@ -687,7 +687,7 @@ function DashboardPage({orders,products,expenses,dateRange,setDateRange}){
     const m={};
     fOrders.forEach(o=>{
       const k=o.client;
-      if(\!m[k])m[k]={name:k,orders:0,total:0};
+      if(!m[k])m[k]={name:k,orders:0,total:0};
       m[k].orders++;m[k].total+=o.total;
     });
     return Object.values(m).sort((a,b)=>b.total-a.total).slice(0,5);
@@ -710,7 +710,7 @@ function DashboardPage({orders,products,expenses,dateRange,setDateRange}){
   // Status breakdown
   const statusCounts=useMemo(()=>{
     const m={new:0,ttn:0,shipped:0,delivered:0,studio:0};
-    fOrders.forEach(o=>{if(m[o.status]\!==undefined)m[o.status]++;});
+    fOrders.forEach(o=>{if(m[o.status]!==undefined)m[o.status]++;});
     return m;
   },[fOrders]);
 
@@ -731,7 +731,7 @@ function DashboardPage({orders,products,expenses,dateRange,setDateRange}){
 
   // Group orders by date
   const ordersByDate=useMemo(()=>{
-    const m={};fOrders.forEach(o=>{const dk=new Date(o.date).toLocaleDateString("uk-UA");if(\!m[dk])m[dk]=[];m[dk].push(o);});return m;
+    const m={};fOrders.forEach(o=>{const dk=new Date(o.date).toLocaleDateString("uk-UA");if(!m[dk])m[dk]=[];m[dk].push(o);});return m;
   },[fOrders]);
   const dateKeys=Object.keys(ordersByDate).reverse();
 
@@ -1102,7 +1102,7 @@ function NewOrderPage({orders,setOrders,products,setProducts,clients,setClients}
     const cn=parsed.name.trim();if(!cn||!items.length){alert("Ім'я + товар");return;}
     const total=items.reduce((s,i)=>s+i.price*i.qty,0);
     const totalCost=items.reduce((s,i)=>s+i.cost*i.qty,0);
-    const order={id:Date.now(),client:cn,phone:parsed.phone,city:deliv==="np"?parsed.city:"",npBranch:deliv==="np"?parsed.npBranch:"",payment:deliv==="np"?parsed.payment:"cash",deliveryType:deliv,items:[...items],total,totalCost,date:new Date().toISOString(),status:deliv==="np"?"new":"studio",ttn:"",codAmount:codAmount\!==""?Number(codAmount):null,prepayment:prepay\!==""?Number(prepay):null,comment:comment.trim()};
+    const order={id:Date.now(),client:cn,phone:parsed.phone,city:deliv==="np"?parsed.city:"",npBranch:deliv==="np"?parsed.npBranch:"",payment:deliv==="np"?parsed.payment:"cash",deliveryType:deliv,items:[...items],total,totalCost,date:new Date().toISOString(),status:deliv==="np"?"new":"studio",ttn:"",codAmount:codAmount!==""?Number(codAmount):null,prepayment:prepay!==""?Number(prepay):null,comment:comment.trim()};
     setProducts(products.map(p=>{const it=items.find(i=>i.productId===p.id);return it&&p.type==="product"?{...p,stock:p.stock-it.qty}:p;}));
     setOrders([...orders,order]);
     // Upsert client
@@ -1259,7 +1259,7 @@ function OrdersListPage({orders,setOrders}){
           <td><div style={{fontWeight:600}}>{o.client}</div>{o.comment&&<div style={{fontSize:10,color:"var(--text2)",maxWidth:160,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}} title={o.comment}>{o.comment}</div>}</td>
           <td style={{fontSize:12,color:"var(--text2)"}}>{o.phone||"—"}</td>
           <td style={{fontSize:11}}>{o.deliveryType==="np"?`${o.city}${o.npBranch?` №${o.npBranch}`:""}`:<span style={{color:"var(--pink2)"}}>Студія</span>}</td>
-          <td><div style={{fontWeight:700}}>{fmt(o.total)}</div>{o.codAmount\!=null&&<div style={{fontSize:10,color:"var(--gold)"}}>{"Нал: "}{fmt(o.codAmount)}</div>}{o.prepayment\!=null&&o.prepayment>0&&<div style={{fontSize:10,color:"var(--green)"}}>{"Передопл: "}{fmt(o.prepayment)}</div>}</td>
+          <td><div style={{fontWeight:700}}>{fmt(o.total)}</div>{o.codAmount!=null&&<div style={{fontSize:10,color:"var(--gold)"}}>{"Нал: "}{fmt(o.codAmount)}</div>}{o.prepayment!=null&&o.prepayment>0&&<div style={{fontSize:10,color:"var(--green)"}}>{"Передопл: "}{fmt(o.prepayment)}</div>}</td>
           <td>{o.deliveryType==="np"?(o.payment==="cod"?<span className="badge badge-amber">Нал</span>:<span className="badge badge-blue">Контр</span>):"—"}</td>
           <td>{o.ttn?<div><span className="ttn-value" onClick={()=>{navigator.clipboard.writeText(o.ttn).catch(()=>{})}} title="Копіювати">{o.ttn}</span><TTNStatus ttn={o.ttn}/></div>:o.deliveryType==="np"?<span style={{fontSize:11,color:"var(--text2)"}}>{"—"}</span>:"—"}</td>
           <td><span className={`badge ${STCLS[o.status]}`}>{STATUSES[o.status]}</span></td>
@@ -1301,8 +1301,8 @@ function OrdersListPage({orders,setOrders}){
         <div className="form-group" style={{marginBottom:0}}><label className="form-label">Статус</label><select className="form-input" value={editO.status} onChange={e=>setEditO({...editO,status:e.target.value})}>
           {Object.entries(STATUSES).map(([k,v])=><option key={k} value={k}>{v}</option>)}
         </select></div>
-        <div className="form-group" style={{marginBottom:0}}><label className="form-label">{"Сума наложки \u20B4"}</label><input className="form-input" type="number" min="0" value={editO.codAmount\!=null?editO.codAmount:""} onChange={e=>setEditO({...editO,codAmount:e.target.value\!==""?Number(e.target.value):null})}/></div>
-        <div className="form-group" style={{marginBottom:0}}><label className="form-label">{"Передоплата \u20B4"}</label><input className="form-input" type="number" min="0" value={editO.prepayment\!=null?editO.prepayment:""} onChange={e=>setEditO({...editO,prepayment:e.target.value\!==""?Number(e.target.value):null})}/></div>
+        <div className="form-group" style={{marginBottom:0}}><label className="form-label">{"Сума наложки \u20B4"}</label><input className="form-input" type="number" min="0" value={editO.codAmount!=null?editO.codAmount:""} onChange={e=>setEditO({...editO,codAmount:e.target.value!==""?Number(e.target.value):null})}/></div>
+        <div className="form-group" style={{marginBottom:0}}><label className="form-label">{"Передоплата \u20B4"}</label><input className="form-input" type="number" min="0" value={editO.prepayment!=null?editO.prepayment:""} onChange={e=>setEditO({...editO,prepayment:e.target.value!==""?Number(e.target.value):null})}/></div>
         <div className="form-group" style={{marginBottom:0,gridColumn:"1 / -1"}}><label className="form-label">Коментар</label><input className="form-input" placeholder="Нотатка до замовлення..." value={editO.comment||""} onChange={e=>setEditO({...editO,comment:e.target.value})}/></div>
       </div>
       <div style={{marginBottom:12}}>
@@ -1532,8 +1532,8 @@ const SUPABASE_KEY="sb_publishable__o56Y-ust_UvMqvi9yWC8Q_qyjjkf0S";
 const supabase=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 
 // Helper: map DB row (snake_case) → app object (camelCase) for orders
-const mapOrderFromDB=r=>({id:r.id,client:r.client,phone:r.phone,city:r.city,npBranch:r.np_branch,payment:r.payment,deliveryType:r.delivery_type,items:r.items,total:Number(r.total),totalCost:Number(r.total_cost),date:r.date,status:r.status,ttn:r.ttn,codAmount:r.cod_amount\!=null?Number(r.cod_amount):null,prepayment:r.prepayment\!=null?Number(r.prepayment):null,comment:r.comment||""});
-const mapOrderToDB=o=>({id:o.id,client:o.client,phone:o.phone||"",city:o.city||"",np_branch:o.npBranch||"",payment:o.payment||"cod",delivery_type:o.deliveryType||"np",items:o.items,total:o.total,total_cost:o.totalCost,date:o.date,status:o.status,ttn:o.ttn||"",cod_amount:o.codAmount\!=null?o.codAmount:null,prepayment:o.prepayment\!=null?o.prepayment:null,comment:o.comment||""});
+const mapOrderFromDB=r=>({id:r.id,client:r.client,phone:r.phone,city:r.city,npBranch:r.np_branch,payment:r.payment,deliveryType:r.delivery_type,items:r.items,total:Number(r.total),totalCost:Number(r.total_cost),date:r.date,status:r.status,ttn:r.ttn,codAmount:r.cod_amount!=null?Number(r.cod_amount):null,prepayment:r.prepayment!=null?Number(r.prepayment):null,comment:r.comment||""});
+const mapOrderToDB=o=>({id:o.id,client:o.client,phone:o.phone||"",city:o.city||"",np_branch:o.npBranch||"",payment:o.payment||"cod",delivery_type:o.deliveryType||"np",items:o.items,total:o.total,total_cost:o.totalCost,date:o.date,status:o.status,ttn:o.ttn||"",cod_amount:o.codAmount!=null?o.codAmount:null,prepayment:o.prepayment!=null?o.prepayment:null,comment:o.comment||""});
 
 const mapClientFromDB=r=>({id:r.id,name:r.name,phone:r.phone,city:r.city,npBranch:r.np_branch,created:r.created});
 const mapClientToDB=c=>({id:c.id,name:c.name,phone:c.phone||"",city:c.city||"",np_branch:c.npBranch||"",created:c.created});
@@ -1673,7 +1673,7 @@ function BulkImportPage({orders,setOrders,products,clients,setClients}){
       if(!o.name||!o.items.length)return;
       const total=o.items.reduce((s,i)=>s+i.price*i.qty,0);
       const totalCost=o.items.reduce((s,i)=>s+(i.cost||0)*i.qty,0);
-      newOrders.push({id:Date.now()+idx*7,client:o.name,phone:o.phone,city:o.city,npBranch:o.branch,payment:o.payment,deliveryType:'np',items:[...o.items],total,totalCost,date:new Date().toISOString(),status:'new',ttn:'',codAmount:o.codAmount\!=null?o.codAmount:null,prepayment:o.prepayAmount\!=null?o.prepayAmount:null,comment:o.comment||''});
+      newOrders.push({id:Date.now()+idx*7,client:o.name,phone:o.phone,city:o.city,npBranch:o.branch,payment:o.payment,deliveryType:'np',items:[...o.items],total,totalCost,date:new Date().toISOString(),status:'new',ttn:'',codAmount:o.codAmount!=null?o.codAmount:null,prepayment:o.prepayAmount!=null?o.prepayAmount:null,comment:o.comment||''});
       if(o.phone&&!clients.find(c=>c.phone===o.phone)&&!newClients.find(c=>c.phone===o.phone)){
         newClients.push({id:Date.now()+idx*7+1,name:o.name,phone:o.phone,city:o.city,npBranch:o.branch,created:new Date().toISOString()});
       }
@@ -1752,8 +1752,8 @@ function BulkImportPage({orders,setOrders,products,clients,setClients}){
             <option value="control">Оплачено/Передоплата</option>
           </select>
         </div>
-        <div><label style={{fontSize:10,fontWeight:700,color:"var(--text2)"}}>{"Наложка \u20B4"}</label><input className="form-input" type="number" min="0" placeholder="0" value={o.codAmount\!=null?o.codAmount:""} onChange={e=>upd(idx,'codAmount',e.target.value\!==""?Number(e.target.value):null)} style={{fontSize:11,marginTop:2,padding:"3px 6px"}}/></div>
-        <div><label style={{fontSize:10,fontWeight:700,color:"var(--text2)"}}>{"Передоплата \u20B4"}</label><input className="form-input" type="number" min="0" placeholder="0" value={o.prepayAmount\!=null?o.prepayAmount:""} onChange={e=>upd(idx,'prepayAmount',e.target.value\!==""?Number(e.target.value):null)} style={{fontSize:11,marginTop:2,padding:"3px 6px"}}/></div>
+        <div><label style={{fontSize:10,fontWeight:700,color:"var(--text2)"}}>{"Наложка \u20B4"}</label><input className="form-input" type="number" min="0" placeholder="0" value={o.codAmount!=null?o.codAmount:""} onChange={e=>upd(idx,'codAmount',e.target.value!==""?Number(e.target.value):null)} style={{fontSize:11,marginTop:2,padding:"3px 6px"}}/></div>
+        <div><label style={{fontSize:10,fontWeight:700,color:"var(--text2)"}}>{"Передоплата \u20B4"}</label><input className="form-input" type="number" min="0" placeholder="0" value={o.prepayAmount!=null?o.prepayAmount:""} onChange={e=>upd(idx,'prepayAmount',e.target.value!==""?Number(e.target.value):null)} style={{fontSize:11,marginTop:2,padding:"3px 6px"}}/></div>
         <div><label style={{fontSize:10,fontWeight:700,color:"var(--text2)"}}>Коментар</label><input className="form-input" placeholder="..." value={o.comment||""} onChange={e=>upd(idx,'comment',e.target.value)} style={{fontSize:11,marginTop:2,padding:"3px 6px"}}/></div>
       </div>
       <div style={{display:"flex",gap:12,alignItems:"center",flexWrap:"wrap",fontSize:12}}>
