@@ -4,6 +4,7 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no"/>
 <title>Love Your Haire — CRM</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💗</text></svg>"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
@@ -244,7 +245,7 @@ const sameDay=(a,b)=>a.getFullYear()===b.getFullYear()&&a.getMonth()===b.getMont
 
 // ─── Smart parser ───
 function parseClient(text){
-  let name="",phone="",city="",branch="",payment="cod";
+  let name="",phone="",city="",branch="",payment="control";
   const full=text.trim();
 
   // Known Ukrainian cities (UA + RU variants) for smart detection
@@ -255,7 +256,7 @@ function parseClient(text){
   if(phMatch){phone="+38"+phMatch[2];}
 
   // 2. Extract payment
-  if(/(?:контроль|передоплат|на\s*карт|переказ|prepaid)/i.test(full)) payment="control";
+  if(/(?:наложка|наложенн?ий|налож|нал\.?\s*плат|cod)/i.test(full)) payment="cod";
 
   // 3. Extract branch number near NP keywords
   const npExplicit=full.match(/(?:нп|нова\s*пошта|відділення|отделение|склад|відд)[^\d]*(\d{1,4})/i);
@@ -640,7 +641,7 @@ function Calendar({startDate,endDate,onSelect}){
 
 function Modal({title,onClose,children,wide}){
   return(<div className="modal-overlay" onClick={onClose}><div className="modal" style={wide?{maxWidth:640}:{}} onClick={e=>e.stopPropagation()}>
-    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}><div className="modal-title">{title}</div><button className="btn btn-secondary btn-sm" onClick={onClose}>\u2715</button></div>{children}
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}><div className="modal-title">{title}</div><button className="btn btn-secondary btn-sm" onClick={onClose}>{"✕"}</button></div>{children}
   </div></div>);
 }
 
@@ -1007,13 +1008,32 @@ function CreateTTNModal({order,onClose,onCreated}){
   const[backMoney,setBackMoney]=useState(initPT==="cod"?String(codAmt):"0");
   const[result,setResult]=useState(null);
   const[err,setErr]=useState("");
-  useEffect(()=>{NP.getSenderInfo().then(s=>{setSenderInfo(s);setLoading(false);});},[]);
+  useEffect(()=>{
+    NP.getSenderInfo().then(s=>{setSenderInfo(s);setLoading(false);});
+    // Auto-resolve receiver city + warehouse from order data
+    if(order.city){
+      NP.searchCity(order.city).then(cities=>{
+        if(cities.length>0){
+          const c=cities[0];
+          setRCityRef(c.ref);
+          setRCity(c.city||c.name);
+          // Now auto-search warehouse by branch number
+          if(order.npBranch){
+            NP.getWarehouses(c.ref,order.npBranch).then(whs=>{
+              const exact=whs.find(w=>w.num===order.npBranch)||whs[0];
+              if(exact){setWhNum(exact.num||exact.desc);setWhRef(exact.ref);}
+            });
+          }
+        }
+      });
+    }
+  },[]);
   useEffect(()=>{setBackMoney(payType==="cod"?String(codAmt):"0");},[payType]);
   const saveSW=(city,cr,wd,wr)=>{LS.set("np_sender_wh",{city,cityRef:cr,whDesc:wd,whRef:wr});setSCity(city);setSCityRef(cr);setSWhDesc(wd);setSWhRef(wr);setShowSP(false);};
   const doCreate=async()=>{
-    if(!senderInfo){setErr("\u041D\u0435 \u0432\u0434\u0430\u043B\u043E\u0441\u044F \u0437\u0430\u0432\u0430\u043D\u0442\u0430\u0436\u0438\u0442\u0438 \u0434\u0430\u043D\u0456 \u0432\u0456\u0434\u043F\u0440\u0430\u0432\u043D\u0438\u043A\u0430");return;}
-    if(!rCityRef||!whRef){setErr("\u041E\u0431\u0435\u0440\u0456\u0442\u044C \u043C\u0456\u0441\u0442\u043E \u0442\u0430 \u0432\u0456\u0434\u0434\u0456\u043B\u0435\u043D\u043D\u044F \u043E\u0442\u0440\u0438\u043C\u0443\u0432\u0430\u0447\u0430");return;}
-    if(!sWhRef&&!senderInfo.address?.ref){setErr("\u041E\u0431\u0435\u0440\u0456\u0442\u044C \u0432\u0456\u0434\u0434\u0456\u043B\u0435\u043D\u043D\u044F \u0432\u0456\u0434\u043F\u0440\u0430\u0432\u043D\u0438\u043A\u0430");return;}
+    if(!senderInfo){setErr("Не вдалося завантажити дані відправника");return;}
+    if(!rCityRef||!whRef){setErr("Оберіть місто та відділення отримувача");return;}
+    if(!sWhRef&&!senderInfo.address?.ref){setErr("Оберіть відділення відправника");return;}
     setCreating(true);setErr("");
     const params={
       PayerType:payerDel==="Sender"?"Sender":"Recipient",
@@ -1029,56 +1049,56 @@ function CreateTTNModal({order,onClose,onCreated}){
     if(payType==="cod"&&Number(backMoney)>0){params.BackwardDeliveryData=[{PayerType:"Recipient",CargoType:"Money",RedeliveryString:backMoney}];}
     const r=await NP.createTTN(params);setCreating(false);
     if(r.ok){setResult(r);if(onCreated)onCreated(r.ttn);}
-    else{setErr((r.errors||[]).join(", ")||"\u041F\u043E\u043C\u0438\u043B\u043A\u0430 \u0441\u0442\u0432\u043E\u0440\u0435\u043D\u043D\u044F");}
+    else{setErr((r.errors||[]).join(", ")||"Помилка створення");}
   };
-  if(loading)return(<Modal title="\u0421\u0442\u0432\u043E\u0440\u0438\u0442\u0438 \u0422\u0422\u041D" onClose={onClose}><div style={{textAlign:"center",padding:20,color:"var(--text2)"}}>{"\u0417\u0430\u0432\u0430\u043D\u0442\u0430\u0436\u0435\u043D\u043D\u044F \u0434\u0430\u043D\u0438\u0445 \u0432\u0456\u0434\u043F\u0440\u0430\u0432\u043D\u0438\u043A\u0430..."}</div></Modal>);
-  return(<Modal title="\u0421\u0442\u0432\u043E\u0440\u0438\u0442\u0438 \u0422\u0422\u041D" onClose={onClose} wide>
+  if(loading)return(<Modal title="Створити ТТН" onClose={onClose}><div style={{textAlign:"center",padding:20,color:"var(--text2)"}}>{"Завантаження даних відправника..."}</div></Modal>);
+  return(<Modal title="Створити ТТН" onClose={onClose} wide>
     {result?<div style={{textAlign:"center",padding:20}}>
-      <div style={{fontSize:20,fontWeight:800,color:"var(--green)",marginBottom:8}}>{"\u0422\u0422\u041D \u0441\u0442\u0432\u043E\u0440\u0435\u043D\u043E!"}</div>
+      <div style={{fontSize:20,fontWeight:800,color:"var(--green)",marginBottom:8}}>{"ТТН створено!"}</div>
       <div style={{fontSize:28,fontWeight:800,color:"var(--np-red)",background:"var(--np-light)",padding:"12px 20px",borderRadius:12,display:"inline-block"}}>{result.ttn}</div>
-      {result.estimated&&<div style={{marginTop:8,fontSize:12,color:"var(--text2)"}}>{"\u041E\u0447\u0456\u043A. \u0434\u043E\u0441\u0442\u0430\u0432\u043A\u0430: "}{result.estimated}</div>}
-      {result.cost&&<div style={{marginTop:4,fontSize:12,color:"var(--text2)"}}>{"\u0412\u0430\u0440\u0442\u0456\u0441\u0442\u044C \u0434\u043E\u0441\u0442\u0430\u0432\u043A\u0438: "}{result.cost}{" \u0433\u0440\u043D"}</div>}
-      <div style={{marginTop:16}}><button className="btn btn-primary" onClick={onClose}>{"\u0417\u0430\u043A\u0440\u0438\u0442\u0438"}</button></div>
+      {result.estimated&&<div style={{marginTop:8,fontSize:12,color:"var(--text2)"}}>{"Очік. доставка: "}{result.estimated}</div>}
+      {result.cost&&<div style={{marginTop:4,fontSize:12,color:"var(--text2)"}}>{"Вартість доставки: "}{result.cost}{" грн"}</div>}
+      <div style={{marginTop:16}}><button className="btn btn-primary" onClick={onClose}>{"Закрити"}</button></div>
     </div>:<div>
       <div style={{background:"var(--np-light)",borderRadius:10,padding:12,marginBottom:12}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:showSP?8:0}}>
-          <div style={{fontSize:11,fontWeight:700,color:"var(--np-red)"}}>{"\u0412\u0406\u0414\u041F\u0420\u0410\u0412\u041D\u0418\u041A"}</div>
+          <div style={{fontSize:11,fontWeight:700,color:"var(--np-red)"}}>{"ВІДПРАВНИК"}</div>
           {!showSP&&<div style={{display:"flex",alignItems:"center",gap:8}}>
             <span style={{fontSize:12}}>{sCity}{sWhDesc?", "+sWhDesc:""}</span>
-            <button className="btn btn-secondary btn-xs" onClick={()=>setShowSP(true)}>{"\u0417\u043C\u0456\u043D\u0438\u0442\u0438"}</button>
+            <button className="btn btn-secondary btn-xs" onClick={()=>setShowSP(true)}>{"Змінити"}</button>
           </div>}
         </div>
         {showSP&&<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
-          <div><div style={{fontSize:10,fontWeight:700,color:"var(--text2)",marginBottom:2}}>{"\u041C\u0456\u0441\u0442\u043E \u0432\u0456\u0434\u043F\u0440\u0430\u0432\u043D\u0438\u043A\u0430"}</div><NPCityPicker value={sCity} onChange={v=>setSCity(v)} onCityRef={r=>setSCityRef(r)}/></div>
-          <div><div style={{fontSize:10,fontWeight:700,color:"var(--text2)",marginBottom:2}}>{"\u0412\u0456\u0434\u0434\u0456\u043B\u0435\u043D\u043D\u044F \u0432\u0456\u0434\u043F\u0440\u0430\u0432\u043A\u0438"}</div><NPWarehousePicker cityRef={sCityRef} value={sWhDesc} onChange={(n,d,r)=>saveSW(sCity,sCityRef,d,r)}/></div>
+          <div><div style={{fontSize:10,fontWeight:700,color:"var(--text2)",marginBottom:2}}>{"Місто відправника"}</div><NPCityPicker value={sCity} onChange={v=>setSCity(v)} onCityRef={r=>setSCityRef(r)}/></div>
+          <div><div style={{fontSize:10,fontWeight:700,color:"var(--text2)",marginBottom:2}}>{"Відділення відправки"}</div><NPWarehousePicker cityRef={sCityRef} value={sWhDesc} onChange={(n,d,r)=>saveSW(sCity,sCityRef,d,r)}/></div>
         </div>}
-        {senderInfo&&<div style={{fontSize:10,color:"var(--text2)",marginTop:4}}>{"\u041A\u043E\u043D\u0442\u0430\u043A\u0442: "}{senderInfo.contact?.name}{" | "}{senderInfo.contact?.phone}</div>}
+        {senderInfo&&<div style={{fontSize:10,color:"var(--text2)",marginTop:4}}>{"Контакт: "}{senderInfo.contact?.name}{" | "}{senderInfo.contact?.phone}</div>}
       </div>
       <div style={{marginBottom:12}}>
-        <div style={{fontSize:11,fontWeight:700,color:"var(--text2)",marginBottom:6}}>{"\u041E\u0422\u0420\u0418\u041C\u0423\u0412\u0410\u0427: "}<span style={{fontWeight:400,color:"var(--text1)"}}>{order.client}{order.phone?" | "+order.phone:""}</span></div>
+        <div style={{fontSize:11,fontWeight:700,color:"var(--text2)",marginBottom:6}}>{"ОТРИМУВАЧ: "}<span style={{fontWeight:400,color:"var(--text1)"}}>{order.client}{order.phone?" | "+order.phone:""}</span></div>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-          <div><div style={{fontSize:10,fontWeight:700,color:"var(--text2)",marginBottom:2}}>{"\u041C\u0456\u0441\u0442\u043E \u043E\u0442\u0440\u0438\u043C\u0443\u0432\u0430\u0447\u0430"}</div><NPCityPicker value={rCity} onChange={setRCity} onCityRef={setRCityRef}/></div>
-          <div><div style={{fontSize:10,fontWeight:700,color:"var(--text2)",marginBottom:2}}>{"\u0412\u0456\u0434\u0434\u0456\u043B\u0435\u043D\u043D\u044F"}</div><NPWarehousePicker cityRef={rCityRef} value={whNum} onChange={(n,d,r)=>{setWhNum(n);setWhRef(r);}}/></div>
+          <div><div style={{fontSize:10,fontWeight:700,color:"var(--text2)",marginBottom:2}}>{"Місто отримувача"}</div><NPCityPicker value={rCity} onChange={setRCity} onCityRef={setRCityRef}/></div>
+          <div><div style={{fontSize:10,fontWeight:700,color:"var(--text2)",marginBottom:2}}>{"Відділення"}</div><NPWarehousePicker cityRef={rCityRef} value={whNum} onChange={(n,d,r)=>{setWhNum(n);setWhRef(r);}}/></div>
         </div>
       </div>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:6,marginBottom:12}}>
-        {[["cod","\u041D\u0430\u043B\u043E\u0436\u043A\u0430","var(--gold)"],["control","\u041A\u043E\u043D\u0442\u0440\u043E\u043B\u044C \u043E\u043F\u043B\u0430\u0442\u0438","var(--blue)"],["prepaid","\u041F\u0435\u0440\u0435\u0434\u043E\u043F\u043B\u0430\u0442\u0430","var(--green)"]].map(([v,l,c])=>
+        {[["cod","Наложка","var(--gold)"],["control","Контроль оплати","var(--blue)"],["prepaid","Передоплата","var(--green)"]].map(([v,l,c])=>
           <button key={v} onClick={()=>setPayType(v)} style={{padding:"8px 6px",borderRadius:8,border:payType===v?"2px solid "+c:"1px solid var(--border)",background:payType===v?"#fff":"var(--surface)",fontSize:11,fontWeight:payType===v?700:400,cursor:"pointer",color:payType===v?c:"var(--text2)",textAlign:"center"}}>{l}</button>
         )}
       </div>
       <div style={{display:"grid",gridTemplateColumns:payType==="cod"?"1fr 1fr 1fr 1fr":"1fr 1fr 1fr",gap:10,marginBottom:12}}>
-        <div className="form-group" style={{marginBottom:0}}><label style={{fontSize:10,fontWeight:700,color:"var(--text2)"}}>{"\u0412\u0430\u0433\u0430 (\u043A\u0433)"}</label><input className="form-input" value={weight} onChange={e=>setWeight(e.target.value)} style={{fontSize:12}}/></div>
-        <div className="form-group" style={{marginBottom:0}}><label style={{fontSize:10,fontWeight:700,color:"var(--text2)"}}>{"\u041E\u0433\u043E\u043B. \u0432\u0430\u0440\u0442\u0456\u0441\u0442\u044C"}</label><input className="form-input" value={cost} onChange={e=>setCost(e.target.value)} style={{fontSize:12}}/></div>
-        {payType==="cod"&&<div className="form-group" style={{marginBottom:0}}><label style={{fontSize:10,fontWeight:700,color:"var(--gold)"}}>{"\u041D\u0430\u043B\u043E\u0436\u043A\u0430 \u20b4"}</label><input className="form-input" value={backMoney} onChange={e=>setBackMoney(e.target.value)} style={{fontSize:12,borderColor:"var(--gold)"}}/></div>}
-        <div className="form-group" style={{marginBottom:0}}><label style={{fontSize:10,fontWeight:700,color:"var(--text2)"}}>{"\u041F\u043B\u0430\u0442\u043D\u0438\u043A \u0434\u043E\u0441\u0442."}</label><select className="form-input" value={payerDel} onChange={e=>setPayerDel(e.target.value)} style={{fontSize:12}}><option value="Recipient">{"\u041E\u0442\u0440\u0438\u043C\u0443\u0432\u0430\u0447"}</option><option value="Sender">{"\u0412\u0456\u0434\u043F\u0440\u0430\u0432\u043D\u0438\u043A"}</option></select></div>
+        <div className="form-group" style={{marginBottom:0}}><label style={{fontSize:10,fontWeight:700,color:"var(--text2)"}}>{"Вага (кг)"}</label><input className="form-input" value={weight} onChange={e=>setWeight(e.target.value)} style={{fontSize:12}}/></div>
+        <div className="form-group" style={{marginBottom:0}}><label style={{fontSize:10,fontWeight:700,color:"var(--text2)"}}>{"Огол. вартість"}</label><input className="form-input" value={cost} onChange={e=>setCost(e.target.value)} style={{fontSize:12}}/></div>
+        {payType==="cod"&&<div className="form-group" style={{marginBottom:0}}><label style={{fontSize:10,fontWeight:700,color:"var(--gold)"}}>{"Наложка ₴"}</label><input className="form-input" value={backMoney} onChange={e=>setBackMoney(e.target.value)} style={{fontSize:12,borderColor:"var(--gold)"}}/></div>}
+        <div className="form-group" style={{marginBottom:0}}><label style={{fontSize:10,fontWeight:700,color:"var(--text2)"}}>{"Платник дост."}</label><select className="form-input" value={payerDel} onChange={e=>setPayerDel(e.target.value)} style={{fontSize:12}}><option value="Recipient">{"Отримувач"}</option><option value="Sender">{"Відправник"}</option></select></div>
       </div>
-      <div className="form-group" style={{marginBottom:12}}><label style={{fontSize:10,fontWeight:700,color:"var(--text2)"}}>{"\u041E\u043F\u0438\u0441 \u0432\u043C\u0456\u0441\u0442\u0443 (\u0432 \u0422\u0422\u041D)"}</label><input className="form-input" value={description} onChange={e=>setDescription(e.target.value)} style={{fontSize:12}}/></div>
+      <div className="form-group" style={{marginBottom:12}}><label style={{fontSize:10,fontWeight:700,color:"var(--text2)"}}>{"Опис вмісту (в ТТН)"}</label><input className="form-input" value={description} onChange={e=>setDescription(e.target.value)} style={{fontSize:12}}/></div>
       <div style={{background:"var(--surface)",borderRadius:8,padding:"8px 12px",marginBottom:12,fontSize:11,color:"var(--text2)"}}>
-        {order.items.map((it,i)=><div key={i}>{it.name}{it.qty>1?" x"+it.qty:""}{" \u2014 "}{it.price}{" \u20b4"}</div>)}
-        <div style={{fontWeight:700,color:"var(--text1)",marginTop:4}}>{"\u0420\u0430\u0437\u043E\u043C: "}{order.total}{" \u20b4"}{payType==="cod"?" | \u041D\u0430\u043B\u043E\u0436\u043A\u0430: "+backMoney+" \u20b4":payType==="control"?" | \u041A\u043E\u043D\u0442\u0440\u043E\u043B\u044C \u043E\u043F\u043B\u0430\u0442\u0438":" | \u041F\u0435\u0440\u0435\u0434\u043E\u043F\u043B\u0430\u0442\u0430"}</div>
+        {order.items.map((it,i)=><div key={i}>{it.name}{it.qty>1?" x"+it.qty:""}{" — "}{it.price}{" ₴"}</div>)}
+        <div style={{fontWeight:700,color:"var(--text1)",marginTop:4}}>{"Разом: "}{order.total}{" ₴"}{payType==="cod"?" | Наложка: "+backMoney+" ₴":payType==="control"?" | Контроль оплати":" | Передоплата"}</div>
       </div>
       {err&&<div style={{color:"var(--red)",fontSize:12,marginBottom:8}}>{err}</div>}
-      <button className="btn btn-primary" onClick={doCreate} disabled={creating} style={{width:"100%"}}>{creating?"\u0421\u0442\u0432\u043E\u0440\u044E\u044E \u0422\u0422\u041D...":"\u0421\u0442\u0432\u043E\u0440\u0438\u0442\u0438 \u0422\u0422\u041D"}</button>
+      <button className="btn btn-primary" onClick={doCreate} disabled={creating} style={{width:"100%"}}>{creating?"Створюю ТТН...":"Створити ТТН"}</button>
     </div>}
   </Modal>);
 }
@@ -1086,7 +1106,7 @@ function CreateTTNModal({order,onClose,onCreated}){
 // ─── NEW ORDER ───
 function NewOrderPage({orders,setOrders,products,setProducts,clients,setClients}){
   const[raw,setRaw]=useState("");
-  const[parsed,setParsed]=useState({name:"",phone:"",city:"",npBranch:"",payment:"cod"});
+  const[parsed,setParsed]=useState({name:"",phone:"",city:"",npBranch:"",payment:"control"});
   const[editP,setEditP]=useState(false);
   const[parsedOpen,setParsedOpen]=useState(true);
   const[inputOpen,setInputOpen]=useState(true);
@@ -1105,7 +1125,7 @@ function NewOrderPage({orders,setOrders,products,setProducts,clients,setClients}
   const[whRef,setWhRef]=useState("");
   const endRef=useRef(null);
   useEffect(()=>{endRef.current?.scrollIntoView({behavior:"smooth"});},[orders,items]);
-  useEffect(()=>{if(raw.trim()){setParsed(parseClient(raw));setParsedOpen(true);}else{setParsed({name:"",phone:"",city:"",npBranch:"",payment:"cod"});}},[raw]);
+  useEffect(()=>{if(raw.trim()){setParsed(parseClient(raw));setParsedOpen(true);}else{setParsed({name:"",phone:"",city:"",npBranch:"",payment:"control"});}},[raw]);
   useEffect(()=>{if(codManual===false){const t=items.reduce((s,i)=>s+i.price*i.qty,0);const p=prepay!==""?Number(prepay):0;const d=discount!==""?Number(discount):0;const cod=Math.max(0,t-p-d);setCodAmount(t>0?String(cod):"");}},[items,prepay,discount,codManual]);
 
   const addItem=()=>{
@@ -1131,7 +1151,7 @@ function NewOrderPage({orders,setOrders,products,setProducts,clients,setClients}
     if(existC){setClients(clients.map(c=>c.id===existC.id?{...c,name:cn,city:deliv==="np"?parsed.city:c.city,npBranch:deliv==="np"?parsed.npBranch:c.npBranch}:c));}
     else{setClients([...clients,{id:Date.now(),name:cn,phone:parsed.phone,city:deliv==="np"?parsed.city:"",npBranch:deliv==="np"?parsed.npBranch:"",created:new Date().toISOString()}]);}
     setRaw("");setItems([]);setEditP(false);setParsedOpen(true);setInputOpen(true);setDeliv("np");
-    setParsed({name:"",phone:"",city:"",npBranch:"",payment:"cod"});setCodAmount("");setPrepay("");setDiscount("");setComment("");setCodManual(false);setProdCat("Все");
+    setParsed({name:"",phone:"",city:"",npBranch:"",payment:"control"});setCodAmount("");setPrepay("");setDiscount("");setComment("");setCodManual(false);setProdCat("Все");
     const nb=document.createElement("div");nb.textContent="\u2705 Замовлення додано!";Object.assign(nb.style,{position:"fixed",top:"20px",left:"50%",transform:"translateX(-50%)",background:"#22c55e",color:"#fff",padding:"12px 24px",borderRadius:"12px",fontSize:"15px",fontWeight:"600",zIndex:"9999",boxShadow:"0 4px 20px rgba(0,0,0,.25)"});document.body.appendChild(nb);setTimeout(()=>nb.remove(),2000);
   };
   const curTotal=items.reduce((s,i)=>s+i.price*i.qty,0);
@@ -1949,12 +1969,4 @@ function App(){
     </div>
     {/* Mobile bottom nav */}
     <div className="mobile-nav"><div className="mobile-nav-inner">
-      {pages.map(p=><button key={p.id} className={`mob-nav-btn${page===p.id?' active':''}`} onClick={()=>setPage(p.id)}>{p.icon}<span>{p.mob}</span></button>)}
-    </div></div>
-  </div>);
-}
-
-ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
-</script>
-</body>
-</html>
+      {pages.map(p=><button key={p.id} className={`mob-nav-btn${page===p.id?' active':''}`} onClick={()=>setPage(p.id)}>{p.icon}<sp
