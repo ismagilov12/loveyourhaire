@@ -252,6 +252,8 @@ function parseClient(text){
   let rest=full.replace(/\+?3?8?0\d{8,9}/g,"").replace(/(?:контроль\s*оплати|наложка|контроль|передоплат\w*)/gi,"").trim();
 
   // 5. Try to find city from known list (must be at word boundary)
+  // Strip "м."/"г."/"м "/"г " prefixes (місто/город) before city matching
+  rest=rest.replace(/(^|[\s\n])(?:м|г)\.?\s*(?=[A-ZА-ЯІЇЄҐ])/gm,"$1").replace(/\s+/g," ").trim();
   const restLow=rest.toLowerCase();
   let foundCity="";
   for(const c of CITIES){
@@ -1000,9 +1002,4 @@ function App(){
     </div>
     {/* Mobile bottom nav */}
     <div className="mobile-nav"><div className="mobile-nav-inner">
-      {pages.map(p=><button key={p.id} className={`mob-nav-btn${page===p.id?' active':''}`} onClick={()=>setPage(p.id)}>{p.icon}<span>{p.mob}</span></button>)}
-    </div></div>
-  </div>);
-}
-
-ReactDOM.createRoot(document.getElementById("root")).render(<App/>)
+      {pages.map(p=><button key={p.id} className={`mob-nav-btn$
