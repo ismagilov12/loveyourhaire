@@ -5,10 +5,10 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no"/>
 <title>Love Your Haire — CRM</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💗</text></svg>"/>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script crossorigin="anonymous" src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script crossorigin="anonymous" src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script crossorigin="anonymous" src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+<script crossorigin="anonymous" src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -205,9 +205,10 @@ textarea.form-input{resize:vertical;min-height:60px;line-height:1.5}
 </head>
 <body>
 <div id="root"></div>
-<div id="err-display" style="display:none;position:fixed;top:0;left:0;right:0;background:#ff4444;color:#fff;padding:16px;font-family:monospace;font-size:13px;z-index:99999;white-space:pre-wrap;max-height:40vh;overflow:auto"></div>
+<div id="err-display" style="display:none;position:fixed;top:0;left:0;right:0;background:#ff4444;color:#fff;padding:16px;font-family:monospace;font-size:13px;z-index:99999;white-space:pre-wrap;max-height:50vh;overflow:auto"></div>
 <script>
-window.onerror=function(msg,src,line,col,err){var el=document.getElementById("err-display");if(el){el.style.display="block";el.textContent+="ERROR: "+msg+"\nLine: "+line+", Col: "+col+"\n"+(err&&err.stack?err.stack:"")+"\n\n";}return false;};
+window.onerror=function(msg,src,line,col,err){var el=document.getElementById("err-display");if(el){el.style.display="block";el.textContent+="ERROR: "+msg+"\nSource: "+src+"\nLine: "+line+", Col: "+col+"\n"+(err&&err.stack?err.stack:"")+"\n\n";}return false;};
+window.addEventListener("unhandledrejection",function(e){var el=document.getElementById("err-display");if(el){el.style.display="block";el.textContent+="PROMISE ERROR: "+e.reason+"\n\n";}});
 </script>
 <script type="text/babel">
 const{useState,useEffect,useMemo,useRef}=React;
@@ -1613,7 +1614,7 @@ const LS={
 // ─── SUPABASE ───
 const SUPABASE_URL="https://fsihlzzjewhxpogvjapu.supabase.co";
 const SUPABASE_KEY="sb_publishable__o56Y-ust_UvMqvi9yWC8Q_qyjjkf0S";
-let supabase=null;try{if(window.supabase&&window.supabase.createClient){supabase=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);}else{console.warn("Supabase JS not loaded");}}catch(e){console.error("Supabase init error:",e);}
+let supabase=null;try{if(window.supabase&&window.supabase.createClient){supabase=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);}else{console.warn("Supabase not loaded");}}catch(e){console.error("Supabase init:",e);}
 
 // Helper: map DB row (snake_case) → app object (camelCase) for orders
 const mapOrderFromDB=r=>({id:r.id,client:r.client,phone:r.phone,city:r.city,npBranch:r.np_branch,payment:r.payment,deliveryType:r.delivery_type,items:r.items,total:Number(r.total),totalCost:Number(r.total_cost),date:r.date,status:r.status,ttn:r.ttn,codAmount:r.cod_amount!=null?Number(r.cod_amount):null,prepayment:r.prepayment!=null?Number(r.prepayment):null,comment:r.comment||""});
