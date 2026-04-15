@@ -385,13 +385,13 @@ function parseBulkOrders(rawText,products){
       for(var ki=0;ki<prodIndex.length;ki++){
         var pi=prodIndex[ki];
         if(pi.kws.some(function(kw){return cleanSeg.indexOf(kw)!==-1;})&&!found.find(function(f){return f.productId===pi.product.id;})){
-          found.push({productId:pi.product.id,name:pi.product.name,price:Number(pi.product.price),cost:Number(pi.product.cost||0),qty:qty});matched=true;break;
+          found.push({productId:pi.product.id,name:pi.product.name,price:Number(pi.product.price),cost:Number(pi.product.cost||0),qty:qty,type:pi.product.type||"product"});matched=true;break;
         }
       }
       if(!matched){
         var p=matchAlias(cleanSeg);
         if(p&&!found.find(function(f){return f.productId===p.id;})){
-          found.push({productId:p.id,name:p.name,price:Number(p.price),cost:Number(p.cost||0),qty:qty});matched=true;
+          found.push({productId:p.id,name:p.name,price:Number(p.price),cost:Number(p.cost||0),qty:qty,type:p.type||"product"});matched=true;
         }
       }
       if(!matched&&/чашк|кружк/i.test(seg)){cups.push(seg);}
@@ -400,7 +400,7 @@ function parseBulkOrders(rawText,products){
       if(low.indexOf(alias)!==-1){
         var pa=matchAlias(alias);
         if(pa&&!found.find(function(f){return f.productId===pa.id;})){
-          found.push({productId:pa.id,name:pa.name,price:Number(pa.price),cost:Number(pa.cost||0),qty:1});
+          found.push({productId:pa.id,name:pa.name,price:Number(pa.price),cost:Number(pa.cost||0),qty:1,type:pa.type||"product"});
         }
       }
     }
@@ -657,13 +657,9 @@ function DashboardPage({orders,products,expenses,dateRange,setDateRange}){
     return expenses.filter(x=>{const d=new Date(x.date);const s=new Date(dateRange.start);s.setHours(0,0,0,0);const e=new Date(dateRange.end);e.setHours(23,59,59,999);return d>=s&&d<=e;});
   },[expenses,dateRange]);
 
-  // Revenue & cost breakdown
-  const serviceRev=fOrders.reduce((s,o)=>s+o.items.filter(i=>i.type==="service").reduce((a,i)=>a+i.price*i.qty,0),0);
-  const serviceCost=fOrders.reduce((s,o)=>s+o.items.filter(i=>i.type==="service").reduce((a,i)=>a+i.cost*i.qty,0),0);
-  const productRev=fOrders.reduce((s,o)=>s+o.items.filter(i=>i.type==="product").reduce((a,i)=>a+i.price*i.qty,0),0);
-  const productCost=fOrders.reduce((s,o)=>s+o.items.filter(i=>i.type==="product").reduce((a,i)=>a+i.cost*i.qty,0),0);
-  const rev=serviceRev+productRev;
-  const totalCost=serviceCost+productCost;
+  // Revenue & cost breakdown (type-agnostic — items may lack type field)
+  const rev=fOrders.reduce((s,o)=>s+o.items.reduce((a,i)=>a+(Number(i.price)||0)*(Number(i.qty)||0),0),0);
+  const totalCost=fOrders.reduce((s,o)=>s+o.items.reduce((a,i)=>a+(Number(i.cost)||0)*(Number(i.qty)||0),0),0);
   const expTotal=fExpenses.reduce((s,x)=>s+x.amount,0);
   const grossProfit=rev-totalCost;
   const netProfit=grossProfit-expTotal;
@@ -1903,3 +1899,4 @@ ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
 </script>
 </body>
 </html>
+                                                                                                                                                                                                              
