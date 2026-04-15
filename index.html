@@ -234,7 +234,7 @@ const INIT_PRODUCTS=[
 const CATEGORIES=["Все","Oversize футболки","Косметика для волосся"];
 const MONTHS=["Січень","Лютий","Березень","Квітень","Травень","Червень","Липень","Серпень","Вересень","Жовтень","Листопад","Грудень"];
 const DAYS=["Пн","Вт","Ср","Чт","Пт","Сб","Нд"];
-const STATUSES={new:"Новий",ttn:"ТТН",shipped:"Відправлено",delivered:"Доставлено",studio:"Студія"};
+const STATUSES={new:"Новий",ttn:"ТТН",shipped:"Відправлено",delivered:"Доставлено",studio:"Студія",paid:"Оплачено"};
 const STCLS={new:"status-new",ttn:"status-ttn",shipped:"status-shipped",delivered:"status-delivered",studio:"status-studio"};
 const EXPENSE_CATS=["Оренда студії","Податки","Закупівля товару","Зарплата","Реклама","Інше"];
 
@@ -1097,16 +1097,20 @@ function NewOrderPage({orders,setOrders,products,setProducts,clients,setClients}
   const[items,setItems]=useState([]);
   const[codAmount,setCodAmount]=useState("");
   const[prepay,setPrepay]=useState("");
+  const[discount,setDiscount]=useState("");
   const[comment,setComment]=useState("");
+  const[prodCat,setProdCat]=useState("Все");
+  const[codManual,setCodManual]=useState(false);
   const[cityRef,setCityRef]=useState("");
   const[whRef,setWhRef]=useState("");
   const endRef=useRef(null);
   useEffect(()=>{endRef.current?.scrollIntoView({behavior:"smooth"});},[orders,items]);
   useEffect(()=>{if(raw.trim()){setParsed(parseClient(raw));setParsedOpen(true);}else{setParsed({name:"",phone:"",city:"",npBranch:"",payment:"cod"});}},[raw]);
+  useEffect(()=>{if(codManual===false){const t=items.reduce((s,i)=>s+i.price*i.qty,0);const p=prepay!==""?Number(prepay):0;const d=discount!==""?Number(discount):0;const cod=Math.max(0,t-p-d);setCodAmount(t>0?String(cod):"");}},[items,prepay,discount,codManual]);
 
   const addItem=()=>{
     const p=products.find(x=>x.id===Number(selProd));if(!p)return;
-    if(p.type==="product"&&p.stock<qty){alert("Недостатньо! Залишок: "+p.stock);return;}
+    // allow ordering even if out of stock
     const finalPrice=addPrice!==""?Number(addPrice):p.price;
     const ex=items.find(i=>i.productId===p.id);
     if(ex)setItems(items.map(i=>i.productId===p.id?{...i,qty:i.qty+qty,price:finalPrice}:i));
@@ -1118,7 +1122,7 @@ function NewOrderPage({orders,setOrders,products,setProducts,clients,setClients}
     const cn=parsed.name.trim();if(!cn||!items.length){alert("Ім'я + товар");return;}
     const total=items.reduce((s,i)=>s+i.price*i.qty,0);
     const totalCost=items.reduce((s,i)=>s+i.cost*i.qty,0);
-    const order={id:Date.now(),client:cn,phone:parsed.phone,city:deliv==="np"?parsed.city:"",npBranch:deliv==="np"?parsed.npBranch:"",payment:deliv==="np"?parsed.payment:"cash",deliveryType:deliv,items:[...items],total,totalCost,date:new Date().toISOString(),status:deliv==="np"?"new":"studio",ttn:"",codAmount:codAmount!==""?Number(codAmount):null,prepayment:prepay!==""?Number(prepay):null,comment:comment};
+    const order={id:Date.now(),client:cn,phone:parsed.phone,city:deliv==="np"?parsed.city:"",npBranch:deliv==="np"?parsed.npBranch:"",payment:deliv==="np"?parsed.payment:"cash",deliveryType:deliv,items:[...items],total,totalCost,date:new Date().toISOString(),status:(prepay!==""&&Number(prepay)>=total)?"paid":(deliv==="np"?"new":"studio"),ttn:"",codAmount:codAmount!==""?Number(codAmount):null,prepayment:prepay!==""?Number(prepay):null,discount:discount!==""?Number(discount):null,comment:comment};
     setProducts(products.map(p=>{const it=items.find(i=>i.productId===p.id);return it&&p.type==="product"?{...p,stock:p.stock-it.qty}:p;}));
     setOrders([...orders,order]);
     // Upsert client
@@ -1127,7 +1131,7 @@ function NewOrderPage({orders,setOrders,products,setProducts,clients,setClients}
     if(existC){setClients(clients.map(c=>c.id===existC.id?{...c,name:cn,city:deliv==="np"?parsed.city:c.city,npBranch:deliv==="np"?parsed.npBranch:c.npBranch}:c));}
     else{setClients([...clients,{id:Date.now(),name:cn,phone:parsed.phone,city:deliv==="np"?parsed.city:"",npBranch:deliv==="np"?parsed.npBranch:"",created:new Date().toISOString()}]);}
     setRaw("");setItems([]);setEditP(false);setParsedOpen(true);setInputOpen(true);setDeliv("np");
-    setParsed({name:"",phone:"",city:"",npBranch:"",payment:"cod"});setCodAmount("");setPrepay("");setComment("");
+    setParsed({name:"",phone:"",city:"",npBranch:"",payment:"cod"});setCodAmount("");setPrepay("");setDiscount("");setComment("");setCodManual(false);setProdCat("Все");
     const nb=document.createElement("div");nb.textContent="\u2705 Замовлення додано!";Object.assign(nb.style,{position:"fixed",top:"20px",left:"50%",transform:"translateX(-50%)",background:"#22c55e",color:"#fff",padding:"12px 24px",borderRadius:"12px",fontSize:"15px",fontWeight:"600",zIndex:"9999",boxShadow:"0 4px 20px rgba(0,0,0,.25)"});document.body.appendChild(nb);setTimeout(()=>nb.remove(),2000);
   };
   const curTotal=items.reduce((s,i)=>s+i.price*i.qty,0);
@@ -1211,22 +1215,44 @@ function NewOrderPage({orders,setOrders,products,setProducts,clients,setClients}
           </div>}
         </div>}
       </div>}
-      {items.length>0&&<div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:6,marginBottom:8}}>
-        <div className="form-group" style={{marginBottom:0}}><label className="form-label">{"Наложка \u20b4"}</label><input className="form-input" type="number" placeholder="Сума наложки" value={codAmount} onChange={e=>setCodAmount(e.target.value)}/></div>
-        <div className="form-group" style={{marginBottom:0}}><label className="form-label">{"Передоплата \u20b4"}</label><input className="form-input" type="number" placeholder="Сума передоплати" value={prepay} onChange={e=>setPrepay(e.target.value)}/></div>
-        <div className="form-group" style={{marginBottom:0}}><label className="form-label">{"Коментар"}</label><input className="form-input" placeholder="Коментар до замовлення" value={comment} onChange={e=>setComment(e.target.value)}/></div>
-      </div>}
-      <div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"flex-end"}}>
-        <div className="form-group" style={{flex:2,marginBottom:0,minWidth:180}}>
-          <select className="form-input" value={selProd} onChange={e=>{setSelProd(e.target.value);const pr=products.find(x=>x.id===Number(e.target.value));setAddPrice(pr?String(pr.price):"");}}>
-            <option value="">{"Товар / Послуга..."}</option>
-            {CATEGORIES.slice(1).map(cat=><optgroup key={cat} label={cat}>{products.filter(p=>p.category===cat).map(p=><option key={p.id} value={p.id}>{p.name} — {fmt(p.price)}{p.type==="product"?` (${p.stock})`:""}</option>)}</optgroup>)}
-          </select>
+      {items.length>0&&<div style={{background:"var(--surface)",borderRadius:10,padding:"10px 12px",marginBottom:8}}>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:6,marginBottom:6}}>
+          <div className="form-group" style={{marginBottom:0}}><label className="form-label" style={{fontSize:10,color:"var(--green)",fontWeight:700}}>{"Передоплата ₴"}</label><input className="form-input" type="number" placeholder="0" value={prepay} onChange={e=>{setPrepay(e.target.value);setCodManual(false);}} style={{fontSize:13,borderColor:"var(--green)"}}/></div>
+          <div className="form-group" style={{marginBottom:0}}><label className="form-label" style={{fontSize:10,color:"var(--gold)",fontWeight:700}}>{"Наложка ₴"}</label><input className="form-input" type="number" placeholder="0" value={codAmount} onChange={e=>{setCodAmount(e.target.value);setCodManual(true);}} style={{fontSize:13,borderColor:"var(--gold)"}}/></div>
+          <div className="form-group" style={{marginBottom:0}}><label className="form-label" style={{fontSize:10,color:"var(--red)",fontWeight:700}}>{"Скидка ₴"}</label><input className="form-input" type="number" placeholder="0" value={discount} onChange={e=>{setDiscount(e.target.value);setCodManual(false);}} style={{fontSize:13,borderColor:"var(--red)"}}/></div>
+          <div className="form-group" style={{marginBottom:0}}><label className="form-label" style={{fontSize:10}}>{"Коментар"}</label><input className="form-input" placeholder="..." value={comment} onChange={e=>setComment(e.target.value)} style={{fontSize:13}}/></div>
         </div>
-        <div className="form-group" style={{width:90,marginBottom:0}}><input className="form-input" type="number" min="0" step="1" placeholder="Ціна" value={addPrice} onChange={e=>setAddPrice(e.target.value)} style={{textAlign:"right"}}/></div>
-        <div className="form-group" style={{width:55,marginBottom:0}}><input className="form-input" type="number" min="1" value={qty} onChange={e=>setQty(Math.max(1,Number(e.target.value)))}/></div>
-        <button className="btn btn-secondary" onClick={addItem} disabled={!selProd} style={{height:36}}>{I.plus} Додати</button>
-        <button className="btn btn-primary" onClick={submit} disabled={!items.length||!parsed.name.trim()} style={{height:36}}>{I.send} Оформити</button>
+        {(()=>{const t=curTotal;const p=prepay!==""?Number(prepay):0;const d=discount!==""?Number(discount):0;const c=codAmount!==""?Number(codAmount):0;const isPaid=p>=t&&t>0;return(<div style={{display:"flex",gap:10,flexWrap:"wrap",alignItems:"center",fontSize:12}}>
+          <span style={{fontWeight:700}}>{"Разом: "}{fmt(t)}</span>
+          {d>0&&<span style={{color:"var(--red)"}}>{"Скидка: -"}{fmt(d)}</span>}
+          {p>0&&<span style={{color:"var(--green)"}}>{"Передоплата: "}{fmt(p)}</span>}
+          {isPaid?<span className="badge badge-green" style={{fontSize:11,padding:"3px 10px"}}>{"Оплачено ✅"}</span>:<span style={{color:"var(--gold)",fontWeight:700}}>{"Наложка: "}{fmt(c)}{"₴"}</span>}
+        </div>);})()}
+      </div>}
+      {/* Category tabs */}
+      <div style={{display:"flex",gap:4,flexWrap:"wrap",marginBottom:6}}>
+        {CATEGORIES.map(cat=><button key={cat} className={"filter-pill"+(prodCat===cat?" active":"")} onClick={()=>setProdCat(cat)} style={{fontSize:11,padding:"4px 10px"}}>{cat}</button>)}
+      </div>
+      {/* Product grid */}
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:6,marginBottom:8,maxHeight:240,overflowY:"auto",paddingRight:2}}>
+        {products.filter(p=>prodCat==="Все"||p.category===prodCat).map(p=>{
+          const inCart=items.find(i=>i.productId===p.id);
+          return(<div key={p.id} onClick={()=>{
+            if(inCart){setItems(items.map(i=>i.productId===p.id?{...i,qty:i.qty+1}:i));}
+            else{setItems([...items,{productId:p.id,name:p.name,price:p.price,cost:p.cost,qty:1,type:p.type}]);setParsedOpen(false);setInputOpen(false);}
+          }} style={{border:inCart?"2px solid var(--pink2)":"1px solid var(--border)",borderRadius:10,padding:6,cursor:"pointer",background:inCart?"var(--pink-pale)":"var(--surface)",textAlign:"center",position:"relative",transition:"all .15s"}}>
+            <div style={{width:"100%",aspectRatio:"1/1",borderRadius:8,overflow:"hidden",marginBottom:4,background:"#f3f0ed",display:"flex",alignItems:"center",justifyContent:"center"}}>
+              {p.photo?<img src={p.photo} alt={p.name} style={{width:"100%",height:"100%",objectFit:"cover"}}/>:<span style={{fontSize:28,opacity:.3}}>{p.category==="Косметика для волосся"?"🧴":"👕"}</span>}
+            </div>
+            <div style={{fontSize:10,fontWeight:600,lineHeight:"1.2",minHeight:24,overflow:"hidden"}}>{p.name.replace(/^Футболка /,"")}</div>
+            <div style={{fontSize:12,fontWeight:700,color:"var(--pink2)"}}>{fmt(p.price)}</div>
+            {p.type==="product"&&<div style={{fontSize:9,color:p.stock<1?"var(--red)":"var(--text2)"}}>{p.stock<1?"немає":"зал: "+p.stock}</div>}
+            {inCart&&<div style={{position:"absolute",top:3,right:3,background:"var(--pink2)",color:"#fff",borderRadius:"50%",width:20,height:20,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700}}>{inCart.qty}</div>}
+          </div>);
+        })}
+      </div>
+      <div style={{display:"flex",gap:8,alignItems:"center"}}>
+        <button className="btn btn-primary" onClick={submit} disabled={!items.length||!parsed.name.trim()} style={{flex:1,height:40,fontSize:14}}>{I.send}{" Оформити"}</button>
       </div>
     </div>
   </div>);
@@ -1258,7 +1284,7 @@ function OrdersListPage({orders,setOrders}){
   const filtered=filter==="all"?searched:searched.filter(o=>o.status===filter);
   const sorted=[...filtered].reverse();
   const np=searched.filter(o=>o.deliveryType==="np");
-  const counts={all:searched.length,new:np.filter(o=>o.status==="new").length,ttn:np.filter(o=>o.status==="ttn").length,shipped:np.filter(o=>o.status==="shipped").length,delivered:np.filter(o=>o.status==="delivered").length,studio:searched.filter(o=>o.status==="studio").length};
+  const counts={all:searched.length,new:np.filter(o=>o.status==="new").length,ttn:np.filter(o=>o.status==="ttn").length,shipped:np.filter(o=>o.status==="shipped").length,delivered:np.filter(o=>o.status==="delivered").length,studio:searched.filter(o=>o.status==="studio").length,paid:searched.filter(o=>o.status==="paid").length};
   const openTtn=o=>{setTtnM(o);setTtnV(o.ttn||"");};
   const saveTtn=()=>{if(!ttnM)return;setOrders(orders.map(o=>o.id===ttnM.id?{...o,ttn:ttnV.trim(),status:ttnV.trim()?"ttn":"new"}:o));setTtnM(null);};
   const updSt=(id,st)=>setOrders(orders.map(o=>o.id===id?{...o,status:st}:o));
@@ -1285,6 +1311,7 @@ function OrdersListPage({orders,setOrders}){
       <button className={`filter-pill${filter==="ttn"?' active':''}`} onClick={()=>setFilter("ttn")}>ТТН ({counts.ttn})</button>
       <button className={`filter-pill${filter==="shipped"?' active':''}`} onClick={()=>setFilter("shipped")}>Відправ. ({counts.shipped})</button>
       <button className={`filter-pill${filter==="delivered"?' active':''}`} onClick={()=>setFilter("delivered")}>Достав. ({counts.delivered})</button>
+      <button className={`filter-pill${filter==="paid"?' active':''}`} onClick={()=>setFilter("paid")} style={{color:filter==="paid"?"var(--green)":""}}>Оплач. ({counts.paid})</button>
       <button className={`filter-pill${filter==="studio"?' active':''}`} onClick={()=>setFilter("studio")}>Студія ({counts.studio})</button>
     </div>
     {sorted.length===0?<div className="empty-state"><p>Немає замовлень</p></div>:
