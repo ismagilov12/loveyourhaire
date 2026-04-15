@@ -1125,6 +1125,7 @@ function NewOrderPage({orders,setOrders,products,setProducts,clients,setClients}
   const[discount,setDiscount]=useState("");
   const[comment,setComment]=useState("");
   const[prodCat,setProdCat]=useState("Все");
+  const[prodSize,setProdSize]=useState("oversize");
   const[codManual,setCodManual]=useState(false);
   const[cityRef,setCityRef]=useState("");
   const[whRef,setWhRef]=useState("");
@@ -1257,20 +1258,24 @@ function NewOrderPage({orders,setOrders,products,setProducts,clients,setClients}
       {/* Category tabs */}
       <div style={{display:"flex",gap:4,flexWrap:"wrap",marginBottom:6}}>
         {CATEGORIES.map(cat=><button key={cat} className={"filter-pill"+(prodCat===cat?" active":"")} onClick={()=>setProdCat(cat)} style={{fontSize:11,padding:"4px 10px"}}>{cat}</button>)}
+        <span style={{marginLeft:"auto",display:"flex",gap:4}}>
+          <button className={"filter-pill"+(prodSize==="oversize"?" active":"")} onClick={()=>setProdSize("oversize")} style={{fontSize:11,padding:"4px 10px",background:prodSize==="oversize"?"var(--pink)":"var(--surface)",color:prodSize==="oversize"?"#fff":"var(--text)",border:"1px solid var(--border)"}}>Оверсайз</button>
+          <button className={"filter-pill"+(prodSize==="long"?" active":"")} onClick={()=>setProdSize("long")} style={{fontSize:11,padding:"4px 10px",background:prodSize==="long"?"var(--blue)":"var(--surface)",color:prodSize==="long"?"#fff":"var(--text)",border:"1px solid var(--border)"}}>Лонг 250020b4</button>
+        </span>
       </div>
       {/* Product grid */}
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:6,marginBottom:8,maxHeight:240,overflowY:"auto",paddingRight:2}}>
         {products.filter(p=>prodCat==="Все"||p.category===prodCat).map(p=>{
           const inCart=items.find(i=>i.productId===p.id);
           return(<div key={p.id} onClick={()=>{
-            if(inCart){setItems(items.map(i=>i.productId===p.id?{...i,qty:i.qty+1}:i));}
-            else{setItems([...items,{productId:p.id,name:p.name,price:p.price,cost:p.cost,qty:1,type:p.type}]);setParsedOpen(false);setInputOpen(false);}
+            const isShirt=p.category==="Oversize футболки";const sz=isShirt&&prodSize==="long";const itemPrice=sz?2500:p.price;const itemCost=sz?900:p.cost;const itemName=sz?p.name+" (Long)":p.name;if(inCart){setItems(items.map(i=>i.productId===p.id?{...i,qty:i.qty+1}:i));}
+            else{setItems([...items,{productId:p.id,name:itemName,price:itemPrice,cost:itemCost,qty:1,type:p.type}]);setParsedOpen(false);setInputOpen(false);}
           }} style={{border:inCart?"2px solid var(--pink2)":"1px solid var(--border)",borderRadius:10,padding:6,cursor:"pointer",background:inCart?"var(--pink-pale)":"var(--surface)",textAlign:"center",position:"relative",transition:"all .15s"}}>
             <div style={{width:"100%",aspectRatio:"1/1",borderRadius:8,overflow:"hidden",marginBottom:4,background:"#f3f0ed",display:"flex",alignItems:"center",justifyContent:"center"}}>
               {p.photo?<img src={p.photo} alt={p.name} style={{width:"100%",height:"100%",objectFit:"cover"}}/>:<span style={{fontSize:28,opacity:.3}}>{p.category==="Косметика для волосся"?"🧴":"👕"}</span>}
             </div>
             <div style={{fontSize:10,fontWeight:600,lineHeight:"1.2",minHeight:24,overflow:"hidden"}}>{p.name.replace(/^Футболка /,"")}</div>
-            <div style={{fontSize:12,fontWeight:700,color:"var(--pink2)"}}>{fmt(p.price)}</div>
+            <div style={{fontSize:12,fontWeight:700,color:p.category==="Oversize футболки"&&prodSize==="long"?"var(--blue)":"var(--pink2)"}}>{fmt(p.category==="Oversize футболки"&&prodSize==="long"?2500:p.price)}</div>
             {p.type==="product"&&<div style={{fontSize:9,color:p.stock<1?"var(--red)":"var(--text2)"}}>{p.stock<1?"немає":"зал: "+p.stock}</div>}
             {inCart&&<div style={{position:"absolute",top:3,right:3,background:"var(--pink2)",color:"#fff",borderRadius:"50%",width:20,height:20,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700}}>{inCart.qty}</div>}
           </div>);
@@ -1421,11 +1426,11 @@ function AdminPage({products,setProducts}){
   const[filter,setFilter]=useState("Все");
   const[showM,setShowM]=useState(false);
   const[editP,setEditP]=useState(null);
-  const[form,setForm]=useState({name:"",sku:"",category:"Стрижки",cost:"",price:"",stock:"",type:"service",photo:""});
+  const[form,setForm]=useState({name:"",sku:"",category:"Стрижки",cost:"",price:"",stock:"",type:"service",photo:"",version:"oversize"});
   const filtered=filter==="Все"?products:products.filter(p=>p.category===filter);
 
-  const openNew=()=>{setEditP(null);setForm({name:"",sku:"",category:"Стрижки",cost:"",price:"",stock:"999",type:"service",photo:""});setShowM(true);};
-  const openEdit=p=>{setEditP(p);setForm({name:p.name,sku:p.sku,category:p.category,cost:String(p.cost),price:String(p.price),stock:String(p.stock),type:p.type,photo:p.photo||""});setShowM(true);};
+  const openNew=()=>{setEditP(null);setForm({name:"",sku:"",category:"Стрижки",cost:"",price:"",stock:"999",type:"service",photo:"",version:"oversize"});setShowM(true);};
+  const openEdit=p=>{setEditP(p);setForm({name:p.name,sku:p.sku,category:p.category,cost:String(p.cost),price:String(p.price),stock:String(p.stock),type:p.type,photo:p.photo||"",version:p.version||"oversize"});setShowM(true);};
   const catChange=c=>setForm({...form,category:c,type:c==="Стрижки"?"service":"product",stock:c==="Стрижки"?"999":form.stock});
   const handlePhoto=e=>{
     const file=e.target.files[0];if(!file)return;
@@ -1448,12 +1453,12 @@ function AdminPage({products,setProducts}){
       <button className="btn btn-primary" onClick={openNew}>{I.plus} Додати</button>
     </div>
     <div className="card" style={{padding:0,overflowX:"auto"}}>
-      <table className="tbl"><thead><tr><th style={{width:44}}></th><th>Назва</th><th>SKU</th><th>Кат.</th><th>Собів.</th><th>Ціна</th><th>Зал.</th><th>Маржа</th><th style={{width:80}}></th></tr></thead><tbody>
+      <table className="tbl"><thead><tr><th style={{width:44}}></th><th>Назва</th><th>SKU</th><th>Кат.</th><th>Версія</th><th>Собів.</th><th>Ціна</th><th>Зал.</th><th>Маржа</th><th style={{width:80}}></th></tr></thead><tbody>
         {filtered.map(p=><tr key={p.id}>
           <td>{p.photo?<img className="prod-photo" src={p.photo}/>:<div className="prod-photo-placeholder">{p.category==="Стрижки"?"\u2702":"\uD83D\uDCE6"}</div>}</td>
           <td style={{fontWeight:600}}>{p.name}</td>
           <td><code style={{fontSize:11,color:"var(--text2)"}}>{p.sku}</code></td>
-          <td><span className={`badge ${p.category==='Стрижки'?'badge-pink':p.category==='Косметика'?'badge-green':'badge-amber'}`}>{p.category}</span></td>
+          <td><span className={"badge "+(p.version==="long"?"badge-blue":"badge-amber")} style={{fontSize:10}}>{p.version==="long"?"Лонг":"Оверсайз"}</span></td><td><span className={`badge ${p.category==='Стрижки'?'badge-pink':p.category==='Косметика'?'badge-green':'badge-amber'}`}>{p.category}</span></td>
           <td><input type="number" value={p.cost} onChange={e=>{const v=Number(e.target.value);setProducts(products.map(x=>x.id===p.id?{...x,cost:v}:x));}} style={{width:70,padding:"2px 4px",borderRadius:5,border:"1px solid var(--border)",fontSize:12,textAlign:"right",background:"transparent"}}/></td>
           <td style={{fontWeight:700}}>{fmt(p.price)}</td>
           <td>{p.type==="service"?"—":<span className={p.stock<10?'badge badge-red':p.stock<20?'badge badge-amber':''}>{p.stock}</span>}</td>
@@ -1470,6 +1475,7 @@ function AdminPage({products,setProducts}){
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
             <div className="form-group"><label className="form-label">SKU</label><input className="form-input" value={form.sku} onChange={e=>setForm({...form,sku:e.target.value})}/></div>
             <div className="form-group"><label className="form-label">Категорія</label><select className="form-input" value={form.category} onChange={e=>catChange(e.target.value)}><option>Стрижки</option><option>Косметика</option><option>Футболки</option></select></div>
+            <div className="form-group"><label className="form-label">Версія</label><select className="form-input" value={form.version} onChange={e=>{const v=e.target.value;setForm({...form,version:v,price:v==="long"?"2500":form.price,cost:v==="long"?"900":form.cost});}}><option value="oversize">Оверсайз (1400)</option><option value="long">Лонг (2500)</option></select></div>
           </div>
         </div>
       </div>
