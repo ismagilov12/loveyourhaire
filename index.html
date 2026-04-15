@@ -1895,7 +1895,7 @@ function App(){
 
   // ─── Realtime subscriptions ───
   useEffect(()=>{
-    if(!user)return;
+    if(!user||!supabase)return;
     const rtUpdate=(setter,mapper)=>payload=>{
       fromRT.current=true;
       if(payload.eventType==="DELETE"){setter(prev=>{const next=prev.filter(x=>x.id!==payload.old.id);return next;});}
@@ -1908,7 +1908,7 @@ function App(){
       .on("postgres_changes",{event:"*",schema:"public",table:"clients"},rtUpdate(setClients,mapClientFromDB))
       .on("postgres_changes",{event:"*",schema:"public",table:"expenses"},rtUpdate(setExpenses,null))
       .subscribe();
-    return()=>{supabase.removeChannel(channel);};
+    return()=>{if(supabase)supabase.removeChannel(channel);};
   },[user]);
 
   // Persist to localStorage + Supabase on changes (skip if update came from realtime)
