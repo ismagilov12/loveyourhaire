@@ -991,7 +991,7 @@ function CreateTTNModal({order,onClose,onCreated}){
   const[sCity,setSCity]=useState(savedSW.city||"");
   const[sWhRef,setSWhRef]=useState(savedSW.whRef||"");
   const[sWhDesc,setSWhDesc]=useState(savedSW.whDesc||"");
-  const[showSP,setShowSP]=useState(\!savedSW.cityRef);
+  const[showSP,setShowSP]=useState(!savedSW.cityRef);
   const[rCityRef,setRCityRef]=useState("");
   const[rCity,setRCity]=useState(order.city||"");
   const[whRef,setWhRef]=useState("");
@@ -1001,7 +1001,7 @@ function CreateTTNModal({order,onClose,onCreated}){
   const[description,setDescription]=useState(prodDesc);
   const[cost,setCost]=useState(String(order.total));
   const[payerDel,setPayerDel]=useState("Recipient");
-  const codAmt=order.codAmount\!=null?order.codAmount:order.total;
+  const codAmt=order.codAmount!=null?order.codAmount:order.total;
   const initPT=order.payment==="cod"?"cod":(order.payment==="control"||order.payment==="card")?"control":"prepaid";
   const[payType,setPayType]=useState(initPT);
   const[backMoney,setBackMoney]=useState(initPT==="cod"?String(codAmt):"0");
@@ -1011,9 +1011,9 @@ function CreateTTNModal({order,onClose,onCreated}){
   useEffect(()=>{setBackMoney(payType==="cod"?String(codAmt):"0");},[payType]);
   const saveSW=(city,cr,wd,wr)=>{LS.set("np_sender_wh",{city,cityRef:cr,whDesc:wd,whRef:wr});setSCity(city);setSCityRef(cr);setSWhDesc(wd);setSWhRef(wr);setShowSP(false);};
   const doCreate=async()=>{
-    if(\!senderInfo){setErr("\u041D\u0435 \u0432\u0434\u0430\u043B\u043E\u0441\u044F \u0437\u0430\u0432\u0430\u043D\u0442\u0430\u0436\u0438\u0442\u0438 \u0434\u0430\u043D\u0456 \u0432\u0456\u0434\u043F\u0440\u0430\u0432\u043D\u0438\u043A\u0430");return;}
-    if(\!rCityRef||\!whRef){setErr("\u041E\u0431\u0435\u0440\u0456\u0442\u044C \u043C\u0456\u0441\u0442\u043E \u0442\u0430 \u0432\u0456\u0434\u0434\u0456\u043B\u0435\u043D\u043D\u044F \u043E\u0442\u0440\u0438\u043C\u0443\u0432\u0430\u0447\u0430");return;}
-    if(\!sWhRef&&\!senderInfo.address?.ref){setErr("\u041E\u0431\u0435\u0440\u0456\u0442\u044C \u0432\u0456\u0434\u0434\u0456\u043B\u0435\u043D\u043D\u044F \u0432\u0456\u0434\u043F\u0440\u0430\u0432\u043D\u0438\u043A\u0430");return;}
+    if(!senderInfo){setErr("\u041D\u0435 \u0432\u0434\u0430\u043B\u043E\u0441\u044F \u0437\u0430\u0432\u0430\u043D\u0442\u0430\u0436\u0438\u0442\u0438 \u0434\u0430\u043D\u0456 \u0432\u0456\u0434\u043F\u0440\u0430\u0432\u043D\u0438\u043A\u0430");return;}
+    if(!rCityRef||!whRef){setErr("\u041E\u0431\u0435\u0440\u0456\u0442\u044C \u043C\u0456\u0441\u0442\u043E \u0442\u0430 \u0432\u0456\u0434\u0434\u0456\u043B\u0435\u043D\u043D\u044F \u043E\u0442\u0440\u0438\u043C\u0443\u0432\u0430\u0447\u0430");return;}
+    if(!sWhRef&&!senderInfo.address?.ref){setErr("\u041E\u0431\u0435\u0440\u0456\u0442\u044C \u0432\u0456\u0434\u0434\u0456\u043B\u0435\u043D\u043D\u044F \u0432\u0456\u0434\u043F\u0440\u0430\u0432\u043D\u0438\u043A\u0430");return;}
     setCreating(true);setErr("");
     const params={
       PayerType:payerDel==="Sender"?"Sender":"Recipient",
@@ -1034,7 +1034,7 @@ function CreateTTNModal({order,onClose,onCreated}){
   if(loading)return(<Modal title="\u0421\u0442\u0432\u043E\u0440\u0438\u0442\u0438 \u0422\u0422\u041D" onClose={onClose}><div style={{textAlign:"center",padding:20,color:"var(--text2)"}}>{"\u0417\u0430\u0432\u0430\u043D\u0442\u0430\u0436\u0435\u043D\u043D\u044F \u0434\u0430\u043D\u0438\u0445 \u0432\u0456\u0434\u043F\u0440\u0430\u0432\u043D\u0438\u043A\u0430..."}</div></Modal>);
   return(<Modal title="\u0421\u0442\u0432\u043E\u0440\u0438\u0442\u0438 \u0422\u0422\u041D" onClose={onClose} wide>
     {result?<div style={{textAlign:"center",padding:20}}>
-      <div style={{fontSize:20,fontWeight:800,color:"var(--green)",marginBottom:8}}>{"\u0422\u0422\u041D \u0441\u0442\u0432\u043E\u0440\u0435\u043D\u043E\!"}</div>
+      <div style={{fontSize:20,fontWeight:800,color:"var(--green)",marginBottom:8}}>{"\u0422\u0422\u041D \u0441\u0442\u0432\u043E\u0440\u0435\u043D\u043E!"}</div>
       <div style={{fontSize:28,fontWeight:800,color:"var(--np-red)",background:"var(--np-light)",padding:"12px 20px",borderRadius:12,display:"inline-block"}}>{result.ttn}</div>
       {result.estimated&&<div style={{marginTop:8,fontSize:12,color:"var(--text2)"}}>{"\u041E\u0447\u0456\u043A. \u0434\u043E\u0441\u0442\u0430\u0432\u043A\u0430: "}{result.estimated}</div>}
       {result.cost&&<div style={{marginTop:4,fontSize:12,color:"var(--text2)"}}>{"\u0412\u0430\u0440\u0442\u0456\u0441\u0442\u044C \u0434\u043E\u0441\u0442\u0430\u0432\u043A\u0438: "}{result.cost}{" \u0433\u0440\u043D"}</div>}
@@ -1043,7 +1043,7 @@ function CreateTTNModal({order,onClose,onCreated}){
       <div style={{background:"var(--np-light)",borderRadius:10,padding:12,marginBottom:12}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:showSP?8:0}}>
           <div style={{fontSize:11,fontWeight:700,color:"var(--np-red)"}}>{"\u0412\u0406\u0414\u041F\u0420\u0410\u0412\u041D\u0418\u041A"}</div>
-          {\!showSP&&<div style={{display:"flex",alignItems:"center",gap:8}}>
+          {!showSP&&<div style={{display:"flex",alignItems:"center",gap:8}}>
             <span style={{fontSize:12}}>{sCity}{sWhDesc?", "+sWhDesc:""}</span>
             <button className="btn btn-secondary btn-xs" onClick={()=>setShowSP(true)}>{"\u0417\u043C\u0456\u043D\u0438\u0442\u0438"}</button>
           </div>}
@@ -1118,7 +1118,7 @@ function NewOrderPage({orders,setOrders,products,setProducts,clients,setClients}
     const cn=parsed.name.trim();if(!cn||!items.length){alert("Ім'я + товар");return;}
     const total=items.reduce((s,i)=>s+i.price*i.qty,0);
     const totalCost=items.reduce((s,i)=>s+i.cost*i.qty,0);
-    const order={id:Date.now(),client:cn,phone:parsed.phone,city:deliv==="np"?parsed.city:"",npBranch:deliv==="np"?parsed.npBranch:"",payment:deliv==="np"?parsed.payment:"cash",deliveryType:deliv,items:[...items],total,totalCost,date:new Date().toISOString(),status:deliv==="np"?"new":"studio",ttn:"",codAmount:codAmount\!==""?Number(codAmount):null,prepayment:prepay\!==""?Number(prepay):null,comment:comment};
+    const order={id:Date.now(),client:cn,phone:parsed.phone,city:deliv==="np"?parsed.city:"",npBranch:deliv==="np"?parsed.npBranch:"",payment:deliv==="np"?parsed.payment:"cash",deliveryType:deliv,items:[...items],total,totalCost,date:new Date().toISOString(),status:deliv==="np"?"new":"studio",ttn:"",codAmount:codAmount!==""?Number(codAmount):null,prepayment:prepay!==""?Number(prepay):null,comment:comment};
     setProducts(products.map(p=>{const it=items.find(i=>i.productId===p.id);return it&&p.type==="product"?{...p,stock:p.stock-it.qty}:p;}));
     setOrders([...orders,order]);
     // Upsert client
@@ -1242,7 +1242,7 @@ function OrdersListPage({orders,setOrders}){
   const[editItems,setEditItems]=useState([]);
   const[createTTNOrder,setCreateTTNOrder]=useState(null);
   const searched=useMemo(()=>{
-    if(\!search.trim())return orders;
+    if(!search.trim())return orders;
     const q=search.trim().toLowerCase();
     return orders.filter(o=>{
       if(o.client&&o.client.toLowerCase().includes(q))return true;
@@ -1295,7 +1295,7 @@ function OrdersListPage({orders,setOrders}){
           <td><div style={{fontWeight:600}}>{o.client}</div>{o.comment&&<div style={{fontSize:10,color:"var(--text2)",maxWidth:160,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}} title={o.comment}>{o.comment}</div>}</td>
           <td style={{fontSize:12,color:"var(--text2)"}}>{o.phone||"—"}</td>
           <td style={{fontSize:11}}>{o.deliveryType==="np"?`${o.city}${o.npBranch?` №${o.npBranch}`:""}`:<span style={{color:"var(--pink2)"}}>Студія</span>}</td>
-          <td><div style={{fontWeight:700}}>{fmt(o.total)}</div>{o.codAmount\!=null&&<div style={{fontSize:10,color:"var(--gold)"}}>{"Нал: "}{fmt(o.codAmount)}</div>}{o.prepayment\!=null&&o.prepayment>0&&<div style={{fontSize:10,color:"var(--green)"}}>{"Передопл: "}{fmt(o.prepayment)}</div>}</td>
+          <td><div style={{fontWeight:700}}>{fmt(o.total)}</div>{o.codAmount!=null&&<div style={{fontSize:10,color:"var(--gold)"}}>{"Нал: "}{fmt(o.codAmount)}</div>}{o.prepayment!=null&&o.prepayment>0&&<div style={{fontSize:10,color:"var(--green)"}}>{"Передопл: "}{fmt(o.prepayment)}</div>}</td>
           <td>{o.deliveryType==="np"?(o.payment==="cod"?<span className="badge badge-amber">Нал</span>:<span className="badge badge-blue">Контр</span>):"—"}</td>
           <td>{o.ttn?<div><span className="ttn-value" onClick={()=>{navigator.clipboard.writeText(o.ttn).catch(()=>{})}} title="Копіювати">{o.ttn}</span><TTNStatus ttn={o.ttn}/></div>:o.deliveryType==="np"?<span style={{fontSize:11,color:"var(--text2)"}}>{"—"}</span>:"—"}</td>
           <td><span className={`badge ${STCLS[o.status]}`}>{STATUSES[o.status]}</span></td>
@@ -1565,8 +1565,8 @@ const SUPABASE_KEY="sb_publishable__o56Y-ust_UvMqvi9yWC8Q_qyjjkf0S";
 const supabase=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 
 // Helper: map DB row (snake_case) → app object (camelCase) for orders
-const mapOrderFromDB=r=>({id:r.id,client:r.client,phone:r.phone,city:r.city,npBranch:r.np_branch,payment:r.payment,deliveryType:r.delivery_type,items:r.items,total:Number(r.total),totalCost:Number(r.total_cost),date:r.date,status:r.status,ttn:r.ttn,codAmount:r.cod_amount\!=null?Number(r.cod_amount):null,prepayment:r.prepayment\!=null?Number(r.prepayment):null,comment:r.comment||""});
-const mapOrderToDB=o=>({id:o.id,client:o.client,phone:o.phone||"",city:o.city||"",np_branch:o.npBranch||"",payment:o.payment||"cod",delivery_type:o.deliveryType||"np",items:o.items,total:o.total,total_cost:o.totalCost,date:o.date,status:o.status,ttn:o.ttn||"",cod_amount:o.codAmount\!=null?o.codAmount:null,prepayment:o.prepayment\!=null?o.prepayment:null,comment:o.comment||""});
+const mapOrderFromDB=r=>({id:r.id,client:r.client,phone:r.phone,city:r.city,npBranch:r.np_branch,payment:r.payment,deliveryType:r.delivery_type,items:r.items,total:Number(r.total),totalCost:Number(r.total_cost),date:r.date,status:r.status,ttn:r.ttn,codAmount:r.cod_amount!=null?Number(r.cod_amount):null,prepayment:r.prepayment!=null?Number(r.prepayment):null,comment:r.comment||""});
+const mapOrderToDB=o=>({id:o.id,client:o.client,phone:o.phone||"",city:o.city||"",np_branch:o.npBranch||"",payment:o.payment||"cod",delivery_type:o.deliveryType||"np",items:o.items,total:o.total,total_cost:o.totalCost,date:o.date,status:o.status,ttn:o.ttn||"",cod_amount:o.codAmount!=null?o.codAmount:null,prepayment:o.prepayment!=null?o.prepayment:null,comment:o.comment||""});
 
 const mapClientFromDB=r=>({id:r.id,name:r.name,phone:r.phone,city:r.city,npBranch:r.np_branch,created:r.created});
 const mapClientToDB=c=>({id:c.id,name:c.name,phone:c.phone||"",city:c.city||"",np_branch:c.npBranch||"",created:c.created});
