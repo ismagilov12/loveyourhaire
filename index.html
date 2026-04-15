@@ -601,7 +601,7 @@ function parseBulkOrders(rawText,products){
     return{name:name,phone:phone,city:city,branch:branch,items:items,total:total,prepaid:prepaid,paid:paid,payment:payment,notes:notes};
   }
 
-  var blocks=rawText.split(/\n\s*[-_]{3,}\s*(?:\n|$)/).map(function(b){return b.trim();}).filter(Boolean);
+  var blocks=rawText.split(/\n\s*[\-_\u2014\u2015\u2500\u2550\u2501=]{3,}\s*(?:\n|$)/).map(function(b){return b.trim();}).filter(Boolean);
   return blocks.map(parseBlock);
 }
 
@@ -1260,7 +1260,7 @@ function NewOrderPage({orders,setOrders,products,setProducts,clients,setClients}
         {CATEGORIES.map(cat=><button key={cat} className={"filter-pill"+(prodCat===cat?" active":"")} onClick={()=>setProdCat(cat)} style={{fontSize:11,padding:"4px 10px"}}>{cat}</button>)}
         <span style={{marginLeft:"auto",display:"flex",gap:4}}>
           <button className={"filter-pill"+(prodSize==="oversize"?" active":"")} onClick={()=>setProdSize("oversize")} style={{fontSize:11,padding:"4px 10px",background:prodSize==="oversize"?"var(--pink)":"var(--surface)",color:prodSize==="oversize"?"#fff":"var(--text)",border:"1px solid var(--border)"}}>Оверсайз</button>
-          <button className={"filter-pill"+(prodSize==="long"?" active":"")} onClick={()=>setProdSize("long")} style={{fontSize:11,padding:"4px 10px",background:prodSize==="long"?"var(--blue)":"var(--surface)",color:prodSize==="long"?"#fff":"var(--text)",border:"1px solid var(--border)"}}>Лонг 250020b4</button>
+          <button className={"filter-pill"+(prodSize==="long"?" active":"")} onClick={()=>setProdSize("long")} style={{fontSize:11,padding:"4px 10px",background:prodSize==="long"?"var(--blue)":"var(--surface)",color:prodSize==="long"?"#fff":"var(--text)",border:"1px solid var(--border)"}}>Лонг</button>
         </span>
       </div>
       {/* Product grid */}
@@ -1268,7 +1268,7 @@ function NewOrderPage({orders,setOrders,products,setProducts,clients,setClients}
         {products.filter(p=>prodCat==="Все"||p.category===prodCat).map(p=>{
           const inCart=items.find(i=>i.productId===p.id);
           return(<div key={p.id} onClick={()=>{
-            const isShirt=p.category==="Oversize футболки";const sz=isShirt&&prodSize==="long";const itemPrice=sz?2500:p.price;const itemCost=sz?900:p.cost;const itemName=sz?p.name+" (Long)":p.name;if(inCart){setItems(items.map(i=>i.productId===p.id?{...i,qty:i.qty+1}:i));}
+            const isShirt=p.category==="Oversize футболки";const sz=isShirt&&prodSize==="long";const itemPrice=sz?2500:p.price;const itemCost=sz?480:p.cost;const itemName=sz?p.name+" (Long)":p.name;if(inCart){setItems(items.map(i=>i.productId===p.id?{...i,qty:i.qty+1}:i));}
             else{setItems([...items,{productId:p.id,name:itemName,price:itemPrice,cost:itemCost,qty:1,type:p.type}]);setParsedOpen(false);setInputOpen(false);}
           }} style={{border:inCart?"2px solid var(--pink2)":"1px solid var(--border)",borderRadius:10,padding:6,cursor:"pointer",background:inCart?"var(--pink-pale)":"var(--surface)",textAlign:"center",position:"relative",transition:"all .15s"}}>
             <div style={{width:"100%",aspectRatio:"1/1",borderRadius:8,overflow:"hidden",marginBottom:4,background:"#f3f0ed",display:"flex",alignItems:"center",justifyContent:"center"}}>
@@ -1475,7 +1475,7 @@ function AdminPage({products,setProducts}){
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
             <div className="form-group"><label className="form-label">SKU</label><input className="form-input" value={form.sku} onChange={e=>setForm({...form,sku:e.target.value})}/></div>
             <div className="form-group"><label className="form-label">Категорія</label><select className="form-input" value={form.category} onChange={e=>catChange(e.target.value)}><option>Стрижки</option><option>Косметика</option><option>Футболки</option></select></div>
-            <div className="form-group"><label className="form-label">Версія</label><select className="form-input" value={form.version} onChange={e=>{const v=e.target.value;setForm({...form,version:v,price:v==="long"?"2500":form.price,cost:v==="long"?"900":form.cost});}}><option value="oversize">Оверсайз (1400)</option><option value="long">Лонг (2500)</option></select></div>
+            <div className="form-group"><label className="form-label">Версія</label><select className="form-input" value={form.version} onChange={e=>{const v=e.target.value;setForm({...form,version:v,price:v==="long"?"2500":form.price,cost:v==="long"?"480":form.cost});}}><option value="oversize">Оверсайз (1400)</option><option value="long">Лонг (2500)</option></select></div>
           </div>
         </div>
       </div>
@@ -1986,6 +1986,4 @@ function App(){
 }
 
 ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
-</script>
-</body>
-</html>
+</s
