@@ -978,7 +978,7 @@ function DashboardPage({orders,products,expenses,dateRange,setDateRange}){
 }
 
 // ─── NP City Autocomplete ───
-function NPCityPicker({value,onChange,onCityRef}){
+function NPCityPicker({value,onChange,onCityRef,onDeliveryCityRef}){
   const[q,setQ]=useState(value||"");
   const[results,setResults]=useState([]);
   const[open,setOpen]=useState(false);
@@ -995,7 +995,7 @@ function NPCityPicker({value,onChange,onCityRef}){
       setResults(r);setOpen(r.length>0);setLoading(false);
     },300);
   };
-  const pick=(c)=>{setQ(c.name);onChange(c.city||c.name);if(onCityRef)onCityRef(c.ref);setOpen(false);setResults([]);};
+  const pick=(c)=>{setQ(c.name);onChange(c.city||c.name);if(onCityRef)onCityRef(c.ref);if(onDeliveryCityRef)onDeliveryCityRef(c.deliveryCityRef||c.ref);setOpen(false);setResults([]);};
   return(<div style={{position:"relative"}}>
     <input className="form-input" placeholder="Місто..." value={q} onChange={e=>doSearch(e.target.value)} onFocus={()=>{if(results.length)setOpen(true);}} style={{fontSize:12,marginTop:2}}/>
     {loading&&<div style={{position:"absolute",right:8,top:8,fontSize:10,color:"var(--text2)"}}>...</div>}
@@ -1070,6 +1070,7 @@ function CreateTTNModal({order,onClose,onCreated}){
   const[sWhDesc,setSWhDesc]=useState(savedSW.whDesc||"");
   const[showSP,setShowSP]=useState(!savedSW.cityRef);
   const[rCityRef,setRCityRef]=useState("");
+  const[rDeliveryCityRef,setRDeliveryCityRef]=useState("");
   const[rCity,setRCity]=useState(order.city||"");
   const[whRef,setWhRef]=useState("");
   const[whNum,setWhNum]=useState(order.npBranch||"");
@@ -1100,6 +1101,7 @@ function CreateTTNModal({order,onClose,onCreated}){
         if(cities.length>0){
           const c=cities[0];
           setRCityRef(c.ref);
+          setRDeliveryCityRef(c.deliveryCityRef||c.ref);
           setRCity(c.city||c.name);
           if(order.npBranch){
             NP.getWarehouses(c.ref,order.npBranch).then(whs=>{
@@ -1124,7 +1126,8 @@ function CreateTTNModal({order,onClose,onCreated}){
     if(!order.client||!order.phone){setErr("Не вказано ПІБ або телефон отримувача");return;}
     setCreating(true);setErr("");
     try{
-      const recip=await NP.createRecipient(order.client,order.phone,rCityRef);
+      const recipCityRef=rDeliveryCityRef||rCityRef;
+      const recip=await NP.createRecipient(order.client,order.phone,recipCityRef);
       if(!recip.ok){setCreating(false);setErr("Помилка створення отримувача: "+(recip.errors||[]).join(", "));return;}
       const params={
         PayerType:payerDel==="Sender"?"Sender":"Recipient",
@@ -1171,7 +1174,7 @@ function CreateTTNModal({order,onClose,onCreated}){
       <div style={{marginBottom:12}}>
         <div style={{fontSize:11,fontWeight:700,color:"var(--text2)",marginBottom:6}}>{"ОТРИМУВАЧ: "}<span style={{fontWeight:400,color:"var(--text1)"}}>{order.client}{order.phone?" | "+order.phone:""}</span></div>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-          <div><div style={{fontSize:10,fontWeight:700,color:"var(--text2)",marginBottom:2}}>{"Місто отримувача"}</div><NPCityPicker value={rCity} onChange={setRCity} onCityRef={setRCityRef}/></div>
+          <div><div style={{fontSize:10,fontWeight:700,color:"var(--text2)",marginBottom:2}}>{"Місто отримувача"}</div><NPCityPicker value={rCity} onChange={setRCity} onCityRef={setRCityRef} onDeliveryCityRef={setRDeliveryCityRef}/></div>
           <div><div style={{fontSize:10,fontWeight:700,color:"var(--text2)",marginBottom:2}}>{"Відділення"}</div><NPWarehousePicker cityRef={rCityRef} value={whNum} onChange={(n,d,r)=>{setWhNum(n);setWhRef(r);}}/></div>
         </div>
       </div>
@@ -1399,6 +1402,16 @@ function OrdersListPage({orders,setOrders,products}){
   const[editItems,setEditItems]=useState([]);
   const[createTTNOrder,setCreateTTNOrder]=useState(null);
   const[prepayO,setPrepayO]=useState(null);// quick prepayment order
+  // Inline TTN creation states
+  const[ttnCreating,setTtnCreating]=useState(false);
+  const[ttnErr,setTtnErr]=useState("");
+  const[ttnResult,setTtnResult]=useState(null);
+  const[ttnSettings,setTtnSettings]=useState(false);
+  const[ttnPayerDel,setTtnPayerDel]=useState("Recipient");
+  const[ttnWeight,setTtnWeight]=useState("0.5");
+  const[ttnDesc,setTtnDesc]=useState("");
+  const[ttnSenderInfo,setTtnSenderInfo]=useState(null);
+  const[ttnSenderLoading,setTtnSenderLoading]=useState(false);
   const[prepayV,setPrepayV]=useState("");
   const searched=useMemo(()=>{
     if(!search.trim())return orders;
@@ -1453,6 +1466,69 @@ function OrdersListPage({orders,setOrders,products}){
   };
   const rmEditItem=idx=>setEditItems(editItems.filter((_,i)=>i!==idx));
   const updEditItem=(idx,field,val)=>setEditItems(editItems.map((it,i)=>i===idx?{...it,[field]:val}:it));
+
+  // Reset inline TTN state when editO changes
+  useEffect(()=>{
+    if(editO){
+      setTtnErr("");setTtnResult(null);setTtnCreating(false);setTtnSettings(false);
+      setTtnPayerDel("Recipient");setTtnWeight("0.5");
+      setTtnDesc(editO.items?editO.items.map(i=>i.name+(i.qty>1?" x"+i.qty:"")).join(", "):"");
+      // Preload sender info
+      if(editO.deliveryType==="np"&&!editO.ttn&&!ttnSenderInfo){
+        setTtnSenderLoading(true);
+        NP.getSenderInfo().then(s=>{setTtnSenderInfo(s);setTtnSenderLoading(false);}).catch(()=>setTtnSenderLoading(false));
+      }
+    }
+  },[editO?.id]);
+
+  const doInlineTTN=async()=>{
+    if(!editO)return;
+    if(!ttnSenderInfo){setTtnErr("Дані відправника не завантажені");return;}
+    if(!editO.city||!editO.npBranch){setTtnErr("Не вказано місто або відділення");return;}
+    if(!editO.client||!editO.phone){setTtnErr("Не вказано ПІБ або телефон");return;}
+    setTtnCreating(true);setTtnErr("");
+    try{
+      // 1. Resolve city
+      const cities=await NP.searchCity(editO.city);
+      if(!cities.length){setTtnCreating(false);setTtnErr("Місто не знайдено в НП");return;}
+      const city=cities[0];
+      // 2. Resolve warehouse
+      const whs=await NP.getWarehouses(city.ref,editO.npBranch);
+      const wh=whs.find(w=>w.num===editO.npBranch)||whs[0];
+      if(!wh){setTtnCreating(false);setTtnErr("Відділення не знайдено");return;}
+      // 3. Create recipient
+      const recip=await NP.createRecipient(editO.client,editO.phone,city.deliveryCityRef||city.ref);
+      if(!recip.ok){setTtnCreating(false);setTtnErr("Помилка отримувача: "+(recip.errors||[]).join(", "));return;}
+      // 4. Calc amounts
+      const savedSW=LS.get("np_sender_wh")||{};
+      const prepay=editO.prepayment||0;
+      const total=editItems.reduce((s,i)=>s+i.price*i.qty,0);
+      const cod=editO.codAmount!=null?editO.codAmount:Math.max(0,total-prepay);
+      const payType=prepay>=total?"prepaid":editO.payment==="cod"?"cod":"control";
+      // 5. Build params
+      const params={
+        PayerType:ttnPayerDel,PaymentMethod:payType==="control"?"NonCash":"Cash",
+        CargoType:"Parcel",Weight:ttnWeight,ServiceType:"WarehouseWarehouse",SeatsAmount:"1",
+        Description:ttnDesc,Cost:String(total),
+        CitySender:savedSW.cityRef||ttnSenderInfo.address?.cityRef||"",
+        Sender:ttnSenderInfo.ref,SenderAddress:savedSW.whRef||ttnSenderInfo.address?.ref||"",
+        ContactSender:ttnSenderInfo.contact?.ref||"",SendersPhone:ttnSenderInfo.contact?.phone||"",
+        CityRecipient:city.ref,RecipientAddress:wh.ref,
+        Recipient:recip.ref,ContactRecipient:recip.contactRef,RecipientsPhone:editO.phone,
+      };
+      if(payType==="cod"&&cod>0){params.BackwardDeliveryData=[{PayerType:"Recipient",CargoType:"Money",RedeliveryString:String(cod)}];}
+      if(payType==="control"&&cod>0){params.AfterpaymentOnGoodsCost=String(cod);}
+      // 6. Create TTN
+      const r=await NP.createTTN(params);
+      setTtnCreating(false);
+      if(r.ok){
+        setTtnResult(r);
+        const upd={...editO,ttn:r.ttn,status:"ttn"};
+        setEditO(upd);
+        setOrders(orders.map(o=>o.id===editO.id?{...upd,items:editItems,total,totalCost:editItems.reduce((s,i)=>s+i.cost*i.qty,0)}:o));
+      }else{setTtnErr((r.errors||[]).join(", ")||"Помилка створення");}
+    }catch(e){setTtnCreating(false);setTtnErr("Помилка: "+e.message);}
+  };
 
   return(<div>
     <div style={{position:"relative",marginBottom:12}}>
@@ -1570,10 +1646,12 @@ function OrdersListPage({orders,setOrders,products}){
     </Modal>}
     {/* Edit Order Modal */}
     {editO&&<Modal title="Редагувати замовлення" onClose={()=>setEditO(null)} wide>
-      {/* Quick TTN button at top for NP orders without TTN */}
-      {editO.deliveryType==="np"&&!editO.ttn&&<div style={{background:"var(--np-light)",border:"1px solid var(--np-red)",borderRadius:10,padding:"10px 14px",marginBottom:14,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
-        <span style={{fontSize:13,fontWeight:600,color:"var(--np-red)"}}>ТТН не оформлено</span>
-        <button className="btn btn-np" style={{padding:"8px 16px",fontSize:13,fontWeight:700}} onClick={()=>{setEditO(null);setCreateTTNOrder(editO);}}>Оформити ТТН</button>
+      {/* TTN result banner */}
+      {ttnResult&&<div style={{background:"var(--green-light)",border:"1px solid var(--green)",borderRadius:10,padding:"12px 14px",marginBottom:14,textAlign:"center"}}>
+        <div style={{fontSize:16,fontWeight:800,color:"var(--green)",marginBottom:4}}>{"ТТН створено!"}</div>
+        <div style={{fontSize:22,fontWeight:800,color:"var(--np-red)",background:"#fff",padding:"8px 16px",borderRadius:10,display:"inline-block"}}>{ttnResult.ttn}</div>
+        {ttnResult.estimated&&<div style={{marginTop:4,fontSize:11,color:"var(--text2)"}}>{"Доставка: "}{ttnResult.estimated}</div>}
+        {ttnResult.cost&&<div style={{fontSize:11,color:"var(--text2)"}}>{"Вартість: "}{ttnResult.cost}{" грн"}</div>}
       </div>}
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:14}}>
         <div className="form-group" style={{marginBottom:0}}><label className="form-label">Клієнт</label><input className="form-input" value={editO.client} onChange={e=>setEditO({...editO,client:e.target.value})}/></div>
@@ -1623,6 +1701,21 @@ function OrdersListPage({orders,setOrders,products}){
           <span style={{color:"var(--green)"}}>Прибуток: {fmt(editItems.reduce((s,i)=>s+(i.price-i.cost)*i.qty,0))}</span>
         </div>
       </div>
+      {/* Inline TTN creation */}
+      {editO.deliveryType==="np"&&!editO.ttn&&!ttnResult&&<div style={{background:"var(--np-light)",borderRadius:12,padding:"12px 14px",marginBottom:14,border:"1px solid rgba(228,30,38,.15)"}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:ttnSettings?10:0}}>
+          <span style={{fontSize:12,fontWeight:700,color:"var(--np-red)"}}>{"НОВА ПОШТА"}</span>
+          <button onClick={()=>setTtnSettings(!ttnSettings)} style={{background:"none",border:"none",fontSize:11,color:"var(--text2)",cursor:"pointer",textDecoration:"underline"}}>{ttnSettings?"Сховати":"Налаштування відправки"}</button>
+        </div>
+        {ttnSettings&&<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:10}}>
+          <div className="form-group" style={{marginBottom:0}}><label className="form-label" style={{fontSize:10}}>{"Платник доставки"}</label><select className="form-input" value={ttnPayerDel} onChange={e=>setTtnPayerDel(e.target.value)} style={{fontSize:12}}><option value="Recipient">Отримувач</option><option value="Sender">Відправник</option></select></div>
+          <div className="form-group" style={{marginBottom:0}}><label className="form-label" style={{fontSize:10}}>{"Вага (кг)"}</label><input className="form-input" value={ttnWeight} onChange={e=>setTtnWeight(e.target.value)} style={{fontSize:12}}/></div>
+          <div className="form-group" style={{marginBottom:0,gridColumn:"1/-1"}}><label className="form-label" style={{fontSize:10}}>{"Опис вмісту"}</label><input className="form-input" value={ttnDesc} onChange={e=>setTtnDesc(e.target.value)} style={{fontSize:12}}/></div>
+        </div>}
+        {ttnErr&&<div style={{color:"var(--red)",fontSize:12,fontWeight:600,marginBottom:8}}>{ttnErr}</div>}
+        {ttnSenderLoading&&<div style={{fontSize:11,color:"var(--text2)",marginBottom:6}}>{"Завантаження відправника..."}</div>}
+        <button className="btn btn-np" onClick={doInlineTTN} disabled={ttnCreating||ttnSenderLoading} style={{width:"100%",padding:"10px",fontSize:14,fontWeight:700}}>{ttnCreating?"Створюю ТТН...":"Оформити ТТН"}</button>
+      </div>}
       <div style={{display:"flex",gap:8,justifyContent:"flex-end",flexWrap:"wrap"}}>
         <button className="btn btn-danger" onClick={()=>{if(confirm("Видалити замовлення?")){DB.remove("orders",editO.id);setOrders(orders.filter(o=>o.id!==editO.id));setEditO(null);}}}>Видалити</button>
         <button className="btn btn-secondary" onClick={()=>setEditO(null)}>Скасувати</button>
@@ -1896,7 +1989,7 @@ const NP={
     if(!q||q.length<2)return[];
     const r=await NP.call("Address","searchSettlements",{CityName:q,Limit:"15"});
     if(!r.success||!r.data||!r.data[0])return[];
-    return(r.data[0].Addresses||[]).map(a=>({ref:a.Ref,name:a.Present,city:a.MainDescription,area:a.Area,region:a.Region}));
+    return(r.data[0].Addresses||[]).map(a=>({ref:a.Ref,deliveryCityRef:a.DeliveryCity||a.Ref,name:a.Present,city:a.MainDescription,area:a.Area,region:a.Region}));
   },
   async getWarehouses(cityRef,q=""){
     if(!cityRef)return[];
