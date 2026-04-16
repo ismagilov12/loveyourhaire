@@ -1740,8 +1740,8 @@ const LS={
 
 // ─── SUPABASE ───
 const SUPABASE_URL="https://fsihlzzjewhxpogvjapu.supabase.co";
-const SUPABASE_KEY="sb_publishable__o56Y-ust_UvMqvi9yWC8Q_qyjjkf0S";
-let supabase=null;try{if(window.supabase&&window.supabase.createClient){supabase=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);}else{console.warn("Supabase not loaded");}}catch(e){console.error("Supabase init:",e);}
+const SUPABASE_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZzaWhsenpqZXdoeHBvZ3ZqYXB1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUyOTY2MzUsImV4cCI6MjA5MDg3MjYzNX0._hS7TA8EqIHgz7CH6XxGKuDdOnVBb6u40ntEtZ__MjU";
+let supabase=null;let supabaseInitErr="";try{if(window.supabase&&window.supabase.createClient){supabase=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);console.log("Supabase client initialized OK");}else{supabaseInitErr="SDK не завантажився";console.warn("Supabase SDK not loaded from CDN");}}catch(e){supabaseInitErr=e.message;console.error("Supabase init:",e);}
 
 // Helper: map DB row (snake_case) → app object (camelCase) for orders
 const mapOrderFromDB=r=>({id:r.id,client:r.client,phone:r.phone,city:r.city,npBranch:r.np_branch,payment:r.payment,deliveryType:r.delivery_type,items:r.items,total:Number(r.total),totalCost:Number(r.total_cost),date:r.date,status:r.status,ttn:r.ttn,codAmount:r.cod_amount!=null?Number(r.cod_amount):null,prepayment:r.prepayment!=null?Number(r.prepayment):null,comment:r.comment||""});
@@ -1992,38 +1992,46 @@ function App(){
   const fromRT=useRef(false); // flag to skip sync-back on realtime events
 
   // ─── Load from Supabase on mount ───
-  useEffect(()=>{
-    let cancelled=false;
-    async function load(){
-      try{
-        const[pData,oData,cData,eData]=await Promise.all([
-          DB.loadAll("products"),
-          DB.loadAll("orders"),
-          DB.loadAll("clients"),
-          DB.loadAll("expenses"),
-        ]);
-        if(cancelled)return;
-        if(pData&&pData.length>0){
-          // One-time: update all t-shirt costs to 450
-          const fixed=pData.map(p=>p.category==="Футболки"||p.category==="Oversize футболки"?{...p,cost:p.cost<450?450:p.cost}:p);
-          const changed=fixed.filter((p,i)=>p.cost!==pData[i].cost);
-          if(changed.length>0)DB.upsertMany("products",changed);
-          setProducts(fixed);LS.set("products",fixed);
-        }
-        if(oData){
-          const mapped=oData.map(mapOrderFromDB);
-          // Don't overwrite localStorage cache with empty data if we had orders cached
-          const cached=LS.get("orders",[]);
-          if(mapped.length>0||cached.length===0){setOrders(mapped);LS.set("orders",mapped);}
-          else{console.warn("Supabase returned 0 orders but cache has "+cached.length+", keeping cache");setOrders(cached);}
-        }
-        if(cData){const mapped=cData.map(mapClientFromDB);setClients(mapped);LS.set("clients",mapped);}
-        if(eData){setExpenses(eData);LS.set("expenses",eData);}
-        setSynced(true);setSyncErr("");
-      }catch(e){console.error("Sync load error",e);setSyncErr("Офлайн режим");setSynced(true);}
+  const doLoad=async()=>{
+    if(!supabase){
+      console.warn("Supabase not available:",supabaseInitErr);
+      setSyncErr(supabaseInitErr||"Немає з'єднання");
+      setSynced(true);
+      return;
     }
-    if(user)load();
-    return()=>{cancelled=true;};
+    try{
+      setSynced(false);setSyncErr("");
+      console.log("Loading data from Supabase...");
+      const[pData,oData,cData,eData]=await Promise.all([
+        DB.loadAll("products"),
+        DB.loadAll("orders"),
+        DB.loadAll("clients"),
+        DB.loadAll("expenses"),
+      ]);
+      console.log("Supabase data:",{products:pData?.length,orders:oData?.length,clients:cData?.length,expenses:eData?.length});
+      if(pData&&pData.length>0){
+        const fixed=pData.map(p=>p.category==="Футболки"||p.category==="Oversize футболки"?{...p,cost:p.cost<450?450:p.cost}:p);
+        const changed=fixed.filter((p,i)=>p.cost!==pData[i].cost);
+        if(changed.length>0)DB.upsertMany("products",changed);
+        setProducts(fixed);LS.set("products",fixed);
+      }
+      if(oData){
+        const mapped=oData.map(mapOrderFromDB);
+        const cached=LS.get("orders",[]);
+        if(mapped.length>0||cached.length===0){setOrders(mapped);LS.set("orders",mapped);}
+        else{console.warn("Supabase returned 0 orders but cache has "+cached.length+", keeping cache");setOrders(cached);}
+      }else{
+        // oData is null — Supabase error; keep localStorage
+        const cached=LS.get("orders",[]);
+        if(cached.length>0){setOrders(cached);console.warn("Using cached orders:",cached.length);}
+      }
+      if(cData){const mapped=cData.map(mapClientFromDB);setClients(mapped);LS.set("clients",mapped);}
+      if(eData){setExpenses(eData);LS.set("expenses",eData);}
+      setSynced(true);setSyncErr("");
+    }catch(e){console.error("Sync load error",e);setSyncErr("Помилка: "+e.message);setSynced(true);}
+  };
+  useEffect(()=>{
+    if(user)doLoad();
   },[user]);
 
   // ─── Realtime subscriptions ───
@@ -2086,10 +2094,12 @@ function App(){
     <div className="main">
       <div className="topbar">
         <h1>{pages.find(p=>p.id===page)?.label}</h1>
-        <div style={{display:"flex",alignItems:"center",gap:12}}>
+        <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
           {syncErr
-            ?<span style={{fontSize:11,color:"var(--red)",background:"var(--red-light)",padding:"2px 8px",borderRadius:6}}>{"\u26A0\uFE0F"} {syncErr}</span>
-            :<span style={{fontSize:11,color:"var(--green)",background:"var(--green-light)",padding:"2px 8px",borderRadius:6}}>{"\u2601\uFE0F"} {"Синхронізовано"}</span>
+            ?<span onClick={doLoad} style={{fontSize:11,color:"var(--red)",background:"var(--red-light)",padding:"2px 8px",borderRadius:6,cursor:"pointer"}} title="Натисніть для повторної спроби">{"\u26A0\uFE0F"} {syncErr} ↻</span>
+            :!synced
+            ?<span style={{fontSize:11,color:"var(--blue)",background:"var(--blue-light)",padding:"2px 8px",borderRadius:6}}>{"⏳"} {"Завантаження..."}</span>
+            :<span onClick={doLoad} style={{fontSize:11,color:"var(--green)",background:"var(--green-light)",padding:"2px 8px",borderRadius:6,cursor:"pointer"}} title="Натисніть для оновлення">{"\u2601\uFE0F"} {"Синхронізовано"}</span>
           }
           <span className="topbar-date">{new Date().toLocaleDateString("uk-UA",{weekday:"short",day:"numeric",month:"long"})}</span>
           <button onClick={logout} className="btn btn-sm btn-secondary" style={{fontSize:11,padding:"4px 10px"}}>Вийти</button>
@@ -2113,7 +2123,7 @@ function App(){
 }
 
 ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
-// v15
+// v16 — mobile cards, supabase key fix, retry sync
 </script>
 </body>
 </html>
