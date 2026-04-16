@@ -1427,18 +1427,20 @@ function OrdersListPage({orders,setOrders,products}){
   const dupeCount=searched.filter(o=>dupeMap.has(o.id)).length;
   const counts={all:searched.length,new:np.filter(o=>o.status==="new").length,ttn:np.filter(o=>o.status==="ttn").length,shipped:np.filter(o=>o.status==="shipped").length,delivered:np.filter(o=>o.status==="delivered").length,studio:searched.filter(o=>o.status==="studio").length,paid:searched.filter(o=>o.status==="paid").length,dupes:dupeCount};
   const openTtn=o=>{setTtnM(o);setTtnV(o.ttn||"");};
-  const saveTtn=()=>{if(!ttnM)return;setOrders(orders.map(o=>o.id===ttnM.id?{...o,ttn:ttnV.trim(),status:ttnV.trim()?"ttn":"new"}:o));setTtnM(null);};
+  const saveTtn=()=>{if(!ttnM)return;const t=ttnV.trim();setOrders(orders.map(o=>o.id===ttnM.id?{...o,ttn:t,status:t?"ttn":"new"}:o));saveOrderField(ttnM.id,{ttn:t,status:t?"ttn":"new"});setTtnM(null);};
   const openPrepay=o=>{setPrepayO(o);setPrepayV(String(o.prepayment||""));};
   const savePrepay=()=>{
     if(!prepayO)return;
     const pp=Number(prepayV)||0;
-    // codAmount = total - prepayment (for control payment, this is what remains to collect)
     const cod=Math.max(0,prepayO.total-pp);
     setOrders(orders.map(o=>o.id===prepayO.id?{...o,prepayment:pp,codAmount:cod}:o));
+    saveOrderField(prepayO.id,{prepayment:pp,cod_amount:cod});
     setPrepayO(null);
   };
-  const updSt=(id,st)=>setOrders(orders.map(o=>o.id===id?{...o,status:st}:o));
-  const inlinePrepay=(id,val)=>{const pp=Number(val)||0;setOrders(orders.map(o=>{if(o.id!==id)return o;const cod=Math.max(0,o.total-pp);return{...o,prepayment:pp,codAmount:cod};}));};
+  // Direct save to Supabase for single-field updates
+  const saveOrderField=(id,fields)=>{if(supabase){supabase.from("orders").update(fields).eq("id",id).then(({error})=>{if(error)console.error("DB save err",error);});}};
+  const updSt=(id,st)=>{setOrders(orders.map(o=>o.id===id?{...o,status:st}:o));saveOrderField(id,{status:st});};
+  const inlinePrepay=(id,val)=>{const pp=Number(val)||0;setOrders(orders.map(o=>{if(o.id!==id)return o;const cod=Math.max(0,o.total-pp);return{...o,prepayment:pp,codAmount:cod};}));saveOrderField(id,{prepayment:pp,cod_amount:Math.max(0,(orders.find(o=>o.id===id)?.total||0)-pp)});};
   const openEdit=o=>{setEditO({...o});setEditItems(o.items.map(i=>({...i})));setAddProdId("");setAddProdQty(1);setAddProdPrice("");};
   const addEditItem=()=>{
     const p=products.find(x=>x.id===Number(addProdId));if(!p)return;
@@ -2319,10 +2321,12 @@ function App(){
         <h1>{pages.find(p=>p.id===page)?.label}</h1>
         <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
           {syncErr
-            ?<span onClick={doLoad} style={{fontSize:11,color:"var(--red)",background:"var(--red-light)",padding:"2px 8px",borderRadius:6,cursor:"pointer"}} title="Натисніть для повторної спроби">{"\u26A0\uFE0F"} {syncErr} ↻</span>
+            ?<span onClick={doLoad} style={{fontSize:11,color:"var(--red)",background:"var(--red-light)",padding:"2px 8px",borderRadius:6,cursor:"pointer"}} title="Натисніть для повторної спроби">{"\u26A0\uFE0F"} {syncErr} {" ↻"}</span>
             :!synced
-            ?<span style={{fontSize:11,color:"var(--blue)",background:"var(--blue-light)",padding:"2px 8px",borderRadius:6}}>{"⏳"} {"Завантаження..."}</span>
-            :<span onClick={doLoad} style={{fontSize:11,color:"var(--green)",background:"var(--green-light)",padding:"2px 8px",borderRadius:6,cursor:"pointer"}} title="Натисніть для оновлення">{"\u2601\uFE0F"} {"Синхронізовано"}</span>
+            ?<span style={{fontSize:11,color:"var(--blue)",background:"var(--blue-light)",padding:"2px 8px",borderRadius:6}}>{"⏳ Завантаження..."}</span>
+            :!supabase
+            ?<span onClick={doLoad} style={{fontSize:11,color:"var(--gold)",background:"#fef3c7",padding:"2px 8px",borderRadius:6,cursor:"pointer"}} title="Supabase SDK не завантажився. Дані зберігаються лише локально! Натисніть для повторної спроби.">{"⚠️ Офлайн (тільки локально) ↻"}</span>
+            :<span onClick={doLoad} style={{fontSize:11,color:"var(--green)",background:"var(--green-light)",padding:"2px 8px",borderRadius:6,cursor:"pointer"}} title="Натисніть для оновлення">{"☁️ Синхронізовано"}</span>
           }
           <span className="topbar-date">{new Date().toLocaleDateString("uk-UA",{weekday:"short",day:"numeric",month:"long"})}</span>
           <button onClick={logout} className="btn btn-sm btn-secondary" style={{fontSize:11,padding:"4px 10px"}}>Вийти</button>
