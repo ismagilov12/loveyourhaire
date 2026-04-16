@@ -248,6 +248,53 @@ const fmt=n=>n.toLocaleString("uk-UA")+" ₴";
 const fmtD=d=>d.toLocaleDateString("uk-UA",{day:"numeric",month:"short",year:"numeric"});
 const sameDay=(a,b)=>a.getFullYear()===b.getFullYear()&&a.getMonth()===b.getMonth()&&a.getDate()===b.getDate();
 
+// ─── Duplicate detection ───
+const normPhone=p=>String(p||"").replace(/\D/g,"").replace(/^380/,"").replace(/^0/,"");
+const normName=n=>String(n||"").trim().toLowerCase().replace(/\s+/g," ");
+const DUPE_WINDOW_MS=7*24*60*60*1000;
+// Returns Map<orderId, {key, groupIds:number[]}> for orders that share contact (phone or name) within DUPE_WINDOW_MS
+function findDuplicates(orders){
+  const result=new Map();
+  const groups=new Map();
+  for(const o of orders||[]){
+    const ph=normPhone(o.phone);
+    const nm=normName(o.client);
+    const key=ph?"p:"+ph:(nm?"n:"+nm:null);
+    if(!key)continue;
+    if(!groups.has(key))groups.set(key,[]);
+    groups.get(key).push({id:o.id,t:new Date(o.date||0).getTime()});
+  }
+  for(const[key,arr]of groups){
+    if(arr.length<2)continue;
+    arr.sort((a,b)=>a.t-b.t);
+    const dup=new Set();
+    for(let i=0;i<arr.length;i++){
+      for(let j=i+1;j<arr.length;j++){
+        if(Math.abs(arr[i].t-arr[j].t)<=DUPE_WINDOW_MS){dup.add(arr[i].id);dup.add(arr[j].id);}
+      }
+    }
+    if(dup.size>0){
+      const ids=Array.from(dup);
+      for(const id of ids)result.set(id,{key,groupIds:ids});
+    }
+  }
+  return result;
+}
+// Check if a candidate order (phone,name,date) would duplicate an existing one
+function findDupeFor(orders,phone,name,dateMs){
+  const ph=normPhone(phone);
+  const nm=normName(name);
+  const key=ph?"p:"+ph:(nm?"n:"+nm:null);
+  if(!key)return[];
+  const t=dateMs||Date.now();
+  return(orders||[]).filter(o=>{
+    const op=normPhone(o.phone),on=normName(o.client);
+    const ok=op?"p:"+op:(on?"n:"+on:null);
+    if(ok!==key)return false;
+    return Math.abs(new Date(o.date||0).getTime()-t)<=DUPE_WINDOW_MS;
+  });
+}
+
 // ─── Smart parser ───
 function parseClient(text){
   let name="",phone="",city="",branch="",payment="control";
@@ -1146,6 +1193,13 @@ function NewOrderPage({orders,setOrders,products,setProducts,clients,setClients}
   const rmItem=pid=>setItems(items.filter(i=>i.productId!==pid));
   const submit=()=>{
     const cn=parsed.name.trim();if(!cn||!items.length){alert("Ім'я + товар");return;}
+    // Duplicate check — same phone or name within 7 days
+    const dupes=findDupeFor(orders,parsed.phone,cn,Date.now());
+    if(dupes.length>0){
+      const recent=dupes.sort((a,b)=>new Date(b.date)-new Date(a.date)).slice(0,3);
+      const lines=recent.map(o=>`• ${new Date(o.date).toLocaleDateString("uk-UA")} — ${o.client}${o.phone?" ("+o.phone+")":""}, ${fmt(o.total)}, ${o.items.map(i=>i.name+(i.qty>1?" ×"+i.qty:"")).join(", ")}`).join("\n");
+      if(!confirm(`⚠ Можливий дубль!\n\nЗа останні 7 днів для цього клієнта вже є ${dupes.length} замовл.:\n\n${lines}\n\nВсе одно створити нове замовлення?`))return;
+    }
     const total=items.reduce((s,i)=>s+i.price*i.qty,0);
     const totalCost=items.reduce((s,i)=>s+i.cost*i.qty,0);
     const order={id:Date.now(),client:cn,phone:parsed.phone,city:deliv==="np"?parsed.city:"",npBranch:deliv==="np"?parsed.npBranch:"",payment:deliv==="np"?parsed.payment:"cash",deliveryType:deliv,items:[...items],total,totalCost,date:new Date().toISOString(),status:(prepay!==""&&Number(prepay)>=total)?"paid":(deliv==="np"?"new":"studio"),ttn:"",codAmount:codAmount!==""?Number(codAmount):null,prepayment:prepay!==""?Number(prepay):null,discount:discount!==""?Number(discount):null,comment:comment};
@@ -1311,10 +1365,15 @@ function OrdersListPage({orders,setOrders}){
       return false;
     });
   },[orders,search]);
-  const filtered=filter==="all"?searched:searched.filter(o=>o.status===filter);
-  const sorted=[...filtered].reverse();
+  const dupeMap=useMemo(()=>findDuplicates(orders),[orders]);
+  const filtered=filter==="dupes"?searched.filter(o=>dupeMap.has(o.id)):(filter==="all"?searched:searched.filter(o=>o.status===filter));
+  // Sort: when showing dupes — group by duplicate key then by date desc; otherwise by date desc
+  const sorted=filter==="dupes"
+    ?[...filtered].sort((a,b)=>{const ka=dupeMap.get(a.id)?.key||"";const kb=dupeMap.get(b.id)?.key||"";if(ka!==kb)return ka.localeCompare(kb);return new Date(b.date)-new Date(a.date);})
+    :[...filtered].reverse();
   const np=searched.filter(o=>o.deliveryType==="np");
-  const counts={all:searched.length,new:np.filter(o=>o.status==="new").length,ttn:np.filter(o=>o.status==="ttn").length,shipped:np.filter(o=>o.status==="shipped").length,delivered:np.filter(o=>o.status==="delivered").length,studio:searched.filter(o=>o.status==="studio").length,paid:searched.filter(o=>o.status==="paid").length};
+  const dupeCount=searched.filter(o=>dupeMap.has(o.id)).length;
+  const counts={all:searched.length,new:np.filter(o=>o.status==="new").length,ttn:np.filter(o=>o.status==="ttn").length,shipped:np.filter(o=>o.status==="shipped").length,delivered:np.filter(o=>o.status==="delivered").length,studio:searched.filter(o=>o.status==="studio").length,paid:searched.filter(o=>o.status==="paid").length,dupes:dupeCount};
   const openTtn=o=>{setTtnM(o);setTtnV(o.ttn||"");};
   const saveTtn=()=>{if(!ttnM)return;setOrders(orders.map(o=>o.id===ttnM.id?{...o,ttn:ttnV.trim(),status:ttnV.trim()?"ttn":"new"}:o));setTtnM(null);};
   const updSt=(id,st)=>setOrders(orders.map(o=>o.id===id?{...o,status:st}:o));
@@ -1343,13 +1402,17 @@ function OrdersListPage({orders,setOrders}){
       <button className={`filter-pill${filter==="delivered"?' active':''}`} onClick={()=>setFilter("delivered")}>Достав. ({counts.delivered})</button>
       <button className={`filter-pill${filter==="paid"?' active':''}`} onClick={()=>setFilter("paid")} style={{color:filter==="paid"?"var(--green)":""}}>Оплач. ({counts.paid})</button>
       <button className={`filter-pill${filter==="studio"?' active':''}`} onClick={()=>setFilter("studio")}>Студія ({counts.studio})</button>
+      {dupeCount>0&&<button className={`filter-pill${filter==="dupes"?' active':''}`} onClick={()=>setFilter("dupes")} style={{color:filter==="dupes"?"#fff":"var(--red)",background:filter==="dupes"?"var(--red)":"",borderColor:"var(--red)",fontWeight:700}} title="Замовлення від одного клієнта в межах 7 днів">⚠ Дублі ({dupeCount})</button>}
     </div>
+    {filter==="dupes"&&dupeCount>0&&<div style={{background:"#fef3c7",border:"1px solid #f59e0b",borderRadius:10,padding:"10px 14px",marginBottom:12,fontSize:12,color:"#78350f"}}>
+      ⚠ Знайдено {dupeCount} можливих дублі ({new Set(Array.from(dupeMap.values()).map(v=>v.key)).size} груп). Показані замовлення, у яких той самий телефон або ім'я зустрічається більше одного разу протягом 7 днів. Перевірте їх перед відправкою ТТН.
+    </div>}
     {sorted.length===0?<div className="empty-state"><p>Немає замовлень</p></div>:
     <div className="card" style={{padding:0,overflowX:"auto"}}>
       <table className="tbl"><thead><tr><th>Дата</th><th>Клієнт</th><th>Тел</th><th>Доставка</th><th>Сума</th><th>Оплата</th><th>ТТН</th><th>Статус</th><th></th></tr></thead><tbody>
-        {sorted.map(o=><tr key={o.id}>
+        {sorted.map(o=>{const dupe=dupeMap.get(o.id);const dupeOthers=dupe?dupe.groupIds.filter(x=>x!==o.id):[];return(<tr key={o.id} style={dupe?{background:"#fef3c7"}:null}>
           <td style={{whiteSpace:"nowrap",fontSize:12}}>{new Date(o.date).toLocaleDateString("uk-UA")}</td>
-          <td><div style={{fontWeight:600}}>{o.client}</div>{o.comment&&<div style={{fontSize:10,color:"var(--text2)",maxWidth:160,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}} title={o.comment}>{o.comment}</div>}</td>
+          <td><div style={{fontWeight:600,display:"flex",alignItems:"center",gap:4}}>{o.client}{dupe&&<span title={`Можливий дубль — ще ${dupeOthers.length} замовл. від цього клієнта за останні 7 днів`} style={{background:"var(--red)",color:"#fff",fontSize:9,padding:"2px 6px",borderRadius:8,fontWeight:700,whiteSpace:"nowrap"}}>⚠ ДУБЛЬ ×{dupe.groupIds.length}</span>}</div>{o.comment&&<div style={{fontSize:10,color:"var(--text2)",maxWidth:160,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}} title={o.comment}>{o.comment}</div>}</td>
           <td style={{fontSize:12,color:"var(--text2)"}}>{o.phone||"—"}</td>
           <td style={{fontSize:11}}>{o.deliveryType==="np"?`${o.city}${o.npBranch?` №${o.npBranch}`:""}`:<span style={{color:"var(--pink2)"}}>Студія</span>}</td>
           <td><div style={{fontWeight:700}}>{fmt(o.total)}</div>{o.codAmount!=null&&<div style={{fontSize:10,color:"var(--gold)"}}>{"Нал: "}{fmt(o.codAmount)}</div>}{o.prepayment!=null&&o.prepayment>0&&<div style={{fontSize:10,color:"var(--green)"}}>{"Передопл: "}{fmt(o.prepayment)}</div>}</td>
@@ -1363,7 +1426,7 @@ function OrdersListPage({orders,setOrders}){
             {o.status==="shipped"&&<button className="btn btn-secondary btn-xs" onClick={()=>updSt(o.id,"delivered")}>Дост</button>}
             <button className="btn btn-secondary btn-xs" onClick={()=>openEdit(o)}>{I.edit}</button>
           </div></td>
-        </tr>)}
+        </tr>);})}
       </tbody></table>
     </div>}
     {/* TTN Modal */}
@@ -1986,6 +2049,7 @@ function App(){
 }
 
 ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+// v15
 </script>
 </body>
 </html>
