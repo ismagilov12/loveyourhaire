@@ -8,8 +8,29 @@
 <script crossorigin="anonymous" src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script crossorigin="anonymous" src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script crossorigin="anonymous" src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
-<script crossorigin="anonymous" src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/dist/umd/supabase.min.js"></script>
-<script crossorigin="anonymous" src="https://unpkg.com/@supabase/supabase-js@2.49.1/dist/umd/supabase.min.js"></script>
+<script>
+// Boot loader: ensure Supabase SDK is loaded before app starts
+window.__sbReady=false;
+window.__sbCDNs=[
+  "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/dist/umd/supabase.min.js",
+  "https://unpkg.com/@supabase/supabase-js@2.49.1/dist/umd/supabase.min.js",
+  "https://cdnjs.cloudflare.com/ajax/libs/supabase/2.49.1/umd/supabase.min.js"
+];
+function __tryLoadSB(idx){
+  if(window.supabase){window.__sbReady=true;return;}
+  if(idx>=window.__sbCDNs.length){console.error("All Supabase CDNs failed");return;}
+  var s=document.createElement("script");
+  s.crossOrigin="anonymous";
+  s.src=window.__sbCDNs[idx];
+  s.onload=function(){
+    if(window.supabase){window.__sbReady=true;console.log("Supabase loaded from CDN #"+(idx+1));}
+    else{console.warn("CDN #"+(idx+1)+" loaded but no window.supabase, trying next...");__tryLoadSB(idx+1);}
+  };
+  s.onerror=function(){console.warn("CDN #"+(idx+1)+" failed, trying next...");__tryLoadSB(idx+1);};
+  document.head.appendChild(s);
+}
+__tryLoadSB(0);
+</script>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -1911,37 +1932,25 @@ const LS={
   set(k,v){try{localStorage.setItem("lyh_"+k,JSON.stringify(v));}catch{}}
 };
 
-// ─── SUPABASE ───
+// ─── SUPABASE (guaranteed init) ───
 const SUPABASE_URL="https://fsihlzzjewhxpogvjapu.supabase.co";
 const SUPABASE_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZzaWhsenpqZXdoeHBvZ3ZqYXB1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUyOTY2MzUsImV4cCI6MjA5MDg3MjYzNX0._hS7TA8EqIHgz7CH6XxGKuDdOnVBb6u40ntEtZ__MjU";
-let supabase=null;let supabaseInitErr="";
+let supabase=null;
 function initSupabase(){
   try{
     const sb=window.supabase||window.Supabase;
-    if(sb&&(sb.createClient||sb.default)){
-      const create=sb.createClient||sb.default.createClient||(sb.default&&sb.default.createClient);
-      if(create){supabase=create(SUPABASE_URL,SUPABASE_KEY);supabaseInitErr="";console.log("Supabase OK");return true;}
-    }
-    supabaseInitErr="SDK не завантажився";console.warn("Supabase SDK not found on window");return false;
-  }catch(e){supabaseInitErr=e.message;console.error("Supabase init:",e);return false;}
+    if(!sb)return false;
+    const create=sb.createClient||(sb.default&&sb.default.createClient);
+    if(!create)return false;
+    supabase=create(SUPABASE_URL,SUPABASE_KEY);
+    console.log("Supabase client initialized OK");
+    return true;
+  }catch(e){console.error("Supabase init error:",e);return false;}
 }
+// Init immediately — boot loader in <head> should have loaded it by now
 if(!initSupabase()){
-  console.log("Supabase: retrying with dynamic load...");
-  const _s=document.createElement("script");
-  _s.src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/dist/umd/supabase.min.js";
-  _s.onload=()=>{if(initSupabase())console.log("Supabase: dynamic load OK");else console.warn("Supabase: dynamic load failed too");};
-  document.head.appendChild(_s);
+  console.warn("Supabase not ready at script start, will retry before render...");
 }
-// Polling: keep trying until SDK loads (max 15 seconds)
-let _sbPollCount=0;
-const _sbPoll=setInterval(()=>{
-  _sbPollCount++;
-  if(supabase||_sbPollCount>30){clearInterval(_sbPoll);return;}
-  if(initSupabase()){clearInterval(_sbPoll);console.log("Supabase: poll init OK after "+(_sbPollCount*500)+"ms");
-    // Dispatch event so App can re-trigger load
-    window.dispatchEvent(new Event("supabase-ready"));
-  }
-},500);
 
 // Helper: map DB row (snake_case) → app object (camelCase) for orders
 const mapOrderFromDB=r=>({id:r.id,client:r.client,phone:r.phone,city:r.city,npBranch:r.np_branch,payment:r.payment,deliveryType:r.delivery_type,items:r.items,total:Number(r.total),totalCost:Number(r.total_cost),date:r.date,status:r.status,ttn:r.ttn,codAmount:r.cod_amount!=null?Number(r.cod_amount):null,prepayment:r.prepayment!=null?Number(r.prepayment):null,comment:r.comment||""});
@@ -2212,10 +2221,10 @@ function App(){
   // ─── Load from Supabase on mount ───
   const doLoad=async()=>{
     if(!supabase){
-      // Retry init — SDK may have loaded late
+      // Try one more time
       if(!initSupabase()){
-        console.warn("Supabase not available:",supabaseInitErr);
-        setSyncErr(supabaseInitErr||"Немає з'єднання");
+        console.warn("Supabase not available");
+        setSyncErr("Офлайн — база не підключена");
         setSynced(true);
         return;
       }
@@ -2253,10 +2262,6 @@ function App(){
   };
   useEffect(()=>{
     if(user)doLoad();
-    // If SDK loaded late, re-trigger data load
-    const onSbReady=()=>{if(user&&!supabase)initSupabase();if(user&&supabase)doLoad();};
-    window.addEventListener("supabase-ready",onSbReady);
-    return()=>window.removeEventListener("supabase-ready",onSbReady);
   },[user]);
 
   // ─── Realtime subscriptions ───
@@ -2349,8 +2354,51 @@ function App(){
   </div>);
 }
 
-ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
-// v16 — mobile cards, supabase key fix, retry sync
+// ─── BOOT: wait for Supabase then render ───
+function bootApp(){
+  if(supabase){
+    document.getElementById("boot-loader")?.remove();
+    ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+    return;
+  }
+  // Not ready yet — retry init
+  if(initSupabase()){
+    document.getElementById("boot-loader")?.remove();
+    ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+    return;
+  }
+  // Still not ready — show loading and poll
+  let el=document.getElementById("boot-loader");
+  if(!el){
+    el=document.createElement("div");el.id="boot-loader";
+    Object.assign(el.style,{position:"fixed",inset:"0",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",background:"#fff5f5",zIndex:"99999",fontFamily:"Nunito,system-ui,sans-serif"});
+    el.innerHTML='<div style="font-size:32px;margin-bottom:12px">💗</div><div style="font-size:16px;font-weight:700;color:#c2185b;margin-bottom:8px">Love Your Haire</div><div id="boot-msg" style="font-size:13px;color:#8c6b6b">Підключення до бази даних...</div>';
+    document.body.appendChild(el);
+  }
+  let attempts=0;
+  const poll=setInterval(()=>{
+    attempts++;
+    if(initSupabase()){
+      clearInterval(poll);
+      document.getElementById("boot-loader")?.remove();
+      ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+    }else if(attempts>40){
+      // 20 seconds passed — start without DB (offline mode)
+      clearInterval(poll);
+      const msg=document.getElementById("boot-msg");
+      if(msg)msg.innerHTML='<span style="color:#d32f2f">Не вдалося підключитися до бази. Працюємо офлайн.</span>';
+      setTimeout(()=>{
+        document.getElementById("boot-loader")?.remove();
+        ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+      },1500);
+    }else{
+      const msg=document.getElementById("boot-msg");
+      if(msg)msg.textContent="Підключення до бази даних... ("+attempts+"/40)";
+    }
+  },500);
+}
+bootApp();
+// v17 — guaranteed supabase boot, direct DB saves, control-only
 </script>
 </body>
 </html>
