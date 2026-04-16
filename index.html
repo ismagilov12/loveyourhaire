@@ -3,12 +3,12 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no"/>
-<title>Love Your Haire — CRM</title>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💗</text></svg>"/>
+<title>Love Your Haire â CRM</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>ð</text></svg>"/>
 <script crossorigin="anonymous" src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script crossorigin="anonymous" src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script crossorigin="anonymous" src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
-<script crossorigin="anonymous" src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script crossorigin="anonymous" src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/dist/umd/supabase.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -195,7 +195,7 @@ textarea.form-input{resize:vertical;min-height:60px;line-height:1.5}
 .desktop-tbl{display:block}
 .mob-orders-feed{display:none}
 
-/* ─── MOBILE ─── */
+/* âââ MOBILE âââ */
 @media(max-width:768px){
   .sidebar{display:none}
   .mobile-nav{display:block}
@@ -235,42 +235,42 @@ window.addEventListener("unhandledrejection",function(e){var el=document.getElem
 <script type="text/babel">
 const{useState,useEffect,useMemo,useRef}=React;
 
-// ─── Data ───
+// âââ Data âââ
 const INIT_PRODUCTS=[
-  {id:1,name:'Футболка "Pamela 90s"',sku:"T-PAM",category:"Oversize футболки",cost:450,price:1400,stock:50,type:"product",photo:""},
-  {id:2,name:'Футболка "Eminem"',sku:"T-EM",category:"Oversize футболки",cost:450,price:1400,stock:50,type:"product",photo:""},
-  {id:3,name:'Футболка "Britney"',sku:"T-BR",category:"Oversize футболки",cost:450,price:1400,stock:50,type:"product",photo:""},
-  {id:4,name:'Футболка "Beavis"',sku:"T-BV",category:"Oversize футболки",cost:450,price:1400,stock:50,type:"product",photo:""},
-  {id:5,name:'Футболка "Crush"',sku:"T-CR",category:"Oversize футболки",cost:450,price:1400,stock:50,type:"product",photo:""},
-  {id:6,name:'Футболка "Why Britney shaped the 2000s"',sku:"T-WB",category:"Oversize футболки",cost:450,price:1400,stock:50,type:"product",photo:""},
-  {id:7,name:'Футболка "Lindsay Lohan"',sku:"T-LL",category:"Oversize футболки",cost:450,price:1400,stock:50,type:"product",photo:""},
-  {id:8,name:'Футболка "Love is"',sku:"T-LI",category:"Oversize футболки",cost:450,price:1400,stock:50,type:"product",photo:""},
-  {id:9,name:'Футболка "Pam & Tommy"',sku:"T-PT",category:"Oversize футболки",cost:450,price:1400,stock:50,type:"product",photo:""},
-  {id:10,name:'Футболка "Playboy"',sku:"T-PB",category:"Oversize футболки",cost:450,price:1400,stock:50,type:"product",photo:""},
-  {id:11,name:'Футболка "Masturbation"',sku:"T-MS",category:"Oversize футболки",cost:450,price:1400,stock:50,type:"product",photo:""},
-  {id:12,name:'Футболка "Snoop Dogg"',sku:"T-SD",category:"Oversize футболки",cost:450,price:1400,stock:50,type:"product",photo:""},
-  {id:13,name:'Футболка "Prodigy"',sku:"T-PR",category:"Oversize футболки",cost:450,price:1400,stock:50,type:"product",photo:""},
-  {id:14,name:'Футболка "Soft Rebel"',sku:"T-SR",category:"Oversize футболки",cost:450,price:1400,stock:50,type:"product",photo:""},
-  {id:15,name:'Футболка "Giant Pussy"',sku:"T-GP",category:"Oversize футболки",cost:450,price:1400,stock:50,type:"product",photo:""},
-  {id:16,name:"Deep Clean Shampoo",sku:"COS-DC",category:"Косметика для волосся",cost:300,price:950,stock:30,type:"product",photo:""},
-  {id:17,name:"Текстуруюча паста для укладки",sku:"COS-TP",category:"Косметика для волосся",cost:200,price:650,stock:30,type:"product",photo:""},
-  {id:18,name:"Beach Spray",sku:"COS-BS",category:"Косметика для волосся",cost:280,price:890,stock:30,type:"product",photo:""},
-  {id:19,name:"Hydration Conditioner",sku:"COS-HC",category:"Косметика для волосся",cost:380,price:1200,stock:30,type:"product",photo:""},
-  {id:20,name:"Everyday Shampoo",sku:"COS-ES",category:"Косметика для волосся",cost:300,price:950,stock:30,type:"product",photo:""},
-  {id:21,name:"Curly Cream Gel",sku:"COS-CG",category:"Косметика для волосся",cost:320,price:1000,stock:30,type:"product",photo:""},
+  {id:1,name:'Ð¤ÑÑÐ±Ð¾Ð»ÐºÐ° "Pamela 90s"',sku:"T-PAM",category:"Oversize ÑÑÑÐ±Ð¾Ð»ÐºÐ¸",cost:450,price:1400,stock:50,type:"product",photo:""},
+  {id:2,name:'Ð¤ÑÑÐ±Ð¾Ð»ÐºÐ° "Eminem"',sku:"T-EM",category:"Oversize ÑÑÑÐ±Ð¾Ð»ÐºÐ¸",cost:450,price:1400,stock:50,type:"product",photo:""},
+  {id:3,name:'Ð¤ÑÑÐ±Ð¾Ð»ÐºÐ° "Britney"',sku:"T-BR",category:"Oversize ÑÑÑÐ±Ð¾Ð»ÐºÐ¸",cost:450,price:1400,stock:50,type:"product",photo:""},
+  {id:4,name:'Ð¤ÑÑÐ±Ð¾Ð»ÐºÐ° "Beavis"',sku:"T-BV",category:"Oversize ÑÑÑÐ±Ð¾Ð»ÐºÐ¸",cost:450,price:1400,stock:50,type:"product",photo:""},
+  {id:5,name:'Ð¤ÑÑÐ±Ð¾Ð»ÐºÐ° "Crush"',sku:"T-CR",category:"Oversize ÑÑÑÐ±Ð¾Ð»ÐºÐ¸",cost:450,price:1400,stock:50,type:"product",photo:""},
+  {id:6,name:'Ð¤ÑÑÐ±Ð¾Ð»ÐºÐ° "Why Britney shaped the 2000s"',sku:"T-WB",category:"Oversize ÑÑÑÐ±Ð¾Ð»ÐºÐ¸",cost:450,price:1400,stock:50,type:"product",photo:""},
+  {id:7,name:'Ð¤ÑÑÐ±Ð¾Ð»ÐºÐ° "Lindsay Lohan"',sku:"T-LL",category:"Oversize ÑÑÑÐ±Ð¾Ð»ÐºÐ¸",cost:450,price:1400,stock:50,type:"product",photo:""},
+  {id:8,name:'Ð¤ÑÑÐ±Ð¾Ð»ÐºÐ° "Love is"',sku:"T-LI",category:"Oversize ÑÑÑÐ±Ð¾Ð»ÐºÐ¸",cost:450,price:1400,stock:50,type:"product",photo:""},
+  {id:9,name:'Ð¤ÑÑÐ±Ð¾Ð»ÐºÐ° "Pam & Tommy"',sku:"T-PT",category:"Oversize ÑÑÑÐ±Ð¾Ð»ÐºÐ¸",cost:450,price:1400,stock:50,type:"product",photo:""},
+  {id:10,name:'Ð¤ÑÑÐ±Ð¾Ð»ÐºÐ° "Playboy"',sku:"T-PB",category:"Oversize ÑÑÑÐ±Ð¾Ð»ÐºÐ¸",cost:450,price:1400,stock:50,type:"product",photo:""},
+  {id:11,name:'Ð¤ÑÑÐ±Ð¾Ð»ÐºÐ° "Masturbation"',sku:"T-MS",category:"Oversize ÑÑÑÐ±Ð¾Ð»ÐºÐ¸",cost:450,price:1400,stock:50,type:"product",photo:""},
+  {id:12,name:'Ð¤ÑÑÐ±Ð¾Ð»ÐºÐ° "Snoop Dogg"',sku:"T-SD",category:"Oversize ÑÑÑÐ±Ð¾Ð»ÐºÐ¸",cost:450,price:1400,stock:50,type:"product",photo:""},
+  {id:13,name:'Ð¤ÑÑÐ±Ð¾Ð»ÐºÐ° "Prodigy"',sku:"T-PR",category:"Oversize ÑÑÑÐ±Ð¾Ð»ÐºÐ¸",cost:450,price:1400,stock:50,type:"product",photo:""},
+  {id:14,name:'Ð¤ÑÑÐ±Ð¾Ð»ÐºÐ° "Soft Rebel"',sku:"T-SR",category:"Oversize ÑÑÑÐ±Ð¾Ð»ÐºÐ¸",cost:450,price:1400,stock:50,type:"product",photo:""},
+  {id:15,name:'Ð¤ÑÑÐ±Ð¾Ð»ÐºÐ° "Giant Pussy"',sku:"T-GP",category:"Oversize ÑÑÑÐ±Ð¾Ð»ÐºÐ¸",cost:450,price:1400,stock:50,type:"product",photo:""},
+  {id:16,name:"Deep Clean Shampoo",sku:"COS-DC",category:"ÐÐ¾ÑÐ¼ÐµÑÐ¸ÐºÐ° Ð´Ð»Ñ Ð²Ð¾Ð»Ð¾ÑÑÑ",cost:300,price:950,stock:30,type:"product",photo:""},
+  {id:17,name:"Ð¢ÐµÐºÑÑÑÑÑÑÑÐ° Ð¿Ð°ÑÑÐ° Ð´Ð»Ñ ÑÐºÐ»Ð°Ð´ÐºÐ¸",sku:"COS-TP",category:"ÐÐ¾ÑÐ¼ÐµÑÐ¸ÐºÐ° Ð´Ð»Ñ Ð²Ð¾Ð»Ð¾ÑÑÑ",cost:200,price:650,stock:30,type:"product",photo:""},
+  {id:18,name:"Beach Spray",sku:"COS-BS",category:"ÐÐ¾ÑÐ¼ÐµÑÐ¸ÐºÐ° Ð´Ð»Ñ Ð²Ð¾Ð»Ð¾ÑÑÑ",cost:280,price:890,stock:30,type:"product",photo:""},
+  {id:19,name:"Hydration Conditioner",sku:"COS-HC",category:"ÐÐ¾ÑÐ¼ÐµÑÐ¸ÐºÐ° Ð´Ð»Ñ Ð²Ð¾Ð»Ð¾ÑÑÑ",cost:380,price:1200,stock:30,type:"product",photo:""},
+  {id:20,name:"Everyday Shampoo",sku:"COS-ES",category:"ÐÐ¾ÑÐ¼ÐµÑÐ¸ÐºÐ° Ð´Ð»Ñ Ð²Ð¾Ð»Ð¾ÑÑÑ",cost:300,price:950,stock:30,type:"product",photo:""},
+  {id:21,name:"Curly Cream Gel",sku:"COS-CG",category:"ÐÐ¾ÑÐ¼ÐµÑÐ¸ÐºÐ° Ð´Ð»Ñ Ð²Ð¾Ð»Ð¾ÑÑÑ",cost:320,price:1000,stock:30,type:"product",photo:""},
 ];
-const CATEGORIES=["Все","Oversize футболки","Косметика для волосся"];
-const MONTHS=["Січень","Лютий","Березень","Квітень","Травень","Червень","Липень","Серпень","Вересень","Жовтень","Листопад","Грудень"];
-const DAYS=["Пн","Вт","Ср","Чт","Пт","Сб","Нд"];
-const STATUSES={new:"Новий",ttn:"ТТН",shipped:"Відправлено",delivered:"Доставлено",studio:"Студія",paid:"Оплачено"};
+const CATEGORIES=["ÐÑÐµ","Oversize ÑÑÑÐ±Ð¾Ð»ÐºÐ¸","ÐÐ¾ÑÐ¼ÐµÑÐ¸ÐºÐ° Ð´Ð»Ñ Ð²Ð¾Ð»Ð¾ÑÑÑ"];
+const MONTHS=["Ð¡ÑÑÐµÐ½Ñ","ÐÑÑÐ¸Ð¹","ÐÐµÑÐµÐ·ÐµÐ½Ñ","ÐÐ²ÑÑÐµÐ½Ñ","Ð¢ÑÐ°Ð²ÐµÐ½Ñ","Ð§ÐµÑÐ²ÐµÐ½Ñ","ÐÐ¸Ð¿ÐµÐ½Ñ","Ð¡ÐµÑÐ¿ÐµÐ½Ñ","ÐÐµÑÐµÑÐµÐ½Ñ","ÐÐ¾Ð²ÑÐµÐ½Ñ","ÐÐ¸ÑÑÐ¾Ð¿Ð°Ð´","ÐÑÑÐ´ÐµÐ½Ñ"];
+const DAYS=["ÐÐ½","ÐÑ","Ð¡Ñ","Ð§Ñ","ÐÑ","Ð¡Ð±","ÐÐ´"];
+const STATUSES={new:"ÐÐ¾Ð²Ð¸Ð¹",ttn:"Ð¢Ð¢Ð",shipped:"ÐÑÐ´Ð¿ÑÐ°Ð²Ð»ÐµÐ½Ð¾",delivered:"ÐÐ¾ÑÑÐ°Ð²Ð»ÐµÐ½Ð¾",studio:"Ð¡ÑÑÐ´ÑÑ",paid:"ÐÐ¿Ð»Ð°ÑÐµÐ½Ð¾"};
 const STCLS={new:"status-new",ttn:"status-ttn",shipped:"status-shipped",delivered:"status-delivered",studio:"status-studio"};
-const EXPENSE_CATS=["Оренда студії","Податки","Закупівля товару","Зарплата","Реклама","Інше"];
+const EXPENSE_CATS=["ÐÑÐµÐ½Ð´Ð° ÑÑÑÐ´ÑÑ","ÐÐ¾Ð´Ð°ÑÐºÐ¸","ÐÐ°ÐºÑÐ¿ÑÐ²Ð»Ñ ÑÐ¾Ð²Ð°ÑÑ","ÐÐ°ÑÐ¿Ð»Ð°ÑÐ°","Ð ÐµÐºÐ»Ð°Ð¼Ð°","ÐÐ½ÑÐµ"];
 
-const fmt=n=>n.toLocaleString("uk-UA")+" ₴";
+const fmt=n=>n.toLocaleString("uk-UA")+" â´";
 const fmtD=d=>d.toLocaleDateString("uk-UA",{day:"numeric",month:"short",year:"numeric"});
 const sameDay=(a,b)=>a.getFullYear()===b.getFullYear()&&a.getMonth()===b.getMonth()&&a.getDate()===b.getDate();
 
-// ─── Duplicate detection ───
+// âââ Duplicate detection âââ
 const normPhone=p=>String(p||"").replace(/\D/g,"").replace(/^380/,"").replace(/^0/,"");
 const normName=n=>String(n||"").trim().toLowerCase().replace(/\s+/g," ");
 const DUPE_WINDOW_MS=7*24*60*60*1000;
@@ -317,27 +317,27 @@ function findDupeFor(orders,phone,name,dateMs){
   });
 }
 
-// ─── Smart parser ───
+// âââ Smart parser âââ
 function parseClient(text){
   let name="",phone="",city="",branch="",payment="control";
   const full=text.trim();
 
   // Known Ukrainian cities (UA + RU variants) for smart detection
-  const CITIES=["київ","киев","kyiv","харків","харьков","одеса","одесса","дніпро","днепр","львів","львов","запоріжжя","запорожье","миколаїв","николаев","маріуполь","мариуполь","вінниця","винница","херсон","полтава","чернігів","чернигов","черкаси","черкассы","суми","сумы","житомир","рівне","ровно","кропивницький","кировоград","тернопіль","тернополь","івано-франківськ","ивано-франковск","луцьк","луцк","ужгород","хмельницький","хмельницкий","чернівці","черновцы","біла церква","кременчук","кременчуг","бровари","бровары","краматорськ","краматорск","мелітополь","мелитополь","нікополь","никополь","бердянськ","бердянск","павлоград","кам'янське","олександрія","конотоп","умань","шостка","ізмаїл","измаил","новомосковськ","новомосковск","коростень","ніжин","нежин","прилуки"];
+  const CITIES=["ÐºÐ¸ÑÐ²","ÐºÐ¸ÐµÐ²","kyiv","ÑÐ°ÑÐºÑÐ²","ÑÐ°ÑÑÐºÐ¾Ð²","Ð¾Ð´ÐµÑÐ°","Ð¾Ð´ÐµÑÑÐ°","Ð´Ð½ÑÐ¿ÑÐ¾","Ð´Ð½ÐµÐ¿Ñ","Ð»ÑÐ²ÑÐ²","Ð»ÑÐ²Ð¾Ð²","Ð·Ð°Ð¿Ð¾ÑÑÐ¶Ð¶Ñ","Ð·Ð°Ð¿Ð¾ÑÐ¾Ð¶ÑÐµ","Ð¼Ð¸ÐºÐ¾Ð»Ð°ÑÐ²","Ð½Ð¸ÐºÐ¾Ð»Ð°ÐµÐ²","Ð¼Ð°ÑÑÑÐ¿Ð¾Ð»Ñ","Ð¼Ð°ÑÐ¸ÑÐ¿Ð¾Ð»Ñ","Ð²ÑÐ½Ð½Ð¸ÑÑ","Ð²Ð¸Ð½Ð½Ð¸ÑÐ°","ÑÐµÑÑÐ¾Ð½","Ð¿Ð¾Ð»ÑÐ°Ð²Ð°","ÑÐµÑÐ½ÑÐ³ÑÐ²","ÑÐµÑÐ½Ð¸Ð³Ð¾Ð²","ÑÐµÑÐºÐ°ÑÐ¸","ÑÐµÑÐºÐ°ÑÑÑ","ÑÑÐ¼Ð¸","ÑÑÐ¼Ñ","Ð¶Ð¸ÑÐ¾Ð¼Ð¸Ñ","ÑÑÐ²Ð½Ðµ","ÑÐ¾Ð²Ð½Ð¾","ÐºÑÐ¾Ð¿Ð¸Ð²Ð½Ð¸ÑÑÐºÐ¸Ð¹","ÐºÐ¸ÑÐ¾Ð²Ð¾Ð³ÑÐ°Ð´","ÑÐµÑÐ½Ð¾Ð¿ÑÐ»Ñ","ÑÐµÑÐ½Ð¾Ð¿Ð¾Ð»Ñ","ÑÐ²Ð°Ð½Ð¾-ÑÑÐ°Ð½ÐºÑÐ²ÑÑÐº","Ð¸Ð²Ð°Ð½Ð¾-ÑÑÐ°Ð½ÐºÐ¾Ð²ÑÐº","Ð»ÑÑÑÐº","Ð»ÑÑÐº","ÑÐ¶Ð³Ð¾ÑÐ¾Ð´","ÑÐ¼ÐµÐ»ÑÐ½Ð¸ÑÑÐºÐ¸Ð¹","ÑÐ¼ÐµÐ»ÑÐ½Ð¸ÑÐºÐ¸Ð¹","ÑÐµÑÐ½ÑÐ²ÑÑ","ÑÐµÑÐ½Ð¾Ð²ÑÑ","Ð±ÑÐ»Ð° ÑÐµÑÐºÐ²Ð°","ÐºÑÐµÐ¼ÐµÐ½ÑÑÐº","ÐºÑÐµÐ¼ÐµÐ½ÑÑÐ³","Ð±ÑÐ¾Ð²Ð°ÑÐ¸","Ð±ÑÐ¾Ð²Ð°ÑÑ","ÐºÑÐ°Ð¼Ð°ÑÐ¾ÑÑÑÐº","ÐºÑÐ°Ð¼Ð°ÑÐ¾ÑÑÐº","Ð¼ÐµÐ»ÑÑÐ¾Ð¿Ð¾Ð»Ñ","Ð¼ÐµÐ»Ð¸ÑÐ¾Ð¿Ð¾Ð»Ñ","Ð½ÑÐºÐ¾Ð¿Ð¾Ð»Ñ","Ð½Ð¸ÐºÐ¾Ð¿Ð¾Ð»Ñ","Ð±ÐµÑÐ´ÑÐ½ÑÑÐº","Ð±ÐµÑÐ´ÑÐ½ÑÐº","Ð¿Ð°Ð²Ð»Ð¾Ð³ÑÐ°Ð´","ÐºÐ°Ð¼'ÑÐ½ÑÑÐºÐµ","Ð¾Ð»ÐµÐºÑÐ°Ð½Ð´ÑÑÑ","ÐºÐ¾Ð½Ð¾ÑÐ¾Ð¿","ÑÐ¼Ð°Ð½Ñ","ÑÐ¾ÑÑÐºÐ°","ÑÐ·Ð¼Ð°ÑÐ»","Ð¸Ð·Ð¼Ð°Ð¸Ð»","Ð½Ð¾Ð²Ð¾Ð¼Ð¾ÑÐºÐ¾Ð²ÑÑÐº","Ð½Ð¾Ð²Ð¾Ð¼Ð¾ÑÐºÐ¾Ð²ÑÐº","ÐºÐ¾ÑÐ¾ÑÑÐµÐ½Ñ","Ð½ÑÐ¶Ð¸Ð½","Ð½ÐµÐ¶Ð¸Ð½","Ð¿ÑÐ¸Ð»ÑÐºÐ¸"];
 
   // 1. Extract phone (9-10 digits starting with 0, or +380...)
   const phMatch=full.match(/(\+?3?8?)(0\d{8,9})/);
   if(phMatch){phone="+38"+phMatch[2];}
 
   // 2. Extract payment
-  if(/(?:наложка|наложенн?ий|налож|нал\.?\s*плат|cod)/i.test(full)) payment="cod";
+  if(/(?:Ð½Ð°Ð»Ð¾Ð¶ÐºÐ°|Ð½Ð°Ð»Ð¾Ð¶ÐµÐ½Ð½?Ð¸Ð¹|Ð½Ð°Ð»Ð¾Ð¶|Ð½Ð°Ð»\.?\s*Ð¿Ð»Ð°Ñ|cod)/i.test(full)) payment="cod";
 
   // 3. Extract branch number near NP keywords
-  const npExplicit=full.match(/(?:нп|нова\s*пошта|відділення|отделение|склад|відд)[^\d]*(\d{1,4})/i);
+  const npExplicit=full.match(/(?:Ð½Ð¿|Ð½Ð¾Ð²Ð°\s*Ð¿Ð¾ÑÑÐ°|Ð²ÑÐ´Ð´ÑÐ»ÐµÐ½Ð½Ñ|Ð¾ÑÐ´ÐµÐ»ÐµÐ½Ð¸Ðµ|ÑÐºÐ»Ð°Ð´|Ð²ÑÐ´Ð´)[^\d]*(\d{1,4})/i);
   if(npExplicit) branch=npExplicit[1];
 
   // 4. Remove phone from text for further parsing
-  let rest=full.replace(/\+?3?8?0\d{8,9}/g,"").replace(/(?:контроль\s*оплати|наложка|контроль|передоплат\w*)/gi,"").trim();
+  let rest=full.replace(/\+?3?8?0\d{8,9}/g,"").replace(/(?:ÐºÐ¾Ð½ÑÑÐ¾Ð»Ñ\s*Ð¾Ð¿Ð»Ð°ÑÐ¸|Ð½Ð°Ð»Ð¾Ð¶ÐºÐ°|ÐºÐ¾Ð½ÑÑÐ¾Ð»Ñ|Ð¿ÐµÑÐµÐ´Ð¾Ð¿Ð»Ð°Ñ\w*)/gi,"").trim();
 
   // 5. Try to find city from known list (must be at word boundary)
   const restLow=rest.toLowerCase();
@@ -349,9 +349,9 @@ function parseClient(text){
     if(cm2){
       const idx=restLow.indexOf(cm2[1],cm2.index);
       foundCity=rest.substr(idx,c.length);
-      // Check if number follows city (like "одеса 04" or "одеса04" or "харьков 22")
+      // Check if number follows city (like "Ð¾Ð´ÐµÑÐ° 04" or "Ð¾Ð´ÐµÑÐ°04" or "ÑÐ°ÑÑÐºÐ¾Ð² 22")
       const afterCity=rest.substring(idx+c.length).trim();
-      const brAfter=afterCity.match(/^(\d{1,4})\s*(?:від|отд|відділення|отделение)?/i);
+      const brAfter=afterCity.match(/^(\d{1,4})\s*(?:Ð²ÑÐ´|Ð¾ÑÐ´|Ð²ÑÐ´Ð´ÑÐ»ÐµÐ½Ð½Ñ|Ð¾ÑÐ´ÐµÐ»ÐµÐ½Ð¸Ðµ)?/i);
       if(brAfter&&!branch) branch=brAfter[1];
       // Remove city + branch from rest
       const endIdx=idx+c.length+(brAfter?(rest.substring(idx+c.length).indexOf(brAfter[0])+brAfter[0].length):0);
@@ -365,7 +365,7 @@ function parseClient(text){
   if(!city&&!branch){
     const lines=rest.split(/\n/).map(l=>l.trim()).filter(Boolean);
     for(let i=0;i<lines.length;i++){
-      const cm=lines[i].match(/^([A-Za-zА-ЯІЇЄҐа-яіїєґ\s\-'`]+?)\s+(\d{1,4})\s*(?:від|отд|відділення|отделение)?$/i);
+      const cm=lines[i].match(/^([A-Za-zÐ-Ð¯ÐÐÐÒÐ°-ÑÑÑÑÒ\s\-'`]+?)\s+(\d{1,4})\s*(?:Ð²ÑÐ´|Ð¾ÑÐ´|Ð²ÑÐ´Ð´ÑÐ»ÐµÐ½Ð½Ñ|Ð¾ÑÐ´ÐµÐ»ÐµÐ½Ð¸Ðµ)?$/i);
       if(cm){city=cm[1].trim();branch=cm[2];lines.splice(i,1);rest=lines.join("\n");break;}
     }
   }
@@ -376,10 +376,10 @@ function parseClient(text){
     if(brMatch){branch=brMatch[1];rest=rest.replace(brMatch[0]," ").trim();}
   }
 
-  // 8. Whatever text remains — clean up and use as name
+  // 8. Whatever text remains â clean up and use as name
   rest=rest.replace(/\s+/g," ").replace(/[,\/\|]+/g," ").trim();
   // Remove NP keywords from name
-  rest=rest.replace(/(?:нп|нова\s*пошта|відділення|отделение|склад|відд)\s*/gi,"").trim();
+  rest=rest.replace(/(?:Ð½Ð¿|Ð½Ð¾Ð²Ð°\s*Ð¿Ð¾ÑÑÐ°|Ð²ÑÐ´Ð´ÑÐ»ÐµÐ½Ð½Ñ|Ð¾ÑÐ´ÐµÐ»ÐµÐ½Ð¸Ðµ|ÑÐºÐ»Ð°Ð´|Ð²ÑÐ´Ð´)\s*/gi,"").trim();
   // Remove stray numbers that are branch-like
   if(branch) rest=rest.replace(new RegExp("\\b"+branch+"\\b"),"").trim();
   name=rest;
@@ -400,27 +400,27 @@ function parseBulkOrders(rawText,products){
   });
 
   var ALIASES={
-    'еминем':'eminem','эминем':'eminem','эмигем':'eminem','єминем':'eminem','еміне':'eminem','эмине':'eminem',
-    'памела':'pamela','памел':'pamela',
-    'брітні':'britney','бритни':'britney','брітн':'britney','бритн':'britney',
-    'краш':'crush',
-    'чувак':'beavis','бівіс':'beavis','бивис':'beavis','батхед':'beavis',
-    'ліндсі':'lindsay','линдси':'lindsay','лохан':'lindsay',
-    'снуп':'snoop','снуп дог':'snoop',
-    'продіджі':'prodigy','продиджи':'prodigy',
-    'плейбой':'playboy',
+    'ÐµÐ¼Ð¸Ð½ÐµÐ¼':'eminem','ÑÐ¼Ð¸Ð½ÐµÐ¼':'eminem','ÑÐ¼Ð¸Ð³ÐµÐ¼':'eminem','ÑÐ¼Ð¸Ð½ÐµÐ¼':'eminem','ÐµÐ¼ÑÐ½Ðµ':'eminem','ÑÐ¼Ð¸Ð½Ðµ':'eminem',
+    'Ð¿Ð°Ð¼ÐµÐ»Ð°':'pamela','Ð¿Ð°Ð¼ÐµÐ»':'pamela',
+    'Ð±ÑÑÑÐ½Ñ':'britney','Ð±ÑÐ¸ÑÐ½Ð¸':'britney','Ð±ÑÑÑÐ½':'britney','Ð±ÑÐ¸ÑÐ½':'britney',
+    'ÐºÑÐ°Ñ':'crush',
+    'ÑÑÐ²Ð°Ðº':'beavis','Ð±ÑÐ²ÑÑ':'beavis','Ð±Ð¸Ð²Ð¸Ñ':'beavis','Ð±Ð°ÑÑÐµÐ´':'beavis',
+    'Ð»ÑÐ½Ð´ÑÑ':'lindsay','Ð»Ð¸Ð½Ð´ÑÐ¸':'lindsay','Ð»Ð¾ÑÐ°Ð½':'lindsay',
+    'ÑÐ½ÑÐ¿':'snoop','ÑÐ½ÑÐ¿ Ð´Ð¾Ð³':'snoop',
+    'Ð¿ÑÐ¾Ð´ÑÐ´Ð¶Ñ':'prodigy','Ð¿ÑÐ¾Ð´Ð¸Ð´Ð¶Ð¸':'prodigy',
+    'Ð¿Ð»ÐµÐ¹Ð±Ð¾Ð¹':'playboy',
     'love is':'love is',
-    'мастурбац':'masturbation',
-    'пам томм':'pam & tommy','памтомм':'pam & tommy','pam tommy':'pam & tommy',
-    'why britney':'why britney shaped','побрит':'why britney shaped',
-    'soft rebel':'soft rebel','софт ребел':'soft rebel',
-    'giant pussy':'giant pussy','джаянт':'giant pussy',
-    'паста':'текстуруюча паста','текстур':'текстуруюча паста',
-    'спрей':'beach spray','біч':'beach spray','beach':'beach spray',
-    'кондиціонер':'hydration conditioner','кондиционер':'hydration conditioner',
-    'шампунь глиб':'deep clean shampoo','діп клін':'deep clean shampoo','deep clean':'deep clean shampoo',
-    'шампунь щод':'everyday shampoo','everyday shampoo':'everyday shampoo',
-    'крем гель':'curly cream gel','кьорлі':'curly cream gel','curly':'curly cream gel'
+    'Ð¼Ð°ÑÑÑÑÐ±Ð°Ñ':'masturbation',
+    'Ð¿Ð°Ð¼ ÑÐ¾Ð¼Ð¼':'pam & tommy','Ð¿Ð°Ð¼ÑÐ¾Ð¼Ð¼':'pam & tommy','pam tommy':'pam & tommy',
+    'why britney':'why britney shaped','Ð¿Ð¾Ð±ÑÐ¸Ñ':'why britney shaped',
+    'soft rebel':'soft rebel','ÑÐ¾ÑÑ ÑÐµÐ±ÐµÐ»':'soft rebel',
+    'giant pussy':'giant pussy','Ð´Ð¶Ð°ÑÐ½Ñ':'giant pussy',
+    'Ð¿Ð°ÑÑÐ°':'ÑÐµÐºÑÑÑÑÑÑÑÐ° Ð¿Ð°ÑÑÐ°','ÑÐµÐºÑÑÑÑ':'ÑÐµÐºÑÑÑÑÑÑÑÐ° Ð¿Ð°ÑÑÐ°',
+    'ÑÐ¿ÑÐµÐ¹':'beach spray','Ð±ÑÑ':'beach spray','beach':'beach spray',
+    'ÐºÐ¾Ð½Ð´Ð¸ÑÑÐ¾Ð½ÐµÑ':'hydration conditioner','ÐºÐ¾Ð½Ð´Ð¸ÑÐ¸Ð¾Ð½ÐµÑ':'hydration conditioner',
+    'ÑÐ°Ð¼Ð¿ÑÐ½Ñ Ð³Ð»Ð¸Ð±':'deep clean shampoo','Ð´ÑÐ¿ ÐºÐ»ÑÐ½':'deep clean shampoo','deep clean':'deep clean shampoo',
+    'ÑÐ°Ð¼Ð¿ÑÐ½Ñ ÑÐ¾Ð´':'everyday shampoo','everyday shampoo':'everyday shampoo',
+    'ÐºÑÐµÐ¼ Ð³ÐµÐ»Ñ':'curly cream gel','ÐºÑÐ¾ÑÐ»Ñ':'curly cream gel','curly':'curly cream gel'
   };
 
   function matchAlias(text){
@@ -437,15 +437,15 @@ function parseBulkOrders(rawText,products){
     return null;
   }
 
-  var QTY_WORDS={'одна':1,'одну':1,'один':1,'одне':1,'два':2,'дві':2,'двi':2,'три':3,'чотири':4,'четыре':4};
+  var QTY_WORDS={'Ð¾Ð´Ð½Ð°':1,'Ð¾Ð´Ð½Ñ':1,'Ð¾Ð´Ð¸Ð½':1,'Ð¾Ð´Ð½Ðµ':1,'Ð´Ð²Ð°':2,'Ð´Ð²Ñ':2,'Ð´Ð²i':2,'ÑÑÐ¸':3,'ÑÐ¾ÑÐ¸ÑÐ¸':4,'ÑÐµÑÑÑÐµ':4};
 
   function findProds(text){
     var low=text.toLowerCase().replace(/[^\u0000-\u2599\u2800-\uFDFF\uFF00-\uFFFF]/g,'').trim();
-    var segments=low.split(/\s+(?:и|і|\+)\s+/).map(function(s){return s.trim();}).filter(Boolean);
+    var segments=low.split(/\s+(?:Ð¸|Ñ|\+)\s+/).map(function(s){return s.trim();}).filter(Boolean);
     var found=[];var cups=[];
     for(var si=0;si<segments.length;si++){
       var seg=segments[si];
-      if(/чашк|кружк/i.test(seg)){cups.push(seg);continue;}
+      if(/ÑÐ°ÑÐº|ÐºÑÑÐ¶Ðº/i.test(seg)){cups.push(seg);continue;}
       var qty=1;
       var cleanSeg=seg;
       for(var qw in QTY_WORDS){
@@ -469,7 +469,7 @@ function parseBulkOrders(rawText,products){
           found.push({productId:p.id,name:p.name,price:Number(p.price),cost:Number(p.cost||0),qty:qty,type:p.type||"product"});matched=true;
         }
       }
-      if(!matched&&/чашк|кружк/i.test(seg)){cups.push(seg);}
+      if(!matched&&/ÑÐ°ÑÐº|ÐºÑÑÐ¶Ðº/i.test(seg)){cups.push(seg);}
     }
     for(var alias in ALIASES){
       if(low.indexOf(alias)!==-1){
@@ -482,17 +482,17 @@ function parseBulkOrders(rawText,products){
     return{products:found,cups:cups};
   }
 
-  var CITIES_LIST=["київ","киев","харків","харьков","одеса","одесса","дніпро","днепр","львів","львов","запоріжжя","запорожье","полтава","вінниця","винница","херсон","чернігів","чернигов","суми","сумы","житомир","рівне","ровно","тернопіль","ужгород","хмельниц","чернівці","кривий ріг","бровари","кременчук","ізмаїл","шепетівка","ніжин","гельмязів","северинівка","берестин","красноград","кишинів","краматорськ","мелітополь","бердянськ","павлоград","конотоп","умань","біла церква","новомосковськ","нова каховка","олександрія","шостка","прилуки","коростень","нікополь","миколаїв","кропивницький","івано-франківськ","луцьк","маріуполь","черкаси","обухів","фастів","бориспіль","васильків","ірпінь","вишневе","буча","славутич"];
-  var INTL_COUNTRIES=["литва","lithuania","германия","germany","німеччина","deutschland","польща","polska","poland","чехія","czech","молдова","moldova","румунія","romania","естонія","estonia","латвія","latvia","італія","italy","іспанія","spain","франція","france","сша","usa","канада","canada","великобританія","uk","англія","england","туреччина","turkey","грузія","georgia","ізраїль","israel"];
+  var CITIES_LIST=["ÐºÐ¸ÑÐ²","ÐºÐ¸ÐµÐ²","ÑÐ°ÑÐºÑÐ²","ÑÐ°ÑÑÐºÐ¾Ð²","Ð¾Ð´ÐµÑÐ°","Ð¾Ð´ÐµÑÑÐ°","Ð´Ð½ÑÐ¿ÑÐ¾","Ð´Ð½ÐµÐ¿Ñ","Ð»ÑÐ²ÑÐ²","Ð»ÑÐ²Ð¾Ð²","Ð·Ð°Ð¿Ð¾ÑÑÐ¶Ð¶Ñ","Ð·Ð°Ð¿Ð¾ÑÐ¾Ð¶ÑÐµ","Ð¿Ð¾Ð»ÑÐ°Ð²Ð°","Ð²ÑÐ½Ð½Ð¸ÑÑ","Ð²Ð¸Ð½Ð½Ð¸ÑÐ°","ÑÐµÑÑÐ¾Ð½","ÑÐµÑÐ½ÑÐ³ÑÐ²","ÑÐµÑÐ½Ð¸Ð³Ð¾Ð²","ÑÑÐ¼Ð¸","ÑÑÐ¼Ñ","Ð¶Ð¸ÑÐ¾Ð¼Ð¸Ñ","ÑÑÐ²Ð½Ðµ","ÑÐ¾Ð²Ð½Ð¾","ÑÐµÑÐ½Ð¾Ð¿ÑÐ»Ñ","ÑÐ¶Ð³Ð¾ÑÐ¾Ð´","ÑÐ¼ÐµÐ»ÑÐ½Ð¸Ñ","ÑÐµÑÐ½ÑÐ²ÑÑ","ÐºÑÐ¸Ð²Ð¸Ð¹ ÑÑÐ³","Ð±ÑÐ¾Ð²Ð°ÑÐ¸","ÐºÑÐµÐ¼ÐµÐ½ÑÑÐº","ÑÐ·Ð¼Ð°ÑÐ»","ÑÐµÐ¿ÐµÑÑÐ²ÐºÐ°","Ð½ÑÐ¶Ð¸Ð½","Ð³ÐµÐ»ÑÐ¼ÑÐ·ÑÐ²","ÑÐµÐ²ÐµÑÐ¸Ð½ÑÐ²ÐºÐ°","Ð±ÐµÑÐµÑÑÐ¸Ð½","ÐºÑÐ°ÑÐ½Ð¾Ð³ÑÐ°Ð´","ÐºÐ¸ÑÐ¸Ð½ÑÐ²","ÐºÑÐ°Ð¼Ð°ÑÐ¾ÑÑÑÐº","Ð¼ÐµÐ»ÑÑÐ¾Ð¿Ð¾Ð»Ñ","Ð±ÐµÑÐ´ÑÐ½ÑÑÐº","Ð¿Ð°Ð²Ð»Ð¾Ð³ÑÐ°Ð´","ÐºÐ¾Ð½Ð¾ÑÐ¾Ð¿","ÑÐ¼Ð°Ð½Ñ","Ð±ÑÐ»Ð° ÑÐµÑÐºÐ²Ð°","Ð½Ð¾Ð²Ð¾Ð¼Ð¾ÑÐºÐ¾Ð²ÑÑÐº","Ð½Ð¾Ð²Ð° ÐºÐ°ÑÐ¾Ð²ÐºÐ°","Ð¾Ð»ÐµÐºÑÐ°Ð½Ð´ÑÑÑ","ÑÐ¾ÑÑÐºÐ°","Ð¿ÑÐ¸Ð»ÑÐºÐ¸","ÐºÐ¾ÑÐ¾ÑÑÐµÐ½Ñ","Ð½ÑÐºÐ¾Ð¿Ð¾Ð»Ñ","Ð¼Ð¸ÐºÐ¾Ð»Ð°ÑÐ²","ÐºÑÐ¾Ð¿Ð¸Ð²Ð½Ð¸ÑÑÐºÐ¸Ð¹","ÑÐ²Ð°Ð½Ð¾-ÑÑÐ°Ð½ÐºÑÐ²ÑÑÐº","Ð»ÑÑÑÐº","Ð¼Ð°ÑÑÑÐ¿Ð¾Ð»Ñ","ÑÐµÑÐºÐ°ÑÐ¸","Ð¾Ð±ÑÑÑÐ²","ÑÐ°ÑÑÑÐ²","Ð±Ð¾ÑÐ¸ÑÐ¿ÑÐ»Ñ","Ð²Ð°ÑÐ¸Ð»ÑÐºÑÐ²","ÑÑÐ¿ÑÐ½Ñ","Ð²Ð¸ÑÐ½ÐµÐ²Ðµ","Ð±ÑÑÐ°","ÑÐ»Ð°Ð²ÑÑÐ¸Ñ"];
+  var INTL_COUNTRIES=["Ð»Ð¸ÑÐ²Ð°","lithuania","Ð³ÐµÑÐ¼Ð°Ð½Ð¸Ñ","germany","Ð½ÑÐ¼ÐµÑÑÐ¸Ð½Ð°","deutschland","Ð¿Ð¾Ð»ÑÑÐ°","polska","poland","ÑÐµÑÑÑ","czech","Ð¼Ð¾Ð»Ð´Ð¾Ð²Ð°","moldova","ÑÑÐ¼ÑÐ½ÑÑ","romania","ÐµÑÑÐ¾Ð½ÑÑ","estonia","Ð»Ð°ÑÐ²ÑÑ","latvia","ÑÑÐ°Ð»ÑÑ","italy","ÑÑÐ¿Ð°Ð½ÑÑ","spain","ÑÑÐ°Ð½ÑÑÑ","france","ÑÑÐ°","usa","ÐºÐ°Ð½Ð°Ð´Ð°","canada","Ð²ÐµÐ»Ð¸ÐºÐ¾Ð±ÑÐ¸ÑÐ°Ð½ÑÑ","uk","Ð°Ð½Ð³Ð»ÑÑ","england","ÑÑÑÐµÑÑÐ¸Ð½Ð°","turkey","Ð³ÑÑÐ·ÑÑ","georgia","ÑÐ·ÑÐ°ÑÐ»Ñ","israel"];
 
   function parsePay(low){
-    if(/полн(?:ая|а|ой)\s*(?:оплат|предоплат)?|повн(?:а|ої)\s*(?:оплат|передоплат)?/i.test(low))return{type:'full',amount:0};
-    if(/бартер/i.test(low))return{type:'barter',amount:0};
-    var m=low.match(/(\d+)\s*(?:грн?|гр)?\s*(?:предоплат|предолат|предопо)/);
+    if(/Ð¿Ð¾Ð»Ð½(?:Ð°Ñ|Ð°|Ð¾Ð¹)\s*(?:Ð¾Ð¿Ð»Ð°Ñ|Ð¿ÑÐµÐ´Ð¾Ð¿Ð»Ð°Ñ)?|Ð¿Ð¾Ð²Ð½(?:Ð°|Ð¾Ñ)\s*(?:Ð¾Ð¿Ð»Ð°Ñ|Ð¿ÐµÑÐµÐ´Ð¾Ð¿Ð»Ð°Ñ)?/i.test(low))return{type:'full',amount:0};
+    if(/Ð±Ð°ÑÑÐµÑ/i.test(low))return{type:'barter',amount:0};
+    var m=low.match(/(\d+)\s*(?:Ð³ÑÐ½?|Ð³Ñ)?\s*(?:Ð¿ÑÐµÐ´Ð¾Ð¿Ð»Ð°Ñ|Ð¿ÑÐµÐ´Ð¾Ð»Ð°Ñ|Ð¿ÑÐµÐ´Ð¾Ð¿Ð¾)/);
     if(m)return{type:'prepaid',amount:Number(m[1])};
-    m=low.match(/(?:предоплат|предолат|предопо)[а-яіїєґё]*\s*(\d+)/);
+    m=low.match(/(?:Ð¿ÑÐµÐ´Ð¾Ð¿Ð»Ð°Ñ|Ð¿ÑÐµÐ´Ð¾Ð»Ð°Ñ|Ð¿ÑÐµÐ´Ð¾Ð¿Ð¾)[Ð°-ÑÑÑÑÒÑ]*\s*(\d+)/);
     if(m)return{type:'prepaid',amount:Number(m[1])};
-    m=low.match(/(\d*)\s*(?:оплач|опалч)/);
+    m=low.match(/(\d*)\s*(?:Ð¾Ð¿Ð»Ð°Ñ|Ð¾Ð¿Ð°Ð»Ñ)/);
     if(m){
       var amt=0;
       if(m[1])amt=Number(m[1]);
@@ -536,7 +536,7 @@ function parseBulkOrders(rawText,products){
   }
 
   function parseBlock(block){
-    var lines=block.split('\n').map(function(l){return stripEmoji(l).trim();}).filter(function(l){return l&&l.length>1&&!/^(?:международка|міжнародка|международна)$/i.test(l);});
+    var lines=block.split('\n').map(function(l){return stripEmoji(l).trim();}).filter(function(l){return l&&l.length>1&&!/^(?:Ð¼ÐµÐ¶Ð´ÑÐ½Ð°ÑÐ¾Ð´ÐºÐ°|Ð¼ÑÐ¶Ð½Ð°ÑÐ¾Ð´ÐºÐ°|Ð¼ÐµÐ¶Ð´ÑÐ½Ð°ÑÐ¾Ð´Ð½Ð°)$/i.test(l);});
     var name='',phone='',city='',branch='',prepaid=0,paid=false,barterFlag=false,items=[],notes=[],isInternational=false;
 
     for(var oi=0;oi<lines.length;oi++){
@@ -556,14 +556,14 @@ function parseBulkOrders(rawText,products){
       var low=line.toLowerCase();
       if(!line||line.length<2)continue;
 
-      var complexM=line.match(/([А-ЯІЇЄҐа-яіїєґ]+)\s*,\s*(?:поштомат|почтомат)\s*(\d+)\s*,\s*([А-ЯІЇЄҐа-яіїєґ\s'\u2019]+?)\s*,\s*(\+?3?8?0\d{8,9})/i);
+      var complexM=line.match(/([Ð-Ð¯ÐÐÐÒÐ°-ÑÑÑÑÒ]+)\s*,\s*(?:Ð¿Ð¾ÑÑÐ¾Ð¼Ð°Ñ|Ð¿Ð¾ÑÑÐ¾Ð¼Ð°Ñ)\s*(\d+)\s*,\s*([Ð-Ð¯ÐÐÐÒÐ°-ÑÑÑÑÒ\s'\u2019]+?)\s*,\s*(\+?3?8?0\d{8,9})/i);
       if(complexM){city=complexM[1];branch='\u043F\u043E\u0448\u0442\u043E\u043C\u0430\u0442 '+complexM[2];if(!name)name=complexM[3].trim();phone='+38'+complexM[4].replace(/^\+?3?8?/,'');continue;}
 
       var intlHit=false;
       for(var ci=0;ci<INTL_COUNTRIES.length;ci++){if(low.indexOf(INTL_COUNTRIES[ci])!==-1){isInternational=true;intlHit=true;if(!city)city=line;break;}}
       if(intlHit)continue;
 
-      var hasProductHint=/еминем|эминем|эмигем|памела|бр[іи]тн|краш|crush|eminem|pamela|snoop|prodigy|футболк|чашк|паста|спрей|кондиц|шампунь|lohan|lindsay|playboy|beavis|love is|rebel|pussy|masturbat|tommy|curly|beach|deep clean|everyday/i.test(low);
+      var hasProductHint=/ÐµÐ¼Ð¸Ð½ÐµÐ¼|ÑÐ¼Ð¸Ð½ÐµÐ¼|ÑÐ¼Ð¸Ð³ÐµÐ¼|Ð¿Ð°Ð¼ÐµÐ»Ð°|Ð±Ñ[ÑÐ¸]ÑÐ½|ÐºÑÐ°Ñ|crush|eminem|pamela|snoop|prodigy|ÑÑÑÐ±Ð¾Ð»Ðº|ÑÐ°ÑÐº|Ð¿Ð°ÑÑÐ°|ÑÐ¿ÑÐµÐ¹|ÐºÐ¾Ð½Ð´Ð¸Ñ|ÑÐ°Ð¼Ð¿ÑÐ½Ñ|lohan|lindsay|playboy|beavis|love is|rebel|pussy|masturbat|tommy|curly|beach|deep clean|everyday/i.test(low);
       if(!hasProductHint){
         var payR=parsePay(low);
         if(payR){
@@ -590,13 +590,13 @@ function parseBulkOrders(rawText,products){
         }
         continue;
       }
-      if(/чашк|кружк/i.test(low)){notes.push(line);continue;}
+      if(/ÑÐ°ÑÐº|ÐºÑÑÐ¶Ðº/i.test(low)){notes.push(line);continue;}
 
       var phResult=extractPhone(line);
       if(phResult&&phResult.phone.length>=10){
         if(!phone)phone=phResult.phone;
-        var rest=line.replace(phResult.full,'').replace(/\+?380?\s*/g,'').replace(/Укр\.?\s*номер/gi,'').replace(/Молдав\w+\s*номер/gi,'').trim();
-        if(rest&&rest.length>3&&/^[А-ЯІЇЄҐа-яіїєґA-Za-z\s'\u2019`.\-]+$/.test(rest)&&!name)name=rest;
+        var rest=line.replace(phResult.full,'').replace(/\+?380?\s*/g,'').replace(/Ð£ÐºÑ\.?\s*Ð½Ð¾Ð¼ÐµÑ/gi,'').replace(/ÐÐ¾Ð»Ð´Ð°Ð²\w+\s*Ð½Ð¾Ð¼ÐµÑ/gi,'').trim();
+        if(rest&&rest.length>3&&/^[Ð-Ð¯ÐÐÐÒÐ°-ÑÑÑÑÒA-Za-z\s'\u2019`.\-]+$/.test(rest)&&!name)name=rest;
         continue;
       }
       if(/^\+?\d[\d\s\.\-]{7,}$/.test(line.trim())){
@@ -613,7 +613,7 @@ function parseBulkOrders(rawText,products){
         continue;
       }
 
-      var poshtM=line.match(/(?:поштомат|почтомат)\s*(\d{4,6})/i);
+      var poshtM=line.match(/(?:Ð¿Ð¾ÑÑÐ¾Ð¼Ð°Ñ|Ð¿Ð¾ÑÑÐ¾Ð¼Ð°Ñ)\s*(\d{4,6})/i);
       if(poshtM){branch='\u043F\u043E\u0448\u0442\u043E\u043C\u0430\u0442 '+poshtM[1];
         var before=line.substring(0,line.toLowerCase().indexOf(poshtM[0].toLowerCase())).replace(/[,]/g,'').trim();
         if(before&&!city)city=before;
@@ -621,8 +621,8 @@ function parseBulkOrders(rawText,products){
       }
 
       var brPatterns=[
-        /(?:нп|нова[яї]?\s*пошт[аи]?|відділення|відд|отделение|від)\s*(?:нової\s*пошти\s*)?#?\s*(?:номер\s*)?(\d{1,6})/i,
-        /(\d{1,5})\s*(?:відділення|отделение|від(?:\s|$))/i
+        /(?:Ð½Ð¿|Ð½Ð¾Ð²Ð°[ÑÑ]?\s*Ð¿Ð¾ÑÑ[Ð°Ð¸]?|Ð²ÑÐ´Ð´ÑÐ»ÐµÐ½Ð½Ñ|Ð²ÑÐ´Ð´|Ð¾ÑÐ´ÐµÐ»ÐµÐ½Ð¸Ðµ|Ð²ÑÐ´)\s*(?:Ð½Ð¾Ð²Ð¾Ñ\s*Ð¿Ð¾ÑÑÐ¸\s*)?#?\s*(?:Ð½Ð¾Ð¼ÐµÑ\s*)?(\d{1,6})/i,
+        /(\d{1,5})\s*(?:Ð²ÑÐ´Ð´ÑÐ»ÐµÐ½Ð½Ñ|Ð¾ÑÐ´ÐµÐ»ÐµÐ½Ð¸Ðµ|Ð²ÑÐ´(?:\s|$))/i
       ];
       var brFound=false;
       for(var bi=0;bi<brPatterns.length;bi++){
@@ -630,7 +630,7 @@ function parseBulkOrders(rawText,products){
         if(brM&&!branch){branch=brM[1];
           var bIdx=line.toLowerCase().indexOf(brM[0].toLowerCase());
           var bBefore=line.substring(0,bIdx).trim();
-          if(bBefore){var bc=bBefore.replace(/^(?:м\.\s*|місто\s+|село\s+|с\.\s*|смт\.?\s*|пгт\.?\s*|селище\s+)/i,'').replace(/[,]/g,'').trim();if(bc&&!city&&/^[А-ЯІЇЄҐа-яіїєґ\s\-'\u2019]+$/i.test(bc))city=bc;}
+          if(bBefore){var bc=bBefore.replace(/^(?:Ð¼\.\s*|Ð¼ÑÑÑÐ¾\s+|ÑÐµÐ»Ð¾\s+|Ñ\.\s*|ÑÐ¼Ñ\.?\s*|Ð¿Ð³Ñ\.?\s*|ÑÐµÐ»Ð¸ÑÐµ\s+)/i,'').replace(/[,]/g,'').trim();if(bc&&!city&&/^[Ð-Ð¯ÐÐÐÒÐ°-ÑÑÑÑÒ\s\-'\u2019]+$/i.test(bc))city=bc;}
           brFound=true;break;
         }
       }
@@ -639,26 +639,26 @@ function parseBulkOrders(rawText,products){
       var isCity2=false;
       for(var ci3=0;ci3<CITIES_LIST.length;ci3++){
         if(low.indexOf(CITIES_LIST[ci3])!==-1){isCity2=true;
-          city=line.replace(/^(?:місто\s+|м\.?\s*)/i,'').trim();
+          city=line.replace(/^(?:Ð¼ÑÑÑÐ¾\s+|Ð¼\.?\s*)/i,'').trim();
           var cRe=new RegExp(CITIES_LIST[ci3].replace(/\s/g,'\\s*')+'\\s+(\\d{1,5})');
           var afterM=low.match(cRe);
           if(afterM&&!branch){branch=afterM[1];city=city.replace(/\s+\d{1,5}/,'').trim();}
-          city=city.replace(/,?\s*(?:нова[яї]?\s*пошт\w*|новая\s*почта)\s*\d*/gi,'').replace(/(?:^|,)\s*\bгород\b\s*/gi,'').replace(/\(.*?\)/g,'').replace(/\s{2,}/g,' ').trim();
+          city=city.replace(/,?\s*(?:Ð½Ð¾Ð²Ð°[ÑÑ]?\s*Ð¿Ð¾ÑÑ\w*|Ð½Ð¾Ð²Ð°Ñ\s*Ð¿Ð¾ÑÑÐ°)\s*\d*/gi,'').replace(/(?:^|,)\s*\bÐ³Ð¾ÑÐ¾Ð´\b\s*/gi,'').replace(/\(.*?\)/g,'').replace(/\s{2,}/g,' ').trim();
           break;
         }
       }
       if(isCity2)continue;
-      if(/обл\.?$|обл(?:\s|$)|область|район/i.test(low)){if(!city)city=line;else city=line+', '+city;continue;}
-      if(/^(?:м\.?\s*|місто\s+|село\s+|с\.\s*|смт\.?\s*|пгт\.?\s*|селище\s+)/i.test(line)&&line.length>3){city=line.replace(/^(?:місто\s+|м\.?\s*|село\s+|с\.\s*|смт\.?\s*|пгт\.?\s*|селище\s+)/i,'').trim();continue;}
+      if(/Ð¾Ð±Ð»\.?$|Ð¾Ð±Ð»(?:\s|$)|Ð¾Ð±Ð»Ð°ÑÑÑ|ÑÐ°Ð¹Ð¾Ð½/i.test(low)){if(!city)city=line;else city=line+', '+city;continue;}
+      if(/^(?:Ð¼\.?\s*|Ð¼ÑÑÑÐ¾\s+|ÑÐµÐ»Ð¾\s+|Ñ\.\s*|ÑÐ¼Ñ\.?\s*|Ð¿Ð³Ñ\.?\s*|ÑÐµÐ»Ð¸ÑÐµ\s+)/i.test(line)&&line.length>3){city=line.replace(/^(?:Ð¼ÑÑÑÐ¾\s+|Ð¼\.?\s*|ÑÐµÐ»Ð¾\s+|Ñ\.\s*|ÑÐ¼Ñ\.?\s*|Ð¿Ð³Ñ\.?\s*|ÑÐµÐ»Ð¸ÑÐµ\s+)/i,'').trim();continue;}
 
-      var cbM=line.match(/^([А-ЯІЇЄҐа-яіїєґ'\u2019\-]+(?:\s+[А-ЯІЇЄҐа-яіїєґ'\u2019\-]+)*)\s+(\d{1,5})$/);
+      var cbM=line.match(/^([Ð-Ð¯ÐÐÐÒÐ°-ÑÑÑÑÒ'\u2019\-]+(?:\s+[Ð-Ð¯ÐÐÐÒÐ°-ÑÑÑÑÒ'\u2019\-]+)*)\s+(\d{1,5})$/);
       if(cbM&&!city){city=cbM[1].trim();if(!branch)branch=cbM[2];continue;}
 
-      if(/^[А-ЯІЇЄҐа-яіїєґA-Za-z\s'\u2019`.\-()]+$/.test(line)&&line.split(/\s+/).length>=2&&!name){
-        if(!/обл|район|область/i.test(line)){name=line.replace(/\(.*?\)/g,'').trim();continue;}
+      if(/^[Ð-Ð¯ÐÐÐÒÐ°-ÑÑÑÑÒA-Za-z\s'\u2019`.\-()]+$/.test(line)&&line.split(/\s+/).length>=2&&!name){
+        if(!/Ð¾Ð±Ð»|ÑÐ°Ð¹Ð¾Ð½|Ð¾Ð±Ð»Ð°ÑÑÑ/i.test(line)){name=line.replace(/\(.*?\)/g,'').trim();continue;}
       }
 
-      if(/^[А-ЯІЇЄҐа-яіїєґ'\u2019\-]+$/.test(line.trim())&&line.length>2){
+      if(/^[Ð-Ð¯ÐÐÐÒÐ°-ÑÑÑÑÒ'\u2019\-]+$/.test(line.trim())&&line.length>2){
         if(!city)city=line;else if(!name)name=line;continue;
       }
 
@@ -675,7 +675,7 @@ function parseBulkOrders(rawText,products){
 }
 
 
-// ─── Icons ───
+// âââ Icons âââ
 const I={
   dash:<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>,
   plus2:<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>,
@@ -697,7 +697,7 @@ const I={
   cam:<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>,
 };
 
-// ─── Calendar ───
+// âââ Calendar âââ
 function Calendar({startDate,endDate,onSelect}){
   const[vd,setVd]=useState(new Date());
   const y=vd.getFullYear(),m=vd.getMonth();
@@ -715,11 +715,11 @@ function Calendar({startDate,endDate,onSelect}){
 
 function Modal({title,onClose,children,wide}){
   return(<div className="modal-overlay" onClick={onClose}><div className="modal" style={wide?{maxWidth:640}:{}} onClick={e=>e.stopPropagation()}>
-    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}><div className="modal-title">{title}</div><button className="btn btn-secondary btn-sm" onClick={onClose}>{"✕"}</button></div>{children}
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}><div className="modal-title">{title}</div><button className="btn btn-secondary btn-sm" onClick={onClose}>{"â"}</button></div>{children}
   </div></div>);
 }
 
-// ─── DASHBOARD (Y2K Style) ───
+// âââ DASHBOARD (Y2K Style) âââ
 function DashboardPage({orders,products,expenses,dateRange,setDateRange}){
   const[selStart,setSelStart]=useState(true);
   const[expandDate,setExpandDate]=useState(null);
@@ -812,60 +812,60 @@ function DashboardPage({orders,products,expenses,dateRange,setDateRange}){
   return(<div>
     {/* Date controls */}
     <div style={{display:"flex",gap:6,marginBottom:16,flexWrap:"wrap",alignItems:"center"}}>
-      <button className="btn btn-sm btn-secondary" onClick={sToday}>{"\С\ь\о\г\о\д\н\і"}</button>
-      <button className="btn btn-sm btn-secondary" onClick={sWeek}>7 {"\д\н\і\в"}</button>
-      <button className="btn btn-sm btn-secondary" onClick={sMonth}>{"\М\і\с\я\ц\ь"}</button>
-      <span style={{fontSize:12,color:"var(--text2)",marginLeft:6}}>{dateRange.start?fmtD(dateRange.start):"\—"} {"\→"} {dateRange.end?fmtD(dateRange.end):"..."}</span>
+      <button className="btn btn-sm btn-secondary" onClick={sToday}>{"\Ð¡\Ñ\Ð¾\Ð³\Ð¾\Ð´\Ð½\Ñ"}</button>
+      <button className="btn btn-sm btn-secondary" onClick={sWeek}>7 {"\Ð´\Ð½\Ñ\Ð²"}</button>
+      <button className="btn btn-sm btn-secondary" onClick={sMonth}>{"\Ð\Ñ\Ñ\Ñ\Ñ\Ñ"}</button>
+      <span style={{fontSize:12,color:"var(--text2)",marginLeft:6}}>{dateRange.start?fmtD(dateRange.start):"\â"} {"\â"} {dateRange.end?fmtD(dateRange.end):"..."}</span>
     </div>
 
     {/* Y2K KPI Cards Row */}
     <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:16}}>
       <div style={{background:y2kGrad("#ff6b9d","#c44569"),borderRadius:16,padding:"18px 16px",color:"#fff",position:"relative",overflow:"hidden"}}>
         <div style={{position:"absolute",top:-10,right:-10,width:60,height:60,borderRadius:"50%",background:"rgba(255,255,255,.15)"}}/>
-        <div style={{fontSize:11,opacity:.8,fontWeight:600,textTransform:"uppercase"}}>{"\В\и\р\у\ч\к\а"}</div>
+        <div style={{fontSize:11,opacity:.8,fontWeight:600,textTransform:"uppercase"}}>{"\Ð\Ð¸\Ñ\Ñ\Ñ\Ðº\Ð°"}</div>
         <div style={{fontSize:24,fontWeight:800,marginTop:4}}>{fmt(rev)}</div>
-        <div style={{fontSize:11,marginTop:4,opacity:.7}}>{cnt} {"\з\а\м\о\в\л\е\н\ь"}</div>
+        <div style={{fontSize:11,marginTop:4,opacity:.7}}>{cnt} {"\Ð·\Ð°\Ð¼\Ð¾\Ð²\Ð»\Ðµ\Ð½\Ñ"}</div>
       </div>
       <div style={{background:y2kGrad("#38b000","#008000"),borderRadius:16,padding:"18px 16px",color:"#fff",position:"relative",overflow:"hidden"}}>
         <div style={{position:"absolute",top:-10,right:-10,width:60,height:60,borderRadius:"50%",background:"rgba(255,255,255,.15)"}}/>
-        <div style={{fontSize:11,opacity:.8,fontWeight:600,textTransform:"uppercase"}}>{"\Ч\и\с\т\и\й \п\р\и\б\у\т\о\к"}</div>
+        <div style={{fontSize:11,opacity:.8,fontWeight:600,textTransform:"uppercase"}}>{"\Ð§\Ð¸\Ñ\Ñ\Ð¸\Ð¹ \Ð¿\Ñ\Ð¸\Ð±\Ñ\Ñ\Ð¾\Ðº"}</div>
         <div style={{fontSize:24,fontWeight:800,marginTop:4}}>{fmt(netProfit)}</div>
-        <div style={{fontSize:11,marginTop:4,opacity:.7}}>{"\М\а\р\ж\а"} {margin}%</div>
+        <div style={{fontSize:11,marginTop:4,opacity:.7}}>{"\Ð\Ð°\Ñ\Ð¶\Ð°"} {margin}%</div>
       </div>
       <div style={{background:y2kGrad("#6c5ce7","#a29bfe"),borderRadius:16,padding:"18px 16px",color:"#fff",position:"relative",overflow:"hidden"}}>
         <div style={{position:"absolute",top:-10,right:-10,width:60,height:60,borderRadius:"50%",background:"rgba(255,255,255,.15)"}}/>
-        <div style={{fontSize:11,opacity:.8,fontWeight:600,textTransform:"uppercase"}}>{"\С\е\р. \ч\е\к"}</div>
+        <div style={{fontSize:11,opacity:.8,fontWeight:600,textTransform:"uppercase"}}>{"\Ð¡\Ðµ\Ñ. \Ñ\Ðµ\Ðº"}</div>
         <div style={{fontSize:24,fontWeight:800,marginTop:4}}>{fmt(avgCheck)}</div>
-        <div style={{fontSize:11,marginTop:4,opacity:.7}}>{fOrders.filter(o=>o.deliveryType==="np").length} {"\Н\П"} / {fOrders.filter(o=>o.deliveryType==="studio").length} {"\с\т\у\д\і\я"}</div>
+        <div style={{fontSize:11,marginTop:4,opacity:.7}}>{fOrders.filter(o=>o.deliveryType==="np").length} {"\Ð\Ð"} / {fOrders.filter(o=>o.deliveryType==="studio").length} {"\Ñ\Ñ\Ñ\Ð´\Ñ\Ñ"}</div>
       </div>
       <div style={{background:y2kGrad("#e17055","#d63031"),borderRadius:16,padding:"18px 16px",color:"#fff",position:"relative",overflow:"hidden"}}>
         <div style={{position:"absolute",top:-10,right:-10,width:60,height:60,borderRadius:"50%",background:"rgba(255,255,255,.15)"}}/>
-        <div style={{fontSize:11,opacity:.8,fontWeight:600,textTransform:"uppercase"}}>{"\В\и\т\р\а\т\и"}</div>
+        <div style={{fontSize:11,opacity:.8,fontWeight:600,textTransform:"uppercase"}}>{"\Ð\Ð¸\Ñ\Ñ\Ð°\Ñ\Ð¸"}</div>
         <div style={{fontSize:24,fontWeight:800,marginTop:4}}>{fmt(totalCost+expTotal)}</div>
-        <div style={{fontSize:11,marginTop:4,opacity:.7}}>{"\С\о\б\і\в."} {fmt(totalCost)} + {"\і\н\ш."} {fmt(expTotal)}</div>
+        <div style={{fontSize:11,marginTop:4,opacity:.7}}>{"\Ð¡\Ð¾\Ð±\Ñ\Ð²."} {fmt(totalCost)} + {"\Ñ\Ð½\Ñ."} {fmt(expTotal)}</div>
       </div>
     </div>
 
     {/* Profit breakdown: gross - expenses = net */}
     <div style={{background:"#fff",borderRadius:16,border:"1px solid var(--border)",padding:"16px 20px",marginBottom:16}}>
-      <div style={{fontSize:12,fontWeight:700,color:"var(--text2)",marginBottom:10,textTransform:"uppercase"}}>{"\Р\о\з\р\а\х\у\н\о\к \п\р\и\б\у\т\к\у"}</div>
+      <div style={{fontSize:12,fontWeight:700,color:"var(--text2)",marginBottom:10,textTransform:"uppercase"}}>{"\Ð \Ð¾\Ð·\Ñ\Ð°\Ñ\Ñ\Ð½\Ð¾\Ðº \Ð¿\Ñ\Ð¸\Ð±\Ñ\Ñ\Ðº\Ñ"}</div>
       <div style={{display:"flex",alignItems:"center",gap:12,flexWrap:"wrap",fontSize:14}}>
-        <div style={{textAlign:"center"}}><div style={{fontSize:11,color:"var(--text2)"}}>{"\В\и\р\у\ч\к\а"}</div><div style={{fontWeight:800,color:"var(--pink2)"}}>{fmt(rev)}</div></div>
-        <span style={{fontSize:20,color:"var(--text2)"}}>{"\−"}</span>
-        <div style={{textAlign:"center"}}><div style={{fontSize:11,color:"var(--text2)"}}>{"\С\о\б\і\в\а\р\т\і\с\т\ь"}</div><div style={{fontWeight:800,color:"var(--red)"}}>{fmt(totalCost)}</div></div>
+        <div style={{textAlign:"center"}}><div style={{fontSize:11,color:"var(--text2)"}}>{"\Ð\Ð¸\Ñ\Ñ\Ñ\Ðº\Ð°"}</div><div style={{fontWeight:800,color:"var(--pink2)"}}>{fmt(rev)}</div></div>
+        <span style={{fontSize:20,color:"var(--text2)"}}>{"\â"}</span>
+        <div style={{textAlign:"center"}}><div style={{fontSize:11,color:"var(--text2)"}}>{"\Ð¡\Ð¾\Ð±\Ñ\Ð²\Ð°\Ñ\Ñ\Ñ\Ñ\Ñ\Ñ"}</div><div style={{fontWeight:800,color:"var(--red)"}}>{fmt(totalCost)}</div></div>
         <span style={{fontSize:20,color:"var(--text2)"}}>=</span>
-        <div style={{textAlign:"center"}}><div style={{fontSize:11,color:"var(--text2)"}}>{"\В\а\л\о\в\и\й"}</div><div style={{fontWeight:800,color:"var(--blue)"}}>{fmt(grossProfit)}</div></div>
-        <span style={{fontSize:20,color:"var(--text2)"}}>{"\−"}</span>
-        <div style={{textAlign:"center"}}><div style={{fontSize:11,color:"var(--text2)"}}>{"\В\и\т\р\а\т\и"}</div><div style={{fontWeight:800,color:"var(--red)"}}>{fmt(expTotal)}</div></div>
+        <div style={{textAlign:"center"}}><div style={{fontSize:11,color:"var(--text2)"}}>{"\Ð\Ð°\Ð»\Ð¾\Ð²\Ð¸\Ð¹"}</div><div style={{fontWeight:800,color:"var(--blue)"}}>{fmt(grossProfit)}</div></div>
+        <span style={{fontSize:20,color:"var(--text2)"}}>{"\â"}</span>
+        <div style={{textAlign:"center"}}><div style={{fontSize:11,color:"var(--text2)"}}>{"\Ð\Ð¸\Ñ\Ñ\Ð°\Ñ\Ð¸"}</div><div style={{fontWeight:800,color:"var(--red)"}}>{fmt(expTotal)}</div></div>
         <span style={{fontSize:20,color:"var(--text2)"}}>=</span>
-        <div style={{textAlign:"center",background:netProfit>=0?"var(--green-light)":"var(--red-light)",padding:"6px 14px",borderRadius:10}}><div style={{fontSize:11,color:netProfit>=0?"var(--green)":"var(--red)"}}>{"\Ч\и\с\т\и\й"}</div><div style={{fontWeight:800,fontSize:18,color:netProfit>=0?"var(--green)":"var(--red)"}}>{fmt(netProfit)}</div></div>
+        <div style={{textAlign:"center",background:netProfit>=0?"var(--green-light)":"var(--red-light)",padding:"6px 14px",borderRadius:10}}><div style={{fontSize:11,color:netProfit>=0?"var(--green)":"var(--red)"}}>{"\Ð§\Ð¸\Ñ\Ñ\Ð¸\Ð¹"}</div><div style={{fontWeight:800,fontSize:18,color:netProfit>=0?"var(--green)":"var(--red)"}}>{fmt(netProfit)}</div></div>
       </div>
     </div>
 
     <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:16}}>
       {/* Revenue chart */}
       <div style={{background:"#fff",borderRadius:16,border:"1px solid var(--border)",padding:16}}>
-        <div style={{fontSize:12,fontWeight:700,color:"var(--text2)",marginBottom:12,textTransform:"uppercase"}}>{"\В\и\р\у\ч\к\а \п\о \д\н\я\х"}</div>
+        <div style={{fontSize:12,fontWeight:700,color:"var(--text2)",marginBottom:12,textTransform:"uppercase"}}>{"\Ð\Ð¸\Ñ\Ñ\Ñ\Ðº\Ð° \Ð¿\Ð¾ \Ð´\Ð½\Ñ\Ñ"}</div>
         <div style={{display:"flex",alignItems:"flex-end",gap:6,height:120}}>
           {dailyRev.map((d,i)=><div key={i} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:4}}>
             <span style={{fontSize:9,color:"var(--text2)",fontWeight:600}}>{d.rev>0?Math.round(d.rev/1000)+"k":""}</span>
@@ -879,14 +879,14 @@ function DashboardPage({orders,products,expenses,dateRange,setDateRange}){
 
       {/* Top products */}
       <div style={{background:"#fff",borderRadius:16,border:"1px solid var(--border)",padding:16}}>
-        <div style={{fontSize:12,fontWeight:700,color:"var(--text2)",marginBottom:12,textTransform:"uppercase"}}>{"\Т\о\п \п\р\о\д\а\ж\і\в"}</div>
-        {topProds.length===0?<div style={{color:"var(--text2)",fontSize:12}}>{"\Н\е\м\а\є \д\а\н\и\х"}</div>:
+        <div style={{fontSize:12,fontWeight:700,color:"var(--text2)",marginBottom:12,textTransform:"uppercase"}}>{"\Ð¢\Ð¾\Ð¿ \Ð¿\Ñ\Ð¾\Ð´\Ð°\Ð¶\Ñ\Ð²"}</div>
+        {topProds.length===0?<div style={{color:"var(--text2)",fontSize:12}}>{"\Ð\Ðµ\Ð¼\Ð°\Ñ \Ð´\Ð°\Ð½\Ð¸\Ñ"}</div>:
         topProds.map((p,i)=>{
           const maxQ=topProds[0].qty;
           return(<div key={i} style={{marginBottom:6}}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",fontSize:12,marginBottom:2}}>
               <span style={{fontWeight:600,flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}><span style={{color:"var(--pink2)",fontWeight:800,marginRight:4}}>#{i+1}</span>{p.name}</span>
-              <span style={{fontWeight:700,marginLeft:8,whiteSpace:"nowrap"}}>{p.qty} {"\ш\т"} / {fmt(p.rev)}</span>
+              <span style={{fontWeight:700,marginLeft:8,whiteSpace:"nowrap"}}>{p.qty} {"\Ñ\Ñ"} / {fmt(p.rev)}</span>
             </div>
             <div style={{height:6,background:"var(--border)",borderRadius:3,overflow:"hidden"}}>
               <div style={{height:"100%",width:`${p.qty/maxQ*100}%`,background:y2kGrad("#ff6b9d","#6c5ce7"),borderRadius:3,transition:"width .5s"}}/>
@@ -899,8 +899,8 @@ function DashboardPage({orders,products,expenses,dateRange,setDateRange}){
     <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 280px",gap:16,marginBottom:16}}>
       {/* Status funnel */}
       <div style={{background:"#fff",borderRadius:16,border:"1px solid var(--border)",padding:16}}>
-        <div style={{fontSize:12,fontWeight:700,color:"var(--text2)",marginBottom:12,textTransform:"uppercase"}}>{"\С\т\а\т\у\с\и"}</div>
-        {[["new","#ff6b9d","\Н\о\в\і"],["ttn","#e17055","\Т\Т\Н"],["shipped","#6c5ce7","\В\і\д\п\р\а\в\л\е\н\о"],["delivered","#38b000","\Д\о\с\т\а\в\л\е\н\о"],["studio","#d4a054","\С\т\у\д\і\я"]].map(([k,color,label])=>(
+        <div style={{fontSize:12,fontWeight:700,color:"var(--text2)",marginBottom:12,textTransform:"uppercase"}}>{"\Ð¡\Ñ\Ð°\Ñ\Ñ\Ñ\Ð¸"}</div>
+        {[["new","#ff6b9d","\Ð\Ð¾\Ð²\Ñ"],["ttn","#e17055","\Ð¢\Ð¢\Ð"],["shipped","#6c5ce7","\Ð\Ñ\Ð´\Ð¿\Ñ\Ð°\Ð²\Ð»\Ðµ\Ð½\Ð¾"],["delivered","#38b000","\Ð\Ð¾\Ñ\Ñ\Ð°\Ð²\Ð»\Ðµ\Ð½\Ð¾"],["studio","#d4a054","\Ð¡\Ñ\Ñ\Ð´\Ñ\Ñ"]].map(([k,color,label])=>(
           <div key={k} style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
             <div style={{width:10,height:10,borderRadius:"50%",background:color,flexShrink:0}}/>
             <span style={{fontSize:12,flex:1}}>{label}</span>
@@ -911,14 +911,14 @@ function DashboardPage({orders,products,expenses,dateRange,setDateRange}){
 
       {/* Top clients */}
       <div style={{background:"#fff",borderRadius:16,border:"1px solid var(--border)",padding:16}}>
-        <div style={{fontSize:12,fontWeight:700,color:"var(--text2)",marginBottom:12,textTransform:"uppercase"}}>{"\Т\о\п \к\л\і\є\н\т\и"}</div>
-        {topClients.length===0?<div style={{color:"var(--text2)",fontSize:12}}>{"\Н\е\м\а\є \д\а\н\и\х"}</div>:
+        <div style={{fontSize:12,fontWeight:700,color:"var(--text2)",marginBottom:12,textTransform:"uppercase"}}>{"\Ð¢\Ð¾\Ð¿ \Ðº\Ð»\Ñ\Ñ\Ð½\Ñ\Ð¸"}</div>
+        {topClients.length===0?<div style={{color:"var(--text2)",fontSize:12}}>{"\Ð\Ðµ\Ð¼\Ð°\Ñ \Ð´\Ð°\Ð½\Ð¸\Ñ"}</div>:
         topClients.map((c,i)=>(
           <div key={i} style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
             <div style={{width:28,height:28,borderRadius:"50%",background:y2kGrad("#ff6b9d","#6c5ce7"),display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontSize:11,fontWeight:800,flexShrink:0}}>{i+1}</div>
             <div style={{flex:1,minWidth:0}}>
               <div style={{fontSize:12,fontWeight:600,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{c.name}</div>
-              <div style={{fontSize:10,color:"var(--text2)"}}>{c.orders} {"\з\а\м."}</div>
+              <div style={{fontSize:10,color:"var(--text2)"}}>{c.orders} {"\Ð·\Ð°\Ð¼."}</div>
             </div>
             <span style={{fontWeight:700,fontSize:12,color:"var(--pink2)"}}>{fmt(c.total)}</span>
           </div>
@@ -927,15 +927,15 @@ function DashboardPage({orders,products,expenses,dateRange,setDateRange}){
 
       {/* Calendar */}
       <div>
-        <div className="card" style={{marginBottom:12}}><div className="card-title" style={{marginBottom:10}}>{"\К\а\л\е\н\д\а\р"}</div><Calendar startDate={dateRange.start} endDate={dateRange.end} onSelect={hCal}/><p style={{fontSize:10,color:"var(--text2)",marginTop:8,textAlign:"center"}}>{selStart?"\П\о\ч\а\т\к\о\в\а \д\а\т\а":"\К\і\н\ц\е\в\а \д\а\т\а"}</p></div>
+        <div className="card" style={{marginBottom:12}}><div className="card-title" style={{marginBottom:10}}>{"\Ð\Ð°\Ð»\Ðµ\Ð½\Ð´\Ð°\Ñ"}</div><Calendar startDate={dateRange.start} endDate={dateRange.end} onSelect={hCal}/><p style={{fontSize:10,color:"var(--text2)",marginTop:8,textAlign:"center"}}>{selStart?"\Ð\Ð¾\Ñ\Ð°\Ñ\Ðº\Ð¾\Ð²\Ð° \Ð´\Ð°\Ñ\Ð°":"\Ð\Ñ\Ð½\Ñ\Ðµ\Ð²\Ð° \Ð´\Ð°\Ñ\Ð°"}</p></div>
         {/* Low stock */}
         <div style={{background:"#fff",borderRadius:16,border:"1px solid var(--border)",padding:16}}>
-          <div style={{fontSize:12,fontWeight:700,color:"var(--text2)",marginBottom:10,textTransform:"uppercase"}}>{"\Н\и\з\ь\к\и\й \з\а\л\и\ш\о\к"}</div>
+          <div style={{fontSize:12,fontWeight:700,color:"var(--text2)",marginBottom:10,textTransform:"uppercase"}}>{"\Ð\Ð¸\Ð·\Ñ\Ðº\Ð¸\Ð¹ \Ð·\Ð°\Ð»\Ð¸\Ñ\Ð¾\Ðº"}</div>
           {products.filter(p=>p.type==="product"&&p.stock<20).map(p=><div key={p.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"4px 0",fontSize:12}}><span>{p.name}</span><span className={`badge ${p.stock<10?"badge-red":"badge-amber"}`}>{p.stock}</span></div>)}
         </div>
         {/* Expenses by cat */}
         {expByCat.length>0&&<div style={{background:"#fff",borderRadius:16,border:"1px solid var(--border)",padding:16,marginTop:12}}>
-          <div style={{fontSize:12,fontWeight:700,color:"var(--text2)",marginBottom:10,textTransform:"uppercase"}}>{"\В\и\т\р\а\т\и \п\о \к\а\т\е\г\о\р\і\я\х"}</div>
+          <div style={{fontSize:12,fontWeight:700,color:"var(--text2)",marginBottom:10,textTransform:"uppercase"}}>{"\Ð\Ð¸\Ñ\Ñ\Ð°\Ñ\Ð¸ \Ð¿\Ð¾ \Ðº\Ð°\Ñ\Ðµ\Ð³\Ð¾\Ñ\Ñ\Ñ\Ñ"}</div>
           {expByCat.map(([cat,amt])=><div key={cat} style={{display:"flex",justifyContent:"space-between",padding:"3px 0",fontSize:12}}><span>{cat}</span><span style={{fontWeight:700,color:"var(--red)"}}>{fmt(amt)}</span></div>)}
         </div>}
       </div>
@@ -943,30 +943,30 @@ function DashboardPage({orders,products,expenses,dateRange,setDateRange}){
 
     {/* Orders list */}
     <div style={{background:"#fff",borderRadius:16,border:"1px solid var(--border)",padding:16}}>
-      <div style={{fontSize:12,fontWeight:700,color:"var(--text2)",marginBottom:12,textTransform:"uppercase"}}>{"\З\а\м\о\в\л\е\н\н\я"} ({cnt})</div>
-      {fOrders.length===0?<div className="empty-state"><p>{"\Н\е\м\а\є \з\а\м\о\в\л\е\н\ь"}</p></div>:
+      <div style={{fontSize:12,fontWeight:700,color:"var(--text2)",marginBottom:12,textTransform:"uppercase"}}>{"\Ð\Ð°\Ð¼\Ð¾\Ð²\Ð»\Ðµ\Ð½\Ð½\Ñ"} ({cnt})</div>
+      {fOrders.length===0?<div className="empty-state"><p>{"\Ð\Ðµ\Ð¼\Ð°\Ñ \Ð·\Ð°\Ð¼\Ð¾\Ð²\Ð»\Ðµ\Ð½\Ñ"}</p></div>:
       <div>{dateKeys.map(dk=>{
         const dayOrders=ordersByDate[dk];
         const dayRev=dayOrders.reduce((s,o)=>s+o.total,0);
         const isOpen=expandDate?dk===expandDate.toLocaleDateString("uk-UA"):dateKeys.length<=3;
         return(<div key={dk} style={{marginBottom:8}}>
           <div onClick={()=>setExpandDate(isOpen&&expandDate?null:(()=>{const p=dk.split(".");return new Date(p[2],p[1]-1,p[0]);})())} style={{cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 10px",background:"var(--pink-pale)",borderRadius:8,border:"1px solid var(--border)"}}>
-            <span style={{fontWeight:600,fontSize:13}}>{dk} <span style={{fontWeight:400,color:"var(--text2)",fontSize:12}}>({dayOrders.length} {"\з\а\м."})</span></span>
+            <span style={{fontWeight:600,fontSize:13}}>{dk} <span style={{fontWeight:400,color:"var(--text2)",fontSize:12}}>({dayOrders.length} {"\Ð·\Ð°\Ð¼."})</span></span>
             <span style={{fontWeight:700,color:"var(--pink2)",fontSize:13}}>{fmt(dayRev)} {isOpen?"\\u25BC":"\\u25B6"}</span>
           </div>
           {isOpen&&<div style={{padding:"6px 0"}}>{dayOrders.map(o=>(
             <div key={o.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"6px 10px",borderBottom:"1px solid var(--border)",fontSize:12,gap:6,flexWrap:"wrap"}}>
               <div style={{flex:1,minWidth:100}}>
                 <strong>{o.client}</strong>{o.phone&&<span style={{color:"var(--text2)",marginLeft:6}}>{o.phone}</span>}
-                {o.deliveryType==="np"&&<span style={{color:"var(--text2)",marginLeft:6}}>{"\Н\П"} {o.city}{o.npBranch?` ${"\№"}${o.npBranch}`:""}</span>}
-                {o.deliveryType==="studio"&&<span style={{color:"var(--pink2)",marginLeft:6}}>{"\С\т\у\д\і\я"}</span>}
+                {o.deliveryType==="np"&&<span style={{color:"var(--text2)",marginLeft:6}}>{"\Ð\Ð"} {o.city}{o.npBranch?` ${"\â"}${o.npBranch}`:""}</span>}
+                {o.deliveryType==="studio"&&<span style={{color:"var(--pink2)",marginLeft:6}}>{"\Ð¡\Ñ\Ñ\Ð´\Ñ\Ñ"}</span>}
               </div>
               <div style={{display:"flex",gap:4,alignItems:"center",flexShrink:0}}>
                 <span className={`badge ${STCLS[o.status]}`} style={{fontSize:10}}>{STATUSES[o.status]}</span>
                 <strong style={{minWidth:70,textAlign:"right"}}>{fmt(o.total)}</strong>
               </div>
               <div style={{width:"100%",paddingLeft:8,color:"var(--text2)",fontSize:11}}>
-                {o.items.map((it,i)=><span key={i}>{it.name} {"\×"}{it.qty}{i<o.items.length-1?", ":""}</span>)}
+                {o.items.map((it,i)=><span key={i}>{it.name} {"\Ã"}{it.qty}{i<o.items.length-1?", ":""}</span>)}
               </div>
             </div>
           ))}</div>}
@@ -976,7 +976,7 @@ function DashboardPage({orders,products,expenses,dateRange,setDateRange}){
   </div>);
 }
 
-// ─── NP City Autocomplete ───
+// âââ NP City Autocomplete âââ
 function NPCityPicker({value,onChange,onCityRef}){
   const[q,setQ]=useState(value||"");
   const[results,setResults]=useState([]);
@@ -996,7 +996,7 @@ function NPCityPicker({value,onChange,onCityRef}){
   };
   const pick=(c)=>{setQ(c.name);onChange(c.city||c.name);if(onCityRef)onCityRef(c.ref);setOpen(false);setResults([]);};
   return(<div style={{position:"relative"}}>
-    <input className="form-input" placeholder="Місто..." value={q} onChange={e=>doSearch(e.target.value)} onFocus={()=>{if(results.length)setOpen(true);}} style={{fontSize:12,marginTop:2}}/>
+    <input className="form-input" placeholder="ÐÑÑÑÐ¾..." value={q} onChange={e=>doSearch(e.target.value)} onFocus={()=>{if(results.length)setOpen(true);}} style={{fontSize:12,marginTop:2}}/>
     {loading&&<div style={{position:"absolute",right:8,top:8,fontSize:10,color:"var(--text2)"}}>...</div>}
     {open&&<div style={{position:"absolute",top:"100%",left:0,right:0,background:"#fff",border:"1px solid var(--border)",borderRadius:8,maxHeight:200,overflowY:"auto",zIndex:100,boxShadow:"0 4px 16px rgba(0,0,0,.1)"}}>
       {results.map((c,i)=><div key={i} style={{padding:"8px 12px",fontSize:12,cursor:"pointer",borderBottom:"1px solid var(--border)"}} onClick={()=>pick(c)} onMouseOver={e=>e.currentTarget.style.background="var(--pink-pale)"} onMouseOut={e=>e.currentTarget.style.background="#fff"}>{c.name}</div>)}
@@ -1004,7 +1004,7 @@ function NPCityPicker({value,onChange,onCityRef}){
   </div>);
 }
 
-// ─── NP Warehouse Picker ───
+// âââ NP Warehouse Picker âââ
 function NPWarehousePicker({cityRef,value,onChange}){
   const[q,setQ]=useState(value||"");
   const[whs,setWhs]=useState([]);
@@ -1025,7 +1025,7 @@ function NPWarehousePicker({cityRef,value,onChange}){
   };
   const pick=(w)=>{setQ(w.desc);onChange(w.num,w.desc,w.ref);setOpen(false);};
   return(<div style={{position:"relative"}}>
-    <input className="form-input" placeholder="Відділення №..." value={q} onChange={e=>filter(e.target.value)} onFocus={()=>{if(whs.length&&!open)setOpen(true);}} style={{fontSize:12,marginTop:2}}/>
+    <input className="form-input" placeholder="ÐÑÐ´Ð´ÑÐ»ÐµÐ½Ð½Ñ â..." value={q} onChange={e=>filter(e.target.value)} onFocus={()=>{if(whs.length&&!open)setOpen(true);}} style={{fontSize:12,marginTop:2}}/>
     {loading&&<div style={{position:"absolute",right:8,top:8,fontSize:10,color:"var(--text2)"}}>...</div>}
     {open&&<div style={{position:"absolute",top:"100%",left:0,right:0,background:"#fff",border:"1px solid var(--border)",borderRadius:8,maxHeight:200,overflowY:"auto",zIndex:100,boxShadow:"0 4px 16px rgba(0,0,0,.1)"}}>
       {whs.map((w,i)=><div key={i} style={{padding:"8px 12px",fontSize:11,cursor:"pointer",borderBottom:"1px solid var(--border)"}} onClick={()=>pick(w)} onMouseOver={e=>e.currentTarget.style.background="var(--pink-pale)"} onMouseOut={e=>e.currentTarget.style.background="#fff"}>{w.desc}</div>)}
@@ -1033,8 +1033,8 @@ function NPWarehousePicker({cityRef,value,onChange}){
   </div>);
 }
 
-// ─── TTN Status Badge ───
-const TTN_STATUS_MAP={"1":"Нова","2":"Видалена","3":"Немає даних","4":"В дорозі","5":"На складі міста","6":"В місті","7":"На відділенні","8":"Видано","9":"Отримано","10":"Повернення","11":"Повернено","100":"Отримано","102":"Відмова","103":"Повернення","104":"Зміна адреси"};
+// âââ TTN Status Badge âââ
+const TTN_STATUS_MAP={"1":"ÐÐ¾Ð²Ð°","2":"ÐÐ¸Ð´Ð°Ð»ÐµÐ½Ð°","3":"ÐÐµÐ¼Ð°Ñ Ð´Ð°Ð½Ð¸Ñ","4":"Ð Ð´Ð¾ÑÐ¾Ð·Ñ","5":"ÐÐ° ÑÐºÐ»Ð°Ð´Ñ Ð¼ÑÑÑÐ°","6":"Ð Ð¼ÑÑÑÑ","7":"ÐÐ° Ð²ÑÐ´Ð´ÑÐ»ÐµÐ½Ð½Ñ","8":"ÐÐ¸Ð´Ð°Ð½Ð¾","9":"ÐÑÑÐ¸Ð¼Ð°Ð½Ð¾","10":"ÐÐ¾Ð²ÐµÑÐ½ÐµÐ½Ð½Ñ","11":"ÐÐ¾Ð²ÐµÑÐ½ÐµÐ½Ð¾","100":"ÐÑÑÐ¸Ð¼Ð°Ð½Ð¾","102":"ÐÑÐ´Ð¼Ð¾Ð²Ð°","103":"ÐÐ¾Ð²ÐµÑÐ½ÐµÐ½Ð½Ñ","104":"ÐÐ¼ÑÐ½Ð° Ð°Ð´ÑÐµÑÐ¸"};
 const TTN_STATUS_CLS={"4":"badge-blue","5":"badge-blue","6":"badge-blue","7":"badge-amber","9":"badge-green","100":"badge-green","8":"badge-green","102":"badge-red","103":"badge-red","10":"badge-amber","11":"badge-red"};
 
 function TTNStatus({ttn}){
@@ -1043,20 +1043,20 @@ function TTNStatus({ttn}){
   const track=async()=>{if(!ttn)return;setLoading(true);const r=await NP.trackTTN(ttn);setInfo(r);setLoading(false);};
   useEffect(()=>{if(ttn&&ttn.length>=10)track();},[ttn]);
   if(!ttn)return null;
-  if(loading)return <span style={{fontSize:10,color:"var(--text2)"}}>Завантаження...</span>;
-  if(!info)return <span style={{fontSize:10,color:"var(--text2)",cursor:"pointer"}} onClick={track}>Оновити статус</span>;
+  if(loading)return <span style={{fontSize:10,color:"var(--text2)"}}>ÐÐ°Ð²Ð°Ð½ÑÐ°Ð¶ÐµÐ½Ð½Ñ...</span>;
+  if(!info)return <span style={{fontSize:10,color:"var(--text2)",cursor:"pointer"}} onClick={track}>ÐÐ½Ð¾Ð²Ð¸ÑÐ¸ ÑÑÐ°ÑÑÑ</span>;
   const cls=TTN_STATUS_CLS[info.statusCode]||"badge-amber";
   return(<div style={{display:"flex",flexDirection:"column",gap:2}}>
     <div style={{display:"flex",alignItems:"center",gap:6}}>
       <span className={`badge ${cls}`} style={{fontSize:9}}>{TTN_STATUS_MAP[info.statusCode]||info.status}</span>
-      <button style={{background:"none",border:"none",fontSize:9,color:"var(--blue)",cursor:"pointer",textDecoration:"underline"}} onClick={track}>Оновити</button>
+      <button style={{background:"none",border:"none",fontSize:9,color:"var(--blue)",cursor:"pointer",textDecoration:"underline"}} onClick={track}>ÐÐ½Ð¾Ð²Ð¸ÑÐ¸</button>
     </div>
-    {info.scheduledDate&&<span style={{fontSize:9,color:"var(--text2)"}}>Очік: {info.scheduledDate}</span>}
-    {info.redeliverySum&&Number(info.redeliverySum)>0&&<span style={{fontSize:9,color:"var(--green)"}}>Звор. дост: {info.redeliverySum} ₴</span>}
+    {info.scheduledDate&&<span style={{fontSize:9,color:"var(--text2)"}}>ÐÑÑÐº: {info.scheduledDate}</span>}
+    {info.redeliverySum&&Number(info.redeliverySum)>0&&<span style={{fontSize:9,color:"var(--green)"}}>ÐÐ²Ð¾Ñ. Ð´Ð¾ÑÑ: {info.redeliverySum} â´</span>}
   </div>);
 }
 
-// ─── Create TTN Modal ───
+// âââ Create TTN Modal âââ
 function CreateTTNModal({order,onClose,onCreated}){
   const savedSW=LS.get("np_sender_wh")||{};
   const[senderInfo,setSenderInfo]=useState(null);
@@ -1105,9 +1105,9 @@ function CreateTTNModal({order,onClose,onCreated}){
   useEffect(()=>{setBackMoney(payType==="cod"?String(codAmt):"0");},[payType]);
   const saveSW=(city,cr,wd,wr)=>{LS.set("np_sender_wh",{city,cityRef:cr,whDesc:wd,whRef:wr});setSCity(city);setSCityRef(cr);setSWhDesc(wd);setSWhRef(wr);setShowSP(false);};
   const doCreate=async()=>{
-    if(!senderInfo){setErr("Не вдалося завантажити дані відправника");return;}
-    if(!rCityRef||!whRef){setErr("Оберіть місто та відділення отримувача");return;}
-    if(!sWhRef&&!senderInfo.address?.ref){setErr("Оберіть відділення відправника");return;}
+    if(!senderInfo){setErr("ÐÐµ Ð²Ð´Ð°Ð»Ð¾ÑÑ Ð·Ð°Ð²Ð°Ð½ÑÐ°Ð¶Ð¸ÑÐ¸ Ð´Ð°Ð½Ñ Ð²ÑÐ´Ð¿ÑÐ°Ð²Ð½Ð¸ÐºÐ°");return;}
+    if(!rCityRef||!whRef){setErr("ÐÐ±ÐµÑÑÑÑ Ð¼ÑÑÑÐ¾ ÑÐ° Ð²ÑÐ´Ð´ÑÐ»ÐµÐ½Ð½Ñ Ð¾ÑÑÐ¸Ð¼ÑÐ²Ð°ÑÐ°");return;}
+    if(!sWhRef&&!senderInfo.address?.ref){setErr("ÐÐ±ÐµÑÑÑÑ Ð²ÑÐ´Ð´ÑÐ»ÐµÐ½Ð½Ñ Ð²ÑÐ´Ð¿ÑÐ°Ð²Ð½Ð¸ÐºÐ°");return;}
     setCreating(true);setErr("");
     const params={
       PayerType:payerDel==="Sender"?"Sender":"Recipient",
@@ -1123,61 +1123,61 @@ function CreateTTNModal({order,onClose,onCreated}){
     if(payType==="cod"&&Number(backMoney)>0){params.BackwardDeliveryData=[{PayerType:"Recipient",CargoType:"Money",RedeliveryString:backMoney}];}
     const r=await NP.createTTN(params);setCreating(false);
     if(r.ok){setResult(r);if(onCreated)onCreated(r.ttn);}
-    else{setErr((r.errors||[]).join(", ")||"Помилка створення");}
+    else{setErr((r.errors||[]).join(", ")||"ÐÐ¾Ð¼Ð¸Ð»ÐºÐ° ÑÑÐ²Ð¾ÑÐµÐ½Ð½Ñ");}
   };
-  if(loading)return(<Modal title="Створити ТТН" onClose={onClose}><div style={{textAlign:"center",padding:20,color:"var(--text2)"}}>{"Завантаження даних відправника..."}</div></Modal>);
-  return(<Modal title="Створити ТТН" onClose={onClose} wide>
+  if(loading)return(<Modal title="Ð¡ÑÐ²Ð¾ÑÐ¸ÑÐ¸ Ð¢Ð¢Ð" onClose={onClose}><div style={{textAlign:"center",padding:20,color:"var(--text2)"}}>{"ÐÐ°Ð²Ð°Ð½ÑÐ°Ð¶ÐµÐ½Ð½Ñ Ð´Ð°Ð½Ð¸Ñ Ð²ÑÐ´Ð¿ÑÐ°Ð²Ð½Ð¸ÐºÐ°..."}</div></Modal>);
+  return(<Modal title="Ð¡ÑÐ²Ð¾ÑÐ¸ÑÐ¸ Ð¢Ð¢Ð" onClose={onClose} wide>
     {result?<div style={{textAlign:"center",padding:20}}>
-      <div style={{fontSize:20,fontWeight:800,color:"var(--green)",marginBottom:8}}>{"ТТН створено!"}</div>
+      <div style={{fontSize:20,fontWeight:800,color:"var(--green)",marginBottom:8}}>{"Ð¢Ð¢Ð ÑÑÐ²Ð¾ÑÐµÐ½Ð¾!"}</div>
       <div style={{fontSize:28,fontWeight:800,color:"var(--np-red)",background:"var(--np-light)",padding:"12px 20px",borderRadius:12,display:"inline-block"}}>{result.ttn}</div>
-      {result.estimated&&<div style={{marginTop:8,fontSize:12,color:"var(--text2)"}}>{"Очік. доставка: "}{result.estimated}</div>}
-      {result.cost&&<div style={{marginTop:4,fontSize:12,color:"var(--text2)"}}>{"Вартість доставки: "}{result.cost}{" грн"}</div>}
-      <div style={{marginTop:16}}><button className="btn btn-primary" onClick={onClose}>{"Закрити"}</button></div>
+      {result.estimated&&<div style={{marginTop:8,fontSize:12,color:"var(--text2)"}}>{"ÐÑÑÐº. Ð´Ð¾ÑÑÐ°Ð²ÐºÐ°: "}{result.estimated}</div>}
+      {result.cost&&<div style={{marginTop:4,fontSize:12,color:"var(--text2)"}}>{"ÐÐ°ÑÑÑÑÑÑ Ð´Ð¾ÑÑÐ°Ð²ÐºÐ¸: "}{result.cost}{" Ð³ÑÐ½"}</div>}
+      <div style={{marginTop:16}}><button className="btn btn-primary" onClick={onClose}>{"ÐÐ°ÐºÑÐ¸ÑÐ¸"}</button></div>
     </div>:<div>
       <div style={{background:"var(--np-light)",borderRadius:10,padding:12,marginBottom:12}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:showSP?8:0}}>
-          <div style={{fontSize:11,fontWeight:700,color:"var(--np-red)"}}>{"ВІДПРАВНИК"}</div>
+          <div style={{fontSize:11,fontWeight:700,color:"var(--np-red)"}}>{"ÐÐÐÐÐ ÐÐÐÐÐ"}</div>
           {!showSP&&<div style={{display:"flex",alignItems:"center",gap:8}}>
             <span style={{fontSize:12}}>{sCity}{sWhDesc?", "+sWhDesc:""}</span>
-            <button className="btn btn-secondary btn-xs" onClick={()=>setShowSP(true)}>{"Змінити"}</button>
+            <button className="btn btn-secondary btn-xs" onClick={()=>setShowSP(true)}>{"ÐÐ¼ÑÐ½Ð¸ÑÐ¸"}</button>
           </div>}
         </div>
         {showSP&&<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
-          <div><div style={{fontSize:10,fontWeight:700,color:"var(--text2)",marginBottom:2}}>{"Місто відправника"}</div><NPCityPicker value={sCity} onChange={v=>setSCity(v)} onCityRef={r=>setSCityRef(r)}/></div>
-          <div><div style={{fontSize:10,fontWeight:700,color:"var(--text2)",marginBottom:2}}>{"Відділення відправки"}</div><NPWarehousePicker cityRef={sCityRef} value={sWhDesc} onChange={(n,d,r)=>saveSW(sCity,sCityRef,d,r)}/></div>
+          <div><div style={{fontSize:10,fontWeight:700,color:"var(--text2)",marginBottom:2}}>{"ÐÑÑÑÐ¾ Ð²ÑÐ´Ð¿ÑÐ°Ð²Ð½Ð¸ÐºÐ°"}</div><NPCityPicker value={sCity} onChange={v=>setSCity(v)} onCityRef={r=>setSCityRef(r)}/></div>
+          <div><div style={{fontSize:10,fontWeight:700,color:"var(--text2)",marginBottom:2}}>{"ÐÑÐ´Ð´ÑÐ»ÐµÐ½Ð½Ñ Ð²ÑÐ´Ð¿ÑÐ°Ð²ÐºÐ¸"}</div><NPWarehousePicker cityRef={sCityRef} value={sWhDesc} onChange={(n,d,r)=>saveSW(sCity,sCityRef,d,r)}/></div>
         </div>}
-        {senderInfo&&<div style={{fontSize:10,color:"var(--text2)",marginTop:4}}>{"Контакт: "}{senderInfo.contact?.name}{" | "}{senderInfo.contact?.phone}</div>}
+        {senderInfo&&<div style={{fontSize:10,color:"var(--text2)",marginTop:4}}>{"ÐÐ¾Ð½ÑÐ°ÐºÑ: "}{senderInfo.contact?.name}{" | "}{senderInfo.contact?.phone}</div>}
       </div>
       <div style={{marginBottom:12}}>
-        <div style={{fontSize:11,fontWeight:700,color:"var(--text2)",marginBottom:6}}>{"ОТРИМУВАЧ: "}<span style={{fontWeight:400,color:"var(--text1)"}}>{order.client}{order.phone?" | "+order.phone:""}</span></div>
+        <div style={{fontSize:11,fontWeight:700,color:"var(--text2)",marginBottom:6}}>{"ÐÐ¢Ð ÐÐÐ£ÐÐÐ§: "}<span style={{fontWeight:400,color:"var(--text1)"}}>{order.client}{order.phone?" | "+order.phone:""}</span></div>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-          <div><div style={{fontSize:10,fontWeight:700,color:"var(--text2)",marginBottom:2}}>{"Місто отримувача"}</div><NPCityPicker value={rCity} onChange={setRCity} onCityRef={setRCityRef}/></div>
-          <div><div style={{fontSize:10,fontWeight:700,color:"var(--text2)",marginBottom:2}}>{"Відділення"}</div><NPWarehousePicker cityRef={rCityRef} value={whNum} onChange={(n,d,r)=>{setWhNum(n);setWhRef(r);}}/></div>
+          <div><div style={{fontSize:10,fontWeight:700,color:"var(--text2)",marginBottom:2}}>{"ÐÑÑÑÐ¾ Ð¾ÑÑÐ¸Ð¼ÑÐ²Ð°ÑÐ°"}</div><NPCityPicker value={rCity} onChange={setRCity} onCityRef={setRCityRef}/></div>
+          <div><div style={{fontSize:10,fontWeight:700,color:"var(--text2)",marginBottom:2}}>{"ÐÑÐ´Ð´ÑÐ»ÐµÐ½Ð½Ñ"}</div><NPWarehousePicker cityRef={rCityRef} value={whNum} onChange={(n,d,r)=>{setWhNum(n);setWhRef(r);}}/></div>
         </div>
       </div>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:6,marginBottom:12}}>
-        {[["cod","Наложка","var(--gold)"],["control","Контроль оплати","var(--blue)"],["prepaid","Передоплата","var(--green)"]].map(([v,l,c])=>
+        {[["cod","ÐÐ°Ð»Ð¾Ð¶ÐºÐ°","var(--gold)"],["control","ÐÐ¾Ð½ÑÑÐ¾Ð»Ñ Ð¾Ð¿Ð»Ð°ÑÐ¸","var(--blue)"],["prepaid","ÐÐµÑÐµÐ´Ð¾Ð¿Ð»Ð°ÑÐ°","var(--green)"]].map(([v,l,c])=>
           <button key={v} onClick={()=>setPayType(v)} style={{padding:"8px 6px",borderRadius:8,border:payType===v?"2px solid "+c:"1px solid var(--border)",background:payType===v?"#fff":"var(--surface)",fontSize:11,fontWeight:payType===v?700:400,cursor:"pointer",color:payType===v?c:"var(--text2)",textAlign:"center"}}>{l}</button>
         )}
       </div>
       <div style={{display:"grid",gridTemplateColumns:payType==="cod"?"1fr 1fr 1fr 1fr":"1fr 1fr 1fr",gap:10,marginBottom:12}}>
-        <div className="form-group" style={{marginBottom:0}}><label style={{fontSize:10,fontWeight:700,color:"var(--text2)"}}>{"Вага (кг)"}</label><input className="form-input" value={weight} onChange={e=>setWeight(e.target.value)} style={{fontSize:12}}/></div>
-        <div className="form-group" style={{marginBottom:0}}><label style={{fontSize:10,fontWeight:700,color:"var(--text2)"}}>{"Огол. вартість"}</label><input className="form-input" value={cost} onChange={e=>setCost(e.target.value)} style={{fontSize:12}}/></div>
-        {payType==="cod"&&<div className="form-group" style={{marginBottom:0}}><label style={{fontSize:10,fontWeight:700,color:"var(--gold)"}}>{"Наложка ₴"}</label><input className="form-input" value={backMoney} onChange={e=>setBackMoney(e.target.value)} style={{fontSize:12,borderColor:"var(--gold)"}}/></div>}
-        <div className="form-group" style={{marginBottom:0}}><label style={{fontSize:10,fontWeight:700,color:"var(--text2)"}}>{"Платник дост."}</label><select className="form-input" value={payerDel} onChange={e=>setPayerDel(e.target.value)} style={{fontSize:12}}><option value="Recipient">{"Отримувач"}</option><option value="Sender">{"Відправник"}</option></select></div>
+        <div className="form-group" style={{marginBottom:0}}><label style={{fontSize:10,fontWeight:700,color:"var(--text2)"}}>{"ÐÐ°Ð³Ð° (ÐºÐ³)"}</label><input className="form-input" value={weight} onChange={e=>setWeight(e.target.value)} style={{fontSize:12}}/></div>
+        <div className="form-group" style={{marginBottom:0}}><label style={{fontSize:10,fontWeight:700,color:"var(--text2)"}}>{"ÐÐ³Ð¾Ð». Ð²Ð°ÑÑÑÑÑÑ"}</label><input className="form-input" value={cost} onChange={e=>setCost(e.target.value)} style={{fontSize:12}}/></div>
+        {payType==="cod"&&<div className="form-group" style={{marginBottom:0}}><label style={{fontSize:10,fontWeight:700,color:"var(--gold)"}}>{"ÐÐ°Ð»Ð¾Ð¶ÐºÐ° â´"}</label><input className="form-input" value={backMoney} onChange={e=>setBackMoney(e.target.value)} style={{fontSize:12,borderColor:"var(--gold)"}}/></div>}
+        <div className="form-group" style={{marginBottom:0}}><label style={{fontSize:10,fontWeight:700,color:"var(--text2)"}}>{"ÐÐ»Ð°ÑÐ½Ð¸Ðº Ð´Ð¾ÑÑ."}</label><select className="form-input" value={payerDel} onChange={e=>setPayerDel(e.target.value)} style={{fontSize:12}}><option value="Recipient">{"ÐÑÑÐ¸Ð¼ÑÐ²Ð°Ñ"}</option><option value="Sender">{"ÐÑÐ´Ð¿ÑÐ°Ð²Ð½Ð¸Ðº"}</option></select></div>
       </div>
-      <div className="form-group" style={{marginBottom:12}}><label style={{fontSize:10,fontWeight:700,color:"var(--text2)"}}>{"Опис вмісту (в ТТН)"}</label><input className="form-input" value={description} onChange={e=>setDescription(e.target.value)} style={{fontSize:12}}/></div>
+      <div className="form-group" style={{marginBottom:12}}><label style={{fontSize:10,fontWeight:700,color:"var(--text2)"}}>{"ÐÐ¿Ð¸Ñ Ð²Ð¼ÑÑÑÑ (Ð² Ð¢Ð¢Ð)"}</label><input className="form-input" value={description} onChange={e=>setDescription(e.target.value)} style={{fontSize:12}}/></div>
       <div style={{background:"var(--surface)",borderRadius:8,padding:"8px 12px",marginBottom:12,fontSize:11,color:"var(--text2)"}}>
-        {order.items.map((it,i)=><div key={i}>{it.name}{it.qty>1?" x"+it.qty:""}{" — "}{it.price}{" ₴"}</div>)}
-        <div style={{fontWeight:700,color:"var(--text1)",marginTop:4}}>{"Разом: "}{order.total}{" ₴"}{payType==="cod"?" | Наложка: "+backMoney+" ₴":payType==="control"?" | Контроль оплати":" | Передоплата"}</div>
+        {order.items.map((it,i)=><div key={i}>{it.name}{it.qty>1?" x"+it.qty:""}{" â "}{it.price}{" â´"}</div>)}
+        <div style={{fontWeight:700,color:"var(--text1)",marginTop:4}}>{"Ð Ð°Ð·Ð¾Ð¼: "}{order.total}{" â´"}{payType==="cod"?" | ÐÐ°Ð»Ð¾Ð¶ÐºÐ°: "+backMoney+" â´":payType==="control"?" | ÐÐ¾Ð½ÑÑÐ¾Ð»Ñ Ð¾Ð¿Ð»Ð°ÑÐ¸":" | ÐÐµÑÐµÐ´Ð¾Ð¿Ð»Ð°ÑÐ°"}</div>
       </div>
       {err&&<div style={{color:"var(--red)",fontSize:12,marginBottom:8}}>{err}</div>}
-      <button className="btn btn-primary" onClick={doCreate} disabled={creating} style={{width:"100%"}}>{creating?"Створюю ТТН...":"Створити ТТН"}</button>
+      <button className="btn btn-primary" onClick={doCreate} disabled={creating} style={{width:"100%"}}>{creating?"Ð¡ÑÐ²Ð¾ÑÑÑ Ð¢Ð¢Ð...":"Ð¡ÑÐ²Ð¾ÑÐ¸ÑÐ¸ Ð¢Ð¢Ð"}</button>
     </div>}
   </Modal>);
 }
 
-// ─── NEW ORDER ───
+// âââ NEW ORDER âââ
 function NewOrderPage({orders,setOrders,products,setProducts,clients,setClients}){
   const[raw,setRaw]=useState("");
   const[parsed,setParsed]=useState({name:"",phone:"",city:"",npBranch:"",payment:"control"});
@@ -1193,7 +1193,7 @@ function NewOrderPage({orders,setOrders,products,setProducts,clients,setClients}
   const[prepay,setPrepay]=useState("");
   const[discount,setDiscount]=useState("");
   const[comment,setComment]=useState("");
-  const[prodCat,setProdCat]=useState("Все");
+  const[prodCat,setProdCat]=useState("ÐÑÐµ");
   const[prodSize,setProdSize]=useState("oversize");
   const[codManual,setCodManual]=useState(false);
   const[cityRef,setCityRef]=useState("");
@@ -1214,13 +1214,13 @@ function NewOrderPage({orders,setOrders,products,setProducts,clients,setClients}
   };
   const rmItem=pid=>setItems(items.filter(i=>i.productId!==pid));
   const submit=()=>{
-    const cn=parsed.name.trim();if(!cn||!items.length){alert("Ім'я + товар");return;}
-    // Duplicate check — same phone or name within 7 days
+    const cn=parsed.name.trim();if(!cn||!items.length){alert("ÐÐ¼'Ñ + ÑÐ¾Ð²Ð°Ñ");return;}
+    // Duplicate check â same phone or name within 7 days
     const dupes=findDupeFor(orders,parsed.phone,cn,Date.now());
     if(dupes.length>0){
       const recent=dupes.sort((a,b)=>new Date(b.date)-new Date(a.date)).slice(0,3);
-      const lines=recent.map(o=>`• ${new Date(o.date).toLocaleDateString("uk-UA")} — ${o.client}${o.phone?" ("+o.phone+")":""}, ${fmt(o.total)}, ${o.items.map(i=>i.name+(i.qty>1?" ×"+i.qty:"")).join(", ")}`).join("\n");
-      if(!confirm(`⚠ Можливий дубль!\n\nЗа останні 7 днів для цього клієнта вже є ${dupes.length} замовл.:\n\n${lines}\n\nВсе одно створити нове замовлення?`))return;
+      const lines=recent.map(o=>`â¢ ${new Date(o.date).toLocaleDateString("uk-UA")} â ${o.client}${o.phone?" ("+o.phone+")":""}, ${fmt(o.total)}, ${o.items.map(i=>i.name+(i.qty>1?" Ã"+i.qty:"")).join(", ")}`).join("\n");
+      if(!confirm(`â  ÐÐ¾Ð¶Ð»Ð¸Ð²Ð¸Ð¹ Ð´ÑÐ±Ð»Ñ!\n\nÐÐ° Ð¾ÑÑÐ°Ð½Ð½Ñ 7 Ð´Ð½ÑÐ² Ð´Ð»Ñ ÑÑÐ¾Ð³Ð¾ ÐºÐ»ÑÑÐ½ÑÐ° Ð²Ð¶Ðµ Ñ ${dupes.length} Ð·Ð°Ð¼Ð¾Ð²Ð».:\n\n${lines}\n\nÐÑÐµ Ð¾Ð´Ð½Ð¾ ÑÑÐ²Ð¾ÑÐ¸ÑÐ¸ Ð½Ð¾Ð²Ðµ Ð·Ð°Ð¼Ð¾Ð²Ð»ÐµÐ½Ð½Ñ?`))return;
     }
     const total=items.reduce((s,i)=>s+i.price*i.qty,0);
     const totalCost=items.reduce((s,i)=>s+i.cost*i.qty,0);
@@ -1233,8 +1233,8 @@ function NewOrderPage({orders,setOrders,products,setProducts,clients,setClients}
     if(existC){setClients(clients.map(c=>c.id===existC.id?{...c,name:cn,city:deliv==="np"?parsed.city:c.city,npBranch:deliv==="np"?parsed.npBranch:c.npBranch}:c));}
     else{setClients([...clients,{id:Date.now(),name:cn,phone:parsed.phone,city:deliv==="np"?parsed.city:"",npBranch:deliv==="np"?parsed.npBranch:"",created:new Date().toISOString()}]);}
     setRaw("");setItems([]);setEditP(false);setParsedOpen(true);setInputOpen(true);setDeliv("np");
-    setParsed({name:"",phone:"",city:"",npBranch:"",payment:"control"});setCodAmount("");setPrepay("");setDiscount("");setComment("");setCodManual(false);setProdCat("Все");
-    const nb=document.createElement("div");nb.textContent="\u2705 Замовлення додано!";Object.assign(nb.style,{position:"fixed",top:"20px",left:"50%",transform:"translateX(-50%)",background:"#22c55e",color:"#fff",padding:"12px 24px",borderRadius:"12px",fontSize:"15px",fontWeight:"600",zIndex:"9999",boxShadow:"0 4px 20px rgba(0,0,0,.25)"});document.body.appendChild(nb);setTimeout(()=>nb.remove(),2000);
+    setParsed({name:"",phone:"",city:"",npBranch:"",payment:"control"});setCodAmount("");setPrepay("");setDiscount("");setComment("");setCodManual(false);setProdCat("ÐÑÐµ");
+    const nb=document.createElement("div");nb.textContent="\u2705 ÐÐ°Ð¼Ð¾Ð²Ð»ÐµÐ½Ð½Ñ Ð´Ð¾Ð´Ð°Ð½Ð¾!";Object.assign(nb.style,{position:"fixed",top:"20px",left:"50%",transform:"translateX(-50%)",background:"#22c55e",color:"#fff",padding:"12px 24px",borderRadius:"12px",fontSize:"15px",fontWeight:"600",zIndex:"9999",boxShadow:"0 4px 20px rgba(0,0,0,.25)"});document.body.appendChild(nb);setTimeout(()=>nb.remove(),2000);
   };
   const curTotal=items.reduce((s,i)=>s+i.price*i.qty,0);
   const curProfit=items.reduce((s,i)=>s+(i.price-i.cost)*i.qty,0);
@@ -1242,24 +1242,24 @@ function NewOrderPage({orders,setOrders,products,setProducts,clients,setClients}
   return(<div style={{display:"flex",flexDirection:"column",height:"100%"}}>
     <div style={{flex:1,overflowY:"auto",paddingBottom:12}}>
       <div className="orders-feed">
-        {items.length===0&&<div style={{background:"var(--pink-pale)",border:"1px solid var(--border)",borderRadius:12,padding:14,textAlign:"center",fontSize:13,color:"var(--pink2)",marginBottom:12}}>Вставте дані клієнта одним повідомленням — ім'я, телефон, місто і номер відділення НП</div>}
+        {items.length===0&&<div style={{background:"var(--pink-pale)",border:"1px solid var(--border)",borderRadius:12,padding:14,textAlign:"center",fontSize:13,color:"var(--pink2)",marginBottom:12}}>ÐÑÑÐ°Ð²ÑÐµ Ð´Ð°Ð½Ñ ÐºÐ»ÑÑÐ½ÑÐ° Ð¾Ð´Ð½Ð¸Ð¼ Ð¿Ð¾Ð²ÑÐ´Ð¾Ð¼Ð»ÐµÐ½Ð½ÑÐ¼ â ÑÐ¼'Ñ, ÑÐµÐ»ÐµÑÐ¾Ð½, Ð¼ÑÑÑÐ¾ Ñ Ð½Ð¾Ð¼ÐµÑ Ð²ÑÐ´Ð´ÑÐ»ÐµÐ½Ð½Ñ ÐÐ</div>}
         {items.length>0&&<div className="order-card draft">
-          <div className="oh"><span className="oh-name" style={{color:"var(--pink2)"}}>Нове замовлення {parsed.name&&`— ${parsed.name}`}</span></div>
-          {deliv==="np"&&parsed.city&&<div className="od"><strong>НП</strong> {parsed.city}{parsed.npBranch?` №${parsed.npBranch}`:""} {parsed.payment==="cod"?<span className="badge badge-amber" style={{marginLeft:6}}>Наложка</span>:<span className="badge badge-blue" style={{marginLeft:6}}>Контроль оплати</span>}</div>}
+          <div className="oh"><span className="oh-name" style={{color:"var(--pink2)"}}>ÐÐ¾Ð²Ðµ Ð·Ð°Ð¼Ð¾Ð²Ð»ÐµÐ½Ð½Ñ {parsed.name&&`â ${parsed.name}`}</span></div>
+          {deliv==="np"&&parsed.city&&<div className="od"><strong>ÐÐ</strong> {parsed.city}{parsed.npBranch?` â${parsed.npBranch}`:""} {parsed.payment==="cod"?<span className="badge badge-amber" style={{marginLeft:6}}>ÐÐ°Ð»Ð¾Ð¶ÐºÐ°</span>:<span className="badge badge-blue" style={{marginLeft:6}}>ÐÐ¾Ð½ÑÑÐ¾Ð»Ñ Ð¾Ð¿Ð»Ð°ÑÐ¸</span>}</div>}
           <div style={{marginTop:6}}>
             {items.map((it,i)=><div key={i} style={{display:"flex",alignItems:"center",gap:6,padding:"4px 0",borderBottom:"1px solid var(--border)",fontSize:13,flexWrap:"wrap"}}>
               <span style={{flex:"1 1 120px",fontWeight:500,fontSize:12}}>{it.name}</span>
               <div style={{display:"flex",alignItems:"center",gap:3}}>
                 <input type="number" min="1" value={it.qty} onChange={e=>{const v=Math.max(1,Number(e.target.value));setItems(items.map(x=>x.productId===it.productId?{...x,qty:v}:x));}} style={{width:40,padding:"2px 4px",borderRadius:5,border:"1px solid var(--border)",fontSize:12,textAlign:"center"}}/>
-                <span style={{color:"var(--text2)",fontSize:10}}>×</span>
+                <span style={{color:"var(--text2)",fontSize:10}}>Ã</span>
                 <input type="number" min="0" value={it.price} onChange={e=>{const v=Math.max(0,Number(e.target.value));setItems(items.map(x=>x.productId===it.productId?{...x,price:v}:x));}} style={{width:64,padding:"2px 4px",borderRadius:5,border:"1px solid var(--border)",fontSize:12,textAlign:"right"}}/>
-                <span style={{color:"var(--text2)",fontSize:10}}>₴</span>
+                <span style={{color:"var(--text2)",fontSize:10}}>â´</span>
               </div>
               <span style={{fontWeight:700,fontSize:12}}>{fmt(it.price*it.qty)}</span>
               <button className="btn btn-danger btn-xs" style={{padding:"2px 5px"}} onClick={()=>rmItem(it.productId)}>{I.trash}</button>
             </div>)}
           </div>
-          <div className="ot"><span>Разом</span><span>{fmt(curTotal)}</span></div>
+          <div className="ot"><span>Ð Ð°Ð·Ð¾Ð¼</span><span>{fmt(curTotal)}</span></div>
           <div className="op">+{fmt(curProfit)}</div>
         </div>}
         <div ref={endRef}/>
@@ -1267,104 +1267,104 @@ function NewOrderPage({orders,setOrders,products,setProducts,clients,setClients}
     </div>
     {/* Input area */}
     <div style={{borderTop:"2px solid var(--border)",background:"var(--bg)"}}>
-      {/* Collapsed client summary — when input is hidden */}
+      {/* Collapsed client summary â when input is hidden */}
       {!inputOpen&&raw.trim()?<div style={{padding:"6px 12px",display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,fontSize:12,cursor:"pointer",background:"var(--pink-pale)",borderBottom:"1px solid var(--border)"}} onClick={()=>setInputOpen(true)}>
         <span style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center"}}>
           <strong style={{color:"var(--pink2)"}}>{parsed.name||"?"}</strong>
           {parsed.phone&&<span style={{color:"var(--text2)"}}>{parsed.phone}</span>}
-          {deliv==="np"&&parsed.city&&<span style={{color:"var(--text2)"}}>{parsed.city}{parsed.npBranch?` №${parsed.npBranch}`:""}</span>}
-          {deliv==="np"&&<span className={`badge ${parsed.payment==="cod"?"badge-amber":"badge-blue"}`} style={{fontSize:9}}>{parsed.payment==="cod"?"Нал":"Контр"}</span>}
-          {items.length>0&&<span style={{color:"var(--text2)"}}>| {items.length} товар(ів): {fmt(curTotal)}</span>}
+          {deliv==="np"&&parsed.city&&<span style={{color:"var(--text2)"}}>{parsed.city}{parsed.npBranch?` â${parsed.npBranch}`:""}</span>}
+          {deliv==="np"&&<span className={`badge ${parsed.payment==="cod"?"badge-amber":"badge-blue"}`} style={{fontSize:9}}>{parsed.payment==="cod"?"ÐÐ°Ð»":"ÐÐ¾Ð½ÑÑ"}</span>}
+          {items.length>0&&<span style={{color:"var(--text2)"}}>| {items.length} ÑÐ¾Ð²Ð°Ñ(ÑÐ²): {fmt(curTotal)}</span>}
         </span>
-        <button className="btn btn-secondary btn-xs" onClick={e=>{e.stopPropagation();setInputOpen(true);}}>Змінити</button>
+        <button className="btn btn-secondary btn-xs" onClick={e=>{e.stopPropagation();setInputOpen(true);}}>ÐÐ¼ÑÐ½Ð¸ÑÐ¸</button>
       </div>:null}
       {/* Expanded input */}
       {inputOpen&&<div style={{padding:"10px 12px 0",display:"flex",flexDirection:"column",gap:6}}>
         <div style={{display:"flex",gap:5,alignItems:"center"}}>
-          <button className={`filter-pill${deliv==="np"?' active':''}`} onClick={()=>setDeliv("np")}>Нова Пошта</button>
-          <button className={`filter-pill${deliv==="studio"?' active':''}`} onClick={()=>setDeliv("studio")}>Студія</button>
-          {raw.trim()&&<button className="btn btn-secondary btn-xs" style={{marginLeft:"auto"}} onClick={()=>{setInputOpen(false);setParsedOpen(false);}}>Згорнути</button>}
+          <button className={`filter-pill${deliv==="np"?' active':''}`} onClick={()=>setDeliv("np")}>ÐÐ¾Ð²Ð° ÐÐ¾ÑÑÐ°</button>
+          <button className={`filter-pill${deliv==="studio"?' active':''}`} onClick={()=>setDeliv("studio")}>Ð¡ÑÑÐ´ÑÑ</button>
+          {raw.trim()&&<button className="btn btn-secondary btn-xs" style={{marginLeft:"auto"}} onClick={()=>{setInputOpen(false);setParsedOpen(false);}}>ÐÐ³Ð¾ÑÐ½ÑÑÐ¸</button>}
         </div>
-        <textarea className="form-input" placeholder={"Ім'я\nМісто номер_відділення\n0961234567"} value={raw} onChange={e=>setRaw(e.target.value)} rows={3} style={{fontSize:13}}/>
+        <textarea className="form-input" placeholder={"ÐÐ¼'Ñ\nÐÑÑÑÐ¾ Ð½Ð¾Ð¼ÐµÑ_Ð²ÑÐ´Ð´ÑÐ»ÐµÐ½Ð½Ñ\n0961234567"} value={raw} onChange={e=>setRaw(e.target.value)} rows={3} style={{fontSize:13}}/>
         {raw.trim()&&<div className="parsed-preview" style={{padding:parsedOpen?"10px 14px":"6px 14px"}}>
           {!parsedOpen?<div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,fontSize:12,cursor:"pointer"}} onClick={()=>setParsedOpen(true)}>
             <span style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center"}}>
               <strong style={{color:"var(--pink2)"}}>{parsed.name||"?"}</strong>
               {parsed.phone&&<span style={{color:"var(--text2)"}}>{parsed.phone}</span>}
-              {deliv==="np"&&parsed.city&&<span style={{color:"var(--text2)"}}>{parsed.city}{parsed.npBranch?` №${parsed.npBranch}`:""}</span>}
-              {deliv==="np"&&<span className={`badge ${parsed.payment==="cod"?"badge-amber":"badge-blue"}`} style={{fontSize:9}}>{parsed.payment==="cod"?"Нал":"Контр"}</span>}
+              {deliv==="np"&&parsed.city&&<span style={{color:"var(--text2)"}}>{parsed.city}{parsed.npBranch?` â${parsed.npBranch}`:""}</span>}
+              {deliv==="np"&&<span className={`badge ${parsed.payment==="cod"?"badge-amber":"badge-blue"}`} style={{fontSize:9}}>{parsed.payment==="cod"?"ÐÐ°Ð»":"ÐÐ¾Ð½ÑÑ"}</span>}
             </span>
-            <button className="btn btn-secondary btn-xs">Розгорнути</button>
+            <button className="btn btn-secondary btn-xs">Ð Ð¾Ð·Ð³Ð¾ÑÐ½ÑÑÐ¸</button>
           </div>:
           <div>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
-              <span style={{fontSize:10,fontWeight:800,textTransform:"uppercase",color:"var(--pink2)"}}>Розпізнано</span>
-              <button className="btn btn-secondary btn-xs" onClick={()=>setEditP(!editP)}>{editP?"Готово":"Редагувати"}</button>
+              <span style={{fontSize:10,fontWeight:800,textTransform:"uppercase",color:"var(--pink2)"}}>Ð Ð¾Ð·Ð¿ÑÐ·Ð½Ð°Ð½Ð¾</span>
+              <button className="btn btn-secondary btn-xs" onClick={()=>setEditP(!editP)}>{editP?"ÐÐ¾ÑÐ¾Ð²Ð¾":"Ð ÐµÐ´Ð°Ð³ÑÐ²Ð°ÑÐ¸"}</button>
             </div>
             {!editP?<>
-              <div className="parsed-row"><span className="parsed-label">Ім'я:</span><span>{parsed.name||"—"}</span></div>
-              <div className="parsed-row"><span className="parsed-label">Тел:</span><span>{parsed.phone||"—"}</span></div>
-              {deliv==="np"&&<><div className="parsed-row"><span className="parsed-label">Місто:</span><span>{parsed.city||"—"}</span></div>
-              <div className="parsed-row"><span className="parsed-label">Відділ:</span><span>{parsed.npBranch?`№${parsed.npBranch}`:"—"}</span></div></>}
+              <div className="parsed-row"><span className="parsed-label">ÐÐ¼'Ñ:</span><span>{parsed.name||"â"}</span></div>
+              <div className="parsed-row"><span className="parsed-label">Ð¢ÐµÐ»:</span><span>{parsed.phone||"â"}</span></div>
+              {deliv==="np"&&<><div className="parsed-row"><span className="parsed-label">ÐÑÑÑÐ¾:</span><span>{parsed.city||"â"}</span></div>
+              <div className="parsed-row"><span className="parsed-label">ÐÑÐ´Ð´ÑÐ»:</span><span>{parsed.npBranch?`â${parsed.npBranch}`:"â"}</span></div></>}
             </>:
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6,marginTop:6}}>
-              <div className="form-group" style={{marginBottom:0}}><label className="form-label">Ім'я</label><input className="form-input" value={parsed.name} onChange={e=>setParsed({...parsed,name:e.target.value})}/></div>
-              <div className="form-group" style={{marginBottom:0}}><label className="form-label">Телефон</label><input className="form-input" value={parsed.phone} onChange={e=>setParsed({...parsed,phone:e.target.value})}/></div>
-              {deliv==="np"&&<><div className="form-group" style={{marginBottom:0}}><label className="form-label">Місто</label><NPCityPicker value={parsed.city} onChange={v=>setParsed({...parsed,city:v})} onCityRef={setCityRef}/></div>
-              <div className="form-group" style={{marginBottom:0}}><label className="form-label">Відділення</label><NPWarehousePicker cityRef={cityRef} value={parsed.npBranch} onChange={(n,d,r)=>{setParsed({...parsed,npBranch:n});setWhRef(r);}}/></div></>}
+              <div className="form-group" style={{marginBottom:0}}><label className="form-label">ÐÐ¼'Ñ</label><input className="form-input" value={parsed.name} onChange={e=>setParsed({...parsed,name:e.target.value})}/></div>
+              <div className="form-group" style={{marginBottom:0}}><label className="form-label">Ð¢ÐµÐ»ÐµÑÐ¾Ð½</label><input className="form-input" value={parsed.phone} onChange={e=>setParsed({...parsed,phone:e.target.value})}/></div>
+              {deliv==="np"&&<><div className="form-group" style={{marginBottom:0}}><label className="form-label">ÐÑÑÑÐ¾</label><NPCityPicker value={parsed.city} onChange={v=>setParsed({...parsed,city:v})} onCityRef={setCityRef}/></div>
+              <div className="form-group" style={{marginBottom:0}}><label className="form-label">ÐÑÐ´Ð´ÑÐ»ÐµÐ½Ð½Ñ</label><NPWarehousePicker cityRef={cityRef} value={parsed.npBranch} onChange={(n,d,r)=>{setParsed({...parsed,npBranch:n});setWhRef(r);}}/></div></>}
             </div>}
-            {deliv==="np"&&<div style={{marginTop:6}}><select className="form-input" style={{maxWidth:220,fontSize:13,padding:"6px 10px"}} value={parsed.payment} onChange={e=>setParsed({...parsed,payment:e.target.value})}><option value="cod">Наложка</option><option value="control">Контроль оплати</option></select></div>}
+            {deliv==="np"&&<div style={{marginTop:6}}><select className="form-input" style={{maxWidth:220,fontSize:13,padding:"6px 10px"}} value={parsed.payment} onChange={e=>setParsed({...parsed,payment:e.target.value})}><option value="cod">ÐÐ°Ð»Ð¾Ð¶ÐºÐ°</option><option value="control">ÐÐ¾Ð½ÑÑÐ¾Ð»Ñ Ð¾Ð¿Ð»Ð°ÑÐ¸</option></select></div>}
           </div>}
         </div>}
       </div>}
       {items.length>0&&<div style={{background:"var(--surface)",borderRadius:10,padding:"10px 12px",marginBottom:8}}>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:6,marginBottom:6}}>
-          <div className="form-group" style={{marginBottom:0}}><label className="form-label" style={{fontSize:10,color:"var(--green)",fontWeight:700}}>{"Передоплата ₴"}</label><input className="form-input" type="number" placeholder="0" value={prepay} onChange={e=>{setPrepay(e.target.value);setCodManual(false);}} style={{fontSize:13,borderColor:"var(--green)"}}/></div>
-          <div className="form-group" style={{marginBottom:0}}><label className="form-label" style={{fontSize:10,color:"var(--gold)",fontWeight:700}}>{"Наложка ₴"}</label><input className="form-input" type="number" placeholder="0" value={codAmount} onChange={e=>{setCodAmount(e.target.value);setCodManual(true);}} style={{fontSize:13,borderColor:"var(--gold)"}}/></div>
-          <div className="form-group" style={{marginBottom:0}}><label className="form-label" style={{fontSize:10,color:"var(--red)",fontWeight:700}}>{"Скидка ₴"}</label><input className="form-input" type="number" placeholder="0" value={discount} onChange={e=>{setDiscount(e.target.value);setCodManual(false);}} style={{fontSize:13,borderColor:"var(--red)"}}/></div>
-          <div className="form-group" style={{marginBottom:0}}><label className="form-label" style={{fontSize:10}}>{"Коментар"}</label><input className="form-input" placeholder="..." value={comment} onChange={e=>setComment(e.target.value)} style={{fontSize:13}}/></div>
+          <div className="form-group" style={{marginBottom:0}}><label className="form-label" style={{fontSize:10,color:"var(--green)",fontWeight:700}}>{"ÐÐµÑÐµÐ´Ð¾Ð¿Ð»Ð°ÑÐ° â´"}</label><input className="form-input" type="number" placeholder="0" value={prepay} onChange={e=>{setPrepay(e.target.value);setCodManual(false);}} style={{fontSize:13,borderColor:"var(--green)"}}/></div>
+          <div className="form-group" style={{marginBottom:0}}><label className="form-label" style={{fontSize:10,color:"var(--gold)",fontWeight:700}}>{"ÐÐ°Ð»Ð¾Ð¶ÐºÐ° â´"}</label><input className="form-input" type="number" placeholder="0" value={codAmount} onChange={e=>{setCodAmount(e.target.value);setCodManual(true);}} style={{fontSize:13,borderColor:"var(--gold)"}}/></div>
+          <div className="form-group" style={{marginBottom:0}}><label className="form-label" style={{fontSize:10,color:"var(--red)",fontWeight:700}}>{"Ð¡ÐºÐ¸Ð´ÐºÐ° â´"}</label><input className="form-input" type="number" placeholder="0" value={discount} onChange={e=>{setDiscount(e.target.value);setCodManual(false);}} style={{fontSize:13,borderColor:"var(--red)"}}/></div>
+          <div className="form-group" style={{marginBottom:0}}><label className="form-label" style={{fontSize:10}}>{"ÐÐ¾Ð¼ÐµÐ½ÑÐ°Ñ"}</label><input className="form-input" placeholder="..." value={comment} onChange={e=>setComment(e.target.value)} style={{fontSize:13}}/></div>
         </div>
         {(()=>{const t=curTotal;const p=prepay!==""?Number(prepay):0;const d=discount!==""?Number(discount):0;const c=codAmount!==""?Number(codAmount):0;const isPaid=p>=t&&t>0;return(<div style={{display:"flex",gap:10,flexWrap:"wrap",alignItems:"center",fontSize:12}}>
-          <span style={{fontWeight:700}}>{"Разом: "}{fmt(t)}</span>
-          {d>0&&<span style={{color:"var(--red)"}}>{"Скидка: -"}{fmt(d)}</span>}
-          {p>0&&<span style={{color:"var(--green)"}}>{"Передоплата: "}{fmt(p)}</span>}
-          {isPaid?<span className="badge badge-green" style={{fontSize:11,padding:"3px 10px"}}>{"Оплачено ✅"}</span>:<span style={{color:"var(--gold)",fontWeight:700}}>{"Наложка: "}{fmt(c)}{"₴"}</span>}
+          <span style={{fontWeight:700}}>{"Ð Ð°Ð·Ð¾Ð¼: "}{fmt(t)}</span>
+          {d>0&&<span style={{color:"var(--red)"}}>{"Ð¡ÐºÐ¸Ð´ÐºÐ°: -"}{fmt(d)}</span>}
+          {p>0&&<span style={{color:"var(--green)"}}>{"ÐÐµÑÐµÐ´Ð¾Ð¿Ð»Ð°ÑÐ°: "}{fmt(p)}</span>}
+          {isPaid?<span className="badge badge-green" style={{fontSize:11,padding:"3px 10px"}}>{"ÐÐ¿Ð»Ð°ÑÐµÐ½Ð¾ â"}</span>:<span style={{color:"var(--gold)",fontWeight:700}}>{"ÐÐ°Ð»Ð¾Ð¶ÐºÐ°: "}{fmt(c)}{"â´"}</span>}
         </div>);})()}
       </div>}
       {/* Category tabs */}
       <div style={{display:"flex",gap:4,flexWrap:"wrap",marginBottom:6}}>
         {CATEGORIES.map(cat=><button key={cat} className={"filter-pill"+(prodCat===cat?" active":"")} onClick={()=>setProdCat(cat)} style={{fontSize:11,padding:"4px 10px"}}>{cat}</button>)}
         <span style={{marginLeft:"auto",display:"flex",gap:4}}>
-          <button className={"filter-pill"+(prodSize==="oversize"?" active":"")} onClick={()=>setProdSize("oversize")} style={{fontSize:11,padding:"4px 10px",background:prodSize==="oversize"?"var(--pink)":"var(--surface)",color:prodSize==="oversize"?"#fff":"var(--text)",border:"1px solid var(--border)"}}>Оверсайз</button>
-          <button className={"filter-pill"+(prodSize==="long"?" active":"")} onClick={()=>setProdSize("long")} style={{fontSize:11,padding:"4px 10px",background:prodSize==="long"?"var(--blue)":"var(--surface)",color:prodSize==="long"?"#fff":"var(--text)",border:"1px solid var(--border)"}}>Лонг</button>
+          <button className={"filter-pill"+(prodSize==="oversize"?" active":"")} onClick={()=>setProdSize("oversize")} style={{fontSize:11,padding:"4px 10px",background:prodSize==="oversize"?"var(--pink)":"var(--surface)",color:prodSize==="oversize"?"#fff":"var(--text)",border:"1px solid var(--border)"}}>ÐÐ²ÐµÑÑÐ°Ð¹Ð·</button>
+          <button className={"filter-pill"+(prodSize==="long"?" active":"")} onClick={()=>setProdSize("long")} style={{fontSize:11,padding:"4px 10px",background:prodSize==="long"?"var(--blue)":"var(--surface)",color:prodSize==="long"?"#fff":"var(--text)",border:"1px solid var(--border)"}}>ÐÐ¾Ð½Ð³</button>
         </span>
       </div>
       {/* Product grid */}
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:6,marginBottom:8,maxHeight:240,overflowY:"auto",paddingRight:2}}>
-        {products.filter(p=>prodCat==="Все"||p.category===prodCat).map(p=>{
+        {products.filter(p=>prodCat==="ÐÑÐµ"||p.category===prodCat).map(p=>{
           const inCart=items.find(i=>i.productId===p.id);
           return(<div key={p.id} onClick={()=>{
-            const isShirt=p.category==="Oversize футболки";const sz=isShirt&&prodSize==="long";const itemPrice=sz?2500:p.price;const itemCost=sz?480:p.cost;const itemName=sz?p.name+" (Long)":p.name;if(inCart){setItems(items.map(i=>i.productId===p.id?{...i,qty:i.qty+1}:i));}
+            const isShirt=p.category==="Oversize ÑÑÑÐ±Ð¾Ð»ÐºÐ¸";const sz=isShirt&&prodSize==="long";const itemPrice=sz?2500:p.price;const itemCost=sz?480:p.cost;const itemName=sz?p.name+" (Long)":p.name;if(inCart){setItems(items.map(i=>i.productId===p.id?{...i,qty:i.qty+1}:i));}
             else{setItems([...items,{productId:p.id,name:itemName,price:itemPrice,cost:itemCost,qty:1,type:p.type}]);setParsedOpen(false);setInputOpen(false);}
           }} style={{border:inCart?"2px solid var(--pink2)":"1px solid var(--border)",borderRadius:10,padding:6,cursor:"pointer",background:inCart?"var(--pink-pale)":"var(--surface)",textAlign:"center",position:"relative",transition:"all .15s"}}>
             <div style={{width:"100%",aspectRatio:"1/1",borderRadius:8,overflow:"hidden",marginBottom:4,background:"#f3f0ed",display:"flex",alignItems:"center",justifyContent:"center"}}>
-              {p.photo?<img src={p.photo} alt={p.name} style={{width:"100%",height:"100%",objectFit:"cover"}}/>:<span style={{fontSize:28,opacity:.3}}>{p.category==="Косметика для волосся"?"🧴":"👕"}</span>}
+              {p.photo?<img src={p.photo} alt={p.name} style={{width:"100%",height:"100%",objectFit:"cover"}}/>:<span style={{fontSize:28,opacity:.3}}>{p.category==="ÐÐ¾ÑÐ¼ÐµÑÐ¸ÐºÐ° Ð´Ð»Ñ Ð²Ð¾Ð»Ð¾ÑÑÑ"?"ð§´":"ð"}</span>}
             </div>
-            <div style={{fontSize:10,fontWeight:600,lineHeight:"1.2",minHeight:24,overflow:"hidden"}}>{p.name.replace(/^Футболка /,"")}</div>
-            <div style={{fontSize:12,fontWeight:700,color:p.category==="Oversize футболки"&&prodSize==="long"?"var(--blue)":"var(--pink2)"}}>{fmt(p.category==="Oversize футболки"&&prodSize==="long"?2500:p.price)}</div>
-            {p.type==="product"&&<div style={{fontSize:9,color:p.stock<1?"var(--red)":"var(--text2)"}}>{p.stock<1?"немає":"зал: "+p.stock}</div>}
+            <div style={{fontSize:10,fontWeight:600,lineHeight:"1.2",minHeight:24,overflow:"hidden"}}>{p.name.replace(/^Ð¤ÑÑÐ±Ð¾Ð»ÐºÐ° /,"")}</div>
+            <div style={{fontSize:12,fontWeight:700,color:p.category==="Oversize ÑÑÑÐ±Ð¾Ð»ÐºÐ¸"&&prodSize==="long"?"var(--blue)":"var(--pink2)"}}>{fmt(p.category==="Oversize ÑÑÑÐ±Ð¾Ð»ÐºÐ¸"&&prodSize==="long"?2500:p.price)}</div>
+            {p.type==="product"&&<div style={{fontSize:9,color:p.stock<1?"var(--red)":"var(--text2)"}}>{p.stock<1?"Ð½ÐµÐ¼Ð°Ñ":"Ð·Ð°Ð»: "+p.stock}</div>}
             {inCart&&<div style={{position:"absolute",top:3,right:3,background:"var(--pink2)",color:"#fff",borderRadius:"50%",width:20,height:20,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700}}>{inCart.qty}</div>}
           </div>);
         })}
       </div>
       <div style={{display:"flex",gap:8,alignItems:"center"}}>
-        <button className="btn btn-primary" onClick={submit} disabled={!items.length||!parsed.name.trim()} style={{flex:1,height:40,fontSize:14}}>{I.send}{" Оформити"}</button>
+        <button className="btn btn-primary" onClick={submit} disabled={!items.length||!parsed.name.trim()} style={{flex:1,height:40,fontSize:14}}>{I.send}{" ÐÑÐ¾ÑÐ¼Ð¸ÑÐ¸"}</button>
       </div>
     </div>
   </div>);
 }
 
-// ─── ORDERS LIST ───
+// âââ ORDERS LIST âââ
 function OrdersListPage({orders,setOrders}){
   const[filter,setFilter]=useState("all");
   const[search,setSearch]=useState("");
@@ -1389,7 +1389,7 @@ function OrdersListPage({orders,setOrders}){
   },[orders,search]);
   const dupeMap=useMemo(()=>findDuplicates(orders),[orders]);
   const filtered=filter==="dupes"?searched.filter(o=>dupeMap.has(o.id)):(filter==="all"?searched:searched.filter(o=>o.status===filter));
-  // Sort: when showing dupes — group by duplicate key then by date desc; otherwise by date desc
+  // Sort: when showing dupes â group by duplicate key then by date desc; otherwise by date desc
   const sorted=filter==="dupes"
     ?[...filtered].sort((a,b)=>{const ka=dupeMap.get(a.id)?.key||"";const kb=dupeMap.get(b.id)?.key||"";if(ka!==kb)return ka.localeCompare(kb);return new Date(b.date)-new Date(a.date);})
     :[...filtered].reverse();
@@ -1412,41 +1412,41 @@ function OrdersListPage({orders,setOrders}){
 
   return(<div>
     <div style={{position:"relative",marginBottom:12}}>
-      <input type="text" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Пошук: ім'я, телефон, місто, ТТН, товар..." style={{width:"100%",padding:"10px 14px 10px 36px",borderRadius:10,border:"1px solid var(--border)",fontSize:13,background:"var(--surface)",outline:"none"}}/>
+      <input type="text" value={search} onChange={e=>setSearch(e.target.value)} placeholder="ÐÐ¾ÑÑÐº: ÑÐ¼'Ñ, ÑÐµÐ»ÐµÑÐ¾Ð½, Ð¼ÑÑÑÐ¾, Ð¢Ð¢Ð, ÑÐ¾Ð²Ð°Ñ..." style={{width:"100%",padding:"10px 14px 10px 36px",borderRadius:10,border:"1px solid var(--border)",fontSize:13,background:"var(--surface)",outline:"none"}}/>
       <span style={{position:"absolute",left:12,top:"50%",transform:"translateY(-50%)",fontSize:15,opacity:.4}}>&#128269;</span>
       {search&&<button onClick={()=>setSearch("")} style={{position:"absolute",right:10,top:"50%",transform:"translateY(-50%)",background:"none",border:"none",fontSize:16,cursor:"pointer",opacity:.5}}>&times;</button>}
     </div>
     <div className="filter-pills" style={{marginBottom:16}}>
-      <button className={`filter-pill${filter==="all"?' active':''}`} onClick={()=>setFilter("all")}>Всі ({counts.all})</button>
-      <button className={`filter-pill${filter==="new"?' active':''}`} onClick={()=>setFilter("new")}>Нові ({counts.new})</button>
-      <button className={`filter-pill${filter==="ttn"?' active':''}`} onClick={()=>setFilter("ttn")}>ТТН ({counts.ttn})</button>
-      <button className={`filter-pill${filter==="shipped"?' active':''}`} onClick={()=>setFilter("shipped")}>Відправ. ({counts.shipped})</button>
-      <button className={`filter-pill${filter==="delivered"?' active':''}`} onClick={()=>setFilter("delivered")}>Достав. ({counts.delivered})</button>
-      <button className={`filter-pill${filter==="paid"?' active':''}`} onClick={()=>setFilter("paid")} style={{color:filter==="paid"?"var(--green)":""}}>Оплач. ({counts.paid})</button>
-      <button className={`filter-pill${filter==="studio"?' active':''}`} onClick={()=>setFilter("studio")}>Студія ({counts.studio})</button>
-      {dupeCount>0&&<button className={`filter-pill${filter==="dupes"?' active':''}`} onClick={()=>setFilter("dupes")} style={{color:filter==="dupes"?"#fff":"var(--red)",background:filter==="dupes"?"var(--red)":"",borderColor:"var(--red)",fontWeight:700}} title="Замовлення від одного клієнта в межах 7 днів">⚠ Дублі ({dupeCount})</button>}
+      <button className={`filter-pill${filter==="all"?' active':''}`} onClick={()=>setFilter("all")}>ÐÑÑ ({counts.all})</button>
+      <button className={`filter-pill${filter==="new"?' active':''}`} onClick={()=>setFilter("new")}>ÐÐ¾Ð²Ñ ({counts.new})</button>
+      <button className={`filter-pill${filter==="ttn"?' active':''}`} onClick={()=>setFilter("ttn")}>Ð¢Ð¢Ð ({counts.ttn})</button>
+      <button className={`filter-pill${filter==="shipped"?' active':''}`} onClick={()=>setFilter("shipped")}>ÐÑÐ´Ð¿ÑÐ°Ð². ({counts.shipped})</button>
+      <button className={`filter-pill${filter==="delivered"?' active':''}`} onClick={()=>setFilter("delivered")}>ÐÐ¾ÑÑÐ°Ð². ({counts.delivered})</button>
+      <button className={`filter-pill${filter==="paid"?' active':''}`} onClick={()=>setFilter("paid")} style={{color:filter==="paid"?"var(--green)":""}}>ÐÐ¿Ð»Ð°Ñ. ({counts.paid})</button>
+      <button className={`filter-pill${filter==="studio"?' active':''}`} onClick={()=>setFilter("studio")}>Ð¡ÑÑÐ´ÑÑ ({counts.studio})</button>
+      {dupeCount>0&&<button className={`filter-pill${filter==="dupes"?' active':''}`} onClick={()=>setFilter("dupes")} style={{color:filter==="dupes"?"#fff":"var(--red)",background:filter==="dupes"?"var(--red)":"",borderColor:"var(--red)",fontWeight:700}} title="ÐÐ°Ð¼Ð¾Ð²Ð»ÐµÐ½Ð½Ñ Ð²ÑÐ´ Ð¾Ð´Ð½Ð¾Ð³Ð¾ ÐºÐ»ÑÑÐ½ÑÐ° Ð² Ð¼ÐµÐ¶Ð°Ñ 7 Ð´Ð½ÑÐ²">â  ÐÑÐ±Ð»Ñ ({dupeCount})</button>}
     </div>
     {filter==="dupes"&&dupeCount>0&&<div style={{background:"#fef3c7",border:"1px solid #f59e0b",borderRadius:10,padding:"10px 14px",marginBottom:12,fontSize:12,color:"#78350f"}}>
-      ⚠ Знайдено {dupeCount} можливих дублі ({new Set(Array.from(dupeMap.values()).map(v=>v.key)).size} груп). Показані замовлення, у яких той самий телефон або ім'я зустрічається більше одного разу протягом 7 днів. Перевірте їх перед відправкою ТТН.
+      â  ÐÐ½Ð°Ð¹Ð´ÐµÐ½Ð¾ {dupeCount} Ð¼Ð¾Ð¶Ð»Ð¸Ð²Ð¸Ñ Ð´ÑÐ±Ð»Ñ ({new Set(Array.from(dupeMap.values()).map(v=>v.key)).size} Ð³ÑÑÐ¿). ÐÐ¾ÐºÐ°Ð·Ð°Ð½Ñ Ð·Ð°Ð¼Ð¾Ð²Ð»ÐµÐ½Ð½Ñ, Ñ ÑÐºÐ¸Ñ ÑÐ¾Ð¹ ÑÐ°Ð¼Ð¸Ð¹ ÑÐµÐ»ÐµÑÐ¾Ð½ Ð°Ð±Ð¾ ÑÐ¼'Ñ Ð·ÑÑÑÑÑÑÐ°ÑÑÑÑÑ Ð±ÑÐ»ÑÑÐµ Ð¾Ð´Ð½Ð¾Ð³Ð¾ ÑÐ°Ð·Ñ Ð¿ÑÐ¾ÑÑÐ³Ð¾Ð¼ 7 Ð´Ð½ÑÐ². ÐÐµÑÐµÐ²ÑÑÑÐµ ÑÑ Ð¿ÐµÑÐµÐ´ Ð²ÑÐ´Ð¿ÑÐ°Ð²ÐºÐ¾Ñ Ð¢Ð¢Ð.
     </div>}
-    {sorted.length===0?<div className="empty-state"><p>Немає замовлень</p></div>:<>
+    {sorted.length===0?<div className="empty-state"><p>ÐÐµÐ¼Ð°Ñ Ð·Ð°Ð¼Ð¾Ð²Ð»ÐµÐ½Ñ</p></div>:<>
     {/* Desktop table */}
     <div className="desktop-tbl card" style={{padding:0,overflowX:"auto"}}>
-      <table className="tbl"><thead><tr><th>Дата</th><th>Клієнт</th><th>Тел</th><th>Доставка</th><th>Сума</th><th>Оплата</th><th>ТТН</th><th>Статус</th><th></th></tr></thead><tbody>
+      <table className="tbl"><thead><tr><th>ÐÐ°ÑÐ°</th><th>ÐÐ»ÑÑÐ½Ñ</th><th>Ð¢ÐµÐ»</th><th>ÐÐ¾ÑÑÐ°Ð²ÐºÐ°</th><th>Ð¡ÑÐ¼Ð°</th><th>ÐÐ¿Ð»Ð°ÑÐ°</th><th>Ð¢Ð¢Ð</th><th>Ð¡ÑÐ°ÑÑÑ</th><th></th></tr></thead><tbody>
         {sorted.map(o=>{const dupe=dupeMap.get(o.id);const dupeOthers=dupe?dupe.groupIds.filter(x=>x!==o.id):[];return(<tr key={o.id} style={dupe?{background:"#fef3c7"}:null}>
           <td style={{whiteSpace:"nowrap",fontSize:12}}>{new Date(o.date).toLocaleDateString("uk-UA")}</td>
-          <td><div style={{fontWeight:600,display:"flex",alignItems:"center",gap:4}}>{o.client}{dupe&&<span title={`Можливий дубль — ще ${dupeOthers.length} замовл. від цього клієнта за останні 7 днів`} style={{background:"var(--red)",color:"#fff",fontSize:9,padding:"2px 6px",borderRadius:8,fontWeight:700,whiteSpace:"nowrap"}}>⚠ ДУБЛЬ ×{dupe.groupIds.length}</span>}</div>{o.comment&&<div style={{fontSize:10,color:"var(--text2)",maxWidth:160,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}} title={o.comment}>{o.comment}</div>}</td>
-          <td style={{fontSize:12,color:"var(--text2)"}}>{o.phone||"—"}</td>
-          <td style={{fontSize:11}}>{o.deliveryType==="np"?`${o.city}${o.npBranch?` №${o.npBranch}`:""}`:<span style={{color:"var(--pink2)"}}>Студія</span>}</td>
-          <td><div style={{fontWeight:700}}>{fmt(o.total)}</div>{o.codAmount!=null&&<div style={{fontSize:10,color:"var(--gold)"}}>{"Нал: "}{fmt(o.codAmount)}</div>}{o.prepayment!=null&&o.prepayment>0&&<div style={{fontSize:10,color:"var(--green)"}}>{"Передопл: "}{fmt(o.prepayment)}</div>}</td>
-          <td>{o.deliveryType==="np"?(o.payment==="cod"?<span className="badge badge-amber">Нал</span>:<span className="badge badge-blue">Контр</span>):"—"}</td>
-          <td>{o.ttn?<div><span className="ttn-value" onClick={()=>{navigator.clipboard.writeText(o.ttn).catch(()=>{})}} title="Копіювати">{o.ttn}</span><TTNStatus ttn={o.ttn}/></div>:o.deliveryType==="np"?<span style={{fontSize:11,color:"var(--text2)"}}>{"—"}</span>:"—"}</td>
+          <td><div style={{fontWeight:600,display:"flex",alignItems:"center",gap:4}}>{o.client}{dupe&&<span title={`ÐÐ¾Ð¶Ð»Ð¸Ð²Ð¸Ð¹ Ð´ÑÐ±Ð»Ñ â ÑÐµ ${dupeOthers.length} Ð·Ð°Ð¼Ð¾Ð²Ð». Ð²ÑÐ´ ÑÑÐ¾Ð³Ð¾ ÐºÐ»ÑÑÐ½ÑÐ° Ð·Ð° Ð¾ÑÑÐ°Ð½Ð½Ñ 7 Ð´Ð½ÑÐ²`} style={{background:"var(--red)",color:"#fff",fontSize:9,padding:"2px 6px",borderRadius:8,fontWeight:700,whiteSpace:"nowrap"}}>â  ÐÐ£ÐÐÐ¬ Ã{dupe.groupIds.length}</span>}</div>{o.comment&&<div style={{fontSize:10,color:"var(--text2)",maxWidth:160,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}} title={o.comment}>{o.comment}</div>}</td>
+          <td style={{fontSize:12,color:"var(--text2)"}}>{o.phone||"â"}</td>
+          <td style={{fontSize:11}}>{o.deliveryType==="np"?`${o.city}${o.npBranch?` â${o.npBranch}`:""}`:<span style={{color:"var(--pink2)"}}>Ð¡ÑÑÐ´ÑÑ</span>}</td>
+          <td><div style={{fontWeight:700}}>{fmt(o.total)}</div>{o.codAmount!=null&&<div style={{fontSize:10,color:"var(--gold)"}}>{"ÐÐ°Ð»: "}{fmt(o.codAmount)}</div>}{o.prepayment!=null&&o.prepayment>0&&<div style={{fontSize:10,color:"var(--green)"}}>{"ÐÐµÑÐµÐ´Ð¾Ð¿Ð»: "}{fmt(o.prepayment)}</div>}</td>
+          <td>{o.deliveryType==="np"?(o.payment==="cod"?<span className="badge badge-amber">ÐÐ°Ð»</span>:<span className="badge badge-blue">ÐÐ¾Ð½ÑÑ</span>):"â"}</td>
+          <td>{o.ttn?<div><span className="ttn-value" onClick={()=>{navigator.clipboard.writeText(o.ttn).catch(()=>{})}} title="ÐÐ¾Ð¿ÑÑÐ²Ð°ÑÐ¸">{o.ttn}</span><TTNStatus ttn={o.ttn}/></div>:o.deliveryType==="np"?<span style={{fontSize:11,color:"var(--text2)"}}>{"â"}</span>:"â"}</td>
           <td><span className={`badge ${STCLS[o.status]}`}>{STATUSES[o.status]}</span></td>
           <td><div style={{display:"flex",gap:3,flexWrap:"wrap"}}>
-            {o.deliveryType==="np"&&!o.ttn&&<button className="btn btn-np btn-xs" onClick={()=>setCreateTTNOrder(o)} title="Створити ТТН через НП">{I.send}</button>}
-            {o.deliveryType==="np"&&<button className="btn btn-np btn-xs" onClick={()=>openTtn(o)}>ТТН</button>}
-            {o.status==="ttn"&&<button className="btn btn-secondary btn-xs" onClick={()=>updSt(o.id,"shipped")}>Відпр</button>}
-            {o.status==="shipped"&&<button className="btn btn-secondary btn-xs" onClick={()=>updSt(o.id,"delivered")}>Дост</button>}
+            {o.deliveryType==="np"&&!o.ttn&&<button className="btn btn-np btn-xs" onClick={()=>setCreateTTNOrder(o)} title="Ð¡ÑÐ²Ð¾ÑÐ¸ÑÐ¸ Ð¢Ð¢Ð ÑÐµÑÐµÐ· ÐÐ">{I.send}</button>}
+            {o.deliveryType==="np"&&<button className="btn btn-np btn-xs" onClick={()=>openTtn(o)}>Ð¢Ð¢Ð</button>}
+            {o.status==="ttn"&&<button className="btn btn-secondary btn-xs" onClick={()=>updSt(o.id,"shipped")}>ÐÑÐ´Ð¿Ñ</button>}
+            {o.status==="shipped"&&<button className="btn btn-secondary btn-xs" onClick={()=>updSt(o.id,"delivered")}>ÐÐ¾ÑÑ</button>}
             <button className="btn btn-secondary btn-xs" onClick={()=>openEdit(o)}>{I.edit}</button>
           </div></td>
         </tr>);})}
@@ -1457,24 +1457,24 @@ function OrdersListPage({orders,setOrders}){
       {sorted.map(o=>{const dupe=dupeMap.get(o.id);return(
         <div key={o.id} className={`mob-order-card${dupe?' dupe-highlight':''}`} onClick={()=>openEdit(o)}>
           <div className="mob-oc-top">
-            <div className="mob-oc-name">{o.client||"Без імені"}{dupe&&<span style={{background:"var(--red)",color:"#fff",fontSize:9,padding:"1px 5px",borderRadius:6,fontWeight:700,marginLeft:6,verticalAlign:"middle"}}>ДУБЛЬ</span>}</div>
+            <div className="mob-oc-name">{o.client||"ÐÐµÐ· ÑÐ¼ÐµÐ½Ñ"}{dupe&&<span style={{background:"var(--red)",color:"#fff",fontSize:9,padding:"1px 5px",borderRadius:6,fontWeight:700,marginLeft:6,verticalAlign:"middle"}}>ÐÐ£ÐÐÐ¬</span>}</div>
             <div className="mob-oc-badge"><span className={`badge ${STCLS[o.status]}`}>{STATUSES[o.status]}</span></div>
           </div>
           <div className="mob-oc-info">
             <span>{new Date(o.date).toLocaleDateString("uk-UA",{day:"numeric",month:"short"})}</span>
             {o.phone&&<span>{o.phone}</span>}
-            {o.deliveryType==="np"?<span>{o.city}{o.npBranch?` №${o.npBranch}`:""}</span>:<span style={{color:"var(--pink2)"}}>Студія</span>}
-            {o.deliveryType==="np"&&<span>{o.payment==="cod"?<span className="badge badge-amber" style={{fontSize:9}}>Нал</span>:<span className="badge badge-blue" style={{fontSize:9}}>Контр</span>}</span>}
+            {o.deliveryType==="np"?<span>{o.city}{o.npBranch?` â${o.npBranch}`:""}</span>:<span style={{color:"var(--pink2)"}}>Ð¡ÑÑÐ´ÑÑ</span>}
+            {o.deliveryType==="np"&&<span>{o.payment==="cod"?<span className="badge badge-amber" style={{fontSize:9}}>ÐÐ°Ð»</span>:<span className="badge badge-blue" style={{fontSize:9}}>ÐÐ¾Ð½ÑÑ</span>}</span>}
           </div>
-          <div className="mob-oc-items">{o.items.map(i=>`${i.name} ×${i.qty}`).join(", ")}</div>
+          <div className="mob-oc-items">{o.items.map(i=>`${i.name} Ã${i.qty}`).join(", ")}</div>
           {o.ttn&&<div style={{fontSize:11,marginBottom:6,display:"flex",alignItems:"center",gap:6}}><span className="ttn-value" onClick={e=>{e.stopPropagation();navigator.clipboard.writeText(o.ttn).catch(()=>{})}}>{o.ttn}</span><TTNStatus ttn={o.ttn}/></div>}
           {o.comment&&<div style={{fontSize:11,color:"var(--text2)",marginBottom:6,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{o.comment}</div>}
           <div className="mob-oc-bottom">
-            <div><span className="mob-oc-total">{fmt(o.total)}</span>{o.prepayment>0&&<span style={{fontSize:10,color:"var(--green)",marginLeft:6}}>передопл {fmt(o.prepayment)}</span>}</div>
+            <div><span className="mob-oc-total">{fmt(o.total)}</span>{o.prepayment>0&&<span style={{fontSize:10,color:"var(--green)",marginLeft:6}}>Ð¿ÐµÑÐµÐ´Ð¾Ð¿Ð» {fmt(o.prepayment)}</span>}</div>
             <div className="mob-oc-actions" onClick={e=>e.stopPropagation()}>
-              {o.deliveryType==="np"&&!o.ttn&&<button className="btn btn-np" style={{padding:"6px 12px",fontSize:11,fontWeight:700}} onClick={()=>setCreateTTNOrder(o)}>Оформити ТТН</button>}
-              {o.deliveryType==="np"&&o.ttn&&!o.ttn.startsWith("2")&&o.status==="ttn"&&<button className="btn btn-secondary" style={{padding:"5px 10px",fontSize:11}} onClick={()=>updSt(o.id,"shipped")}>Відправлено</button>}
-              {o.status==="shipped"&&<button className="btn btn-secondary" style={{padding:"5px 10px",fontSize:11}} onClick={()=>updSt(o.id,"delivered")}>Доставлено</button>}
+              {o.deliveryType==="np"&&!o.ttn&&<button className="btn btn-np" style={{padding:"6px 12px",fontSize:11,fontWeight:700}} onClick={()=>setCreateTTNOrder(o)}>ÐÑÐ¾ÑÐ¼Ð¸ÑÐ¸ Ð¢Ð¢Ð</button>}
+              {o.deliveryType==="np"&&o.ttn&&!o.ttn.startsWith("2")&&o.status==="ttn"&&<button className="btn btn-secondary" style={{padding:"5px 10px",fontSize:11}} onClick={()=>updSt(o.id,"shipped")}>ÐÑÐ´Ð¿ÑÐ°Ð²Ð»ÐµÐ½Ð¾</button>}
+              {o.status==="shipped"&&<button className="btn btn-secondary" style={{padding:"5px 10px",fontSize:11}} onClick={()=>updSt(o.id,"delivered")}>ÐÐ¾ÑÑÐ°Ð²Ð»ÐµÐ½Ð¾</button>}
             </div>
           </div>
         </div>
@@ -1482,77 +1482,77 @@ function OrdersListPage({orders,setOrders}){
     </div>
     </>}
     {/* TTN Modal */}
-    {ttnM&&<Modal title="ТТН — Нова Пошта" onClose={()=>setTtnM(null)}>
+    {ttnM&&<Modal title="Ð¢Ð¢Ð â ÐÐ¾Ð²Ð° ÐÐ¾ÑÑÐ°" onClose={()=>setTtnM(null)}>
       <div style={{background:"var(--np-light)",borderRadius:10,padding:12,marginBottom:14,fontSize:13}}>
-        <div><strong>Клієнт:</strong> {ttnM.client}</div>
-        <div><strong>Тел:</strong> {ttnM.phone||"—"}</div>
-        <div><strong>Місто:</strong> {ttnM.city||"—"}</div>
-        <div><strong>Відділ:</strong> {ttnM.npBranch?`№${ttnM.npBranch}`:"—"}</div>
-        <div><strong>Оплата:</strong> {ttnM.payment==="cod"?"Наложка":"Контроль оплати"}</div>
-        {ttnM.payment==="cod"&&<div><strong>Сума наложки:</strong> {fmt(ttnM.total)}</div>}
+        <div><strong>ÐÐ»ÑÑÐ½Ñ:</strong> {ttnM.client}</div>
+        <div><strong>Ð¢ÐµÐ»:</strong> {ttnM.phone||"â"}</div>
+        <div><strong>ÐÑÑÑÐ¾:</strong> {ttnM.city||"â"}</div>
+        <div><strong>ÐÑÐ´Ð´ÑÐ»:</strong> {ttnM.npBranch?`â${ttnM.npBranch}`:"â"}</div>
+        <div><strong>ÐÐ¿Ð»Ð°ÑÐ°:</strong> {ttnM.payment==="cod"?"ÐÐ°Ð»Ð¾Ð¶ÐºÐ°":"ÐÐ¾Ð½ÑÑÐ¾Ð»Ñ Ð¾Ð¿Ð»Ð°ÑÐ¸"}</div>
+        {ttnM.payment==="cod"&&<div><strong>Ð¡ÑÐ¼Ð° Ð½Ð°Ð»Ð¾Ð¶ÐºÐ¸:</strong> {fmt(ttnM.total)}</div>}
       </div>
-      <div style={{fontSize:12,color:"var(--text2)",marginBottom:10}}>Товари: {ttnM.items.map(i=>`${i.name} ×${i.qty}`).join(", ")}</div>
-      <div className="form-group"><label className="form-label">Номер ТТН</label><input className="form-input" placeholder="59000000000000" value={ttnV} onChange={e=>setTtnV(e.target.value)} style={{fontFamily:"monospace",fontSize:16,letterSpacing:1}}/></div>
-      <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}><button className="btn btn-secondary" onClick={()=>setTtnM(null)}>Скасувати</button><button className="btn btn-np" onClick={saveTtn}>{I.truck} Зберегти</button></div>
+      <div style={{fontSize:12,color:"var(--text2)",marginBottom:10}}>Ð¢Ð¾Ð²Ð°ÑÐ¸: {ttnM.items.map(i=>`${i.name} Ã${i.qty}`).join(", ")}</div>
+      <div className="form-group"><label className="form-label">ÐÐ¾Ð¼ÐµÑ Ð¢Ð¢Ð</label><input className="form-input" placeholder="59000000000000" value={ttnV} onChange={e=>setTtnV(e.target.value)} style={{fontFamily:"monospace",fontSize:16,letterSpacing:1}}/></div>
+      <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}><button className="btn btn-secondary" onClick={()=>setTtnM(null)}>Ð¡ÐºÐ°ÑÑÐ²Ð°ÑÐ¸</button><button className="btn btn-np" onClick={saveTtn}>{I.truck} ÐÐ±ÐµÑÐµÐ³ÑÐ¸</button></div>
     </Modal>}
     {/* Edit Order Modal */}
-    {editO&&<Modal title="Редагувати замовлення" onClose={()=>setEditO(null)} wide>
+    {editO&&<Modal title="Ð ÐµÐ´Ð°Ð³ÑÐ²Ð°ÑÐ¸ Ð·Ð°Ð¼Ð¾Ð²Ð»ÐµÐ½Ð½Ñ" onClose={()=>setEditO(null)} wide>
       {/* Quick TTN button at top for NP orders without TTN */}
       {editO.deliveryType==="np"&&!editO.ttn&&<div style={{background:"var(--np-light)",border:"1px solid var(--np-red)",borderRadius:10,padding:"10px 14px",marginBottom:14,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
-        <span style={{fontSize:13,fontWeight:600,color:"var(--np-red)"}}>ТТН не оформлено</span>
-        <button className="btn btn-np" style={{padding:"8px 16px",fontSize:13,fontWeight:700}} onClick={()=>{setEditO(null);setCreateTTNOrder(editO);}}>Оформити ТТН</button>
+        <span style={{fontSize:13,fontWeight:600,color:"var(--np-red)"}}>Ð¢Ð¢Ð Ð½Ðµ Ð¾ÑÐ¾ÑÐ¼Ð»ÐµÐ½Ð¾</span>
+        <button className="btn btn-np" style={{padding:"8px 16px",fontSize:13,fontWeight:700}} onClick={()=>{setEditO(null);setCreateTTNOrder(editO);}}>ÐÑÐ¾ÑÐ¼Ð¸ÑÐ¸ Ð¢Ð¢Ð</button>
       </div>}
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:14}}>
-        <div className="form-group" style={{marginBottom:0}}><label className="form-label">Клієнт</label><input className="form-input" value={editO.client} onChange={e=>setEditO({...editO,client:e.target.value})}/></div>
-        <div className="form-group" style={{marginBottom:0}}><label className="form-label">Телефон</label><input className="form-input" value={editO.phone} onChange={e=>setEditO({...editO,phone:e.target.value})}/></div>
+        <div className="form-group" style={{marginBottom:0}}><label className="form-label">ÐÐ»ÑÑÐ½Ñ</label><input className="form-input" value={editO.client} onChange={e=>setEditO({...editO,client:e.target.value})}/></div>
+        <div className="form-group" style={{marginBottom:0}}><label className="form-label">Ð¢ÐµÐ»ÐµÑÐ¾Ð½</label><input className="form-input" value={editO.phone} onChange={e=>setEditO({...editO,phone:e.target.value})}/></div>
         {editO.deliveryType==="np"&&<>
-          <div className="form-group" style={{marginBottom:0}}><label className="form-label">Місто</label><input className="form-input" value={editO.city} onChange={e=>setEditO({...editO,city:e.target.value})}/></div>
-          <div className="form-group" style={{marginBottom:0}}><label className="form-label">№ відділення</label><input className="form-input" value={editO.npBranch} onChange={e=>setEditO({...editO,npBranch:e.target.value})}/></div>
-          <div className="form-group" style={{marginBottom:0}}><label className="form-label">Оплата</label><select className="form-input" value={editO.payment} onChange={e=>setEditO({...editO,payment:e.target.value})}><option value="cod">Наложка</option><option value="control">Контроль оплати</option></select></div>
-          <div className="form-group" style={{marginBottom:0}}><label className="form-label">ТТН</label><input className="form-input" value={editO.ttn||""} onChange={e=>setEditO({...editO,ttn:e.target.value})} style={{fontFamily:"monospace"}}/></div>
+          <div className="form-group" style={{marginBottom:0}}><label className="form-label">ÐÑÑÑÐ¾</label><input className="form-input" value={editO.city} onChange={e=>setEditO({...editO,city:e.target.value})}/></div>
+          <div className="form-group" style={{marginBottom:0}}><label className="form-label">â Ð²ÑÐ´Ð´ÑÐ»ÐµÐ½Ð½Ñ</label><input className="form-input" value={editO.npBranch} onChange={e=>setEditO({...editO,npBranch:e.target.value})}/></div>
+          <div className="form-group" style={{marginBottom:0}}><label className="form-label">ÐÐ¿Ð»Ð°ÑÐ°</label><select className="form-input" value={editO.payment} onChange={e=>setEditO({...editO,payment:e.target.value})}><option value="cod">ÐÐ°Ð»Ð¾Ð¶ÐºÐ°</option><option value="control">ÐÐ¾Ð½ÑÑÐ¾Ð»Ñ Ð¾Ð¿Ð»Ð°ÑÐ¸</option></select></div>
+          <div className="form-group" style={{marginBottom:0}}><label className="form-label">Ð¢Ð¢Ð</label><input className="form-input" value={editO.ttn||""} onChange={e=>setEditO({...editO,ttn:e.target.value})} style={{fontFamily:"monospace"}}/></div>
         </>}
-        <div className="form-group" style={{marginBottom:0}}><label className="form-label">Статус</label><select className="form-input" value={editO.status} onChange={e=>setEditO({...editO,status:e.target.value})}>
+        <div className="form-group" style={{marginBottom:0}}><label className="form-label">Ð¡ÑÐ°ÑÑÑ</label><select className="form-input" value={editO.status} onChange={e=>setEditO({...editO,status:e.target.value})}>
           {Object.entries(STATUSES).map(([k,v])=><option key={k} value={k}>{v}</option>)}
         </select></div>
-        <div className="form-group" style={{marginBottom:0}}><label className="form-label">Коментар</label><input className="form-input" value={editO.comment||""} onChange={e=>setEditO({...editO,comment:e.target.value})}/></div>
+        <div className="form-group" style={{marginBottom:0}}><label className="form-label">ÐÐ¾Ð¼ÐµÐ½ÑÐ°Ñ</label><input className="form-input" value={editO.comment||""} onChange={e=>setEditO({...editO,comment:e.target.value})}/></div>
       </div>
       <div style={{marginBottom:12}}>
-        <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",color:"var(--text2)",marginBottom:6}}>Товари</div>
+        <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",color:"var(--text2)",marginBottom:6}}>Ð¢Ð¾Ð²Ð°ÑÐ¸</div>
         {editItems.map((it,idx)=><div key={idx} style={{display:"flex",alignItems:"center",gap:6,padding:"8px 0",borderBottom:"1px solid var(--border)",fontSize:13,flexWrap:"wrap"}}>
           <span style={{flex:"1 1 100%",fontWeight:500,marginBottom:4}}>{it.name}</span>
-          <span style={{fontSize:11,color:"var(--text2)"}}>К-сть:</span>
+          <span style={{fontSize:11,color:"var(--text2)"}}>Ð-ÑÑÑ:</span>
           <input type="number" min="1" value={it.qty} onChange={e=>updEditItem(idx,"qty",Math.max(1,Number(e.target.value)))} style={{width:52,padding:"6px 8px",borderRadius:6,border:"1px solid var(--border)",fontSize:13,textAlign:"center"}}/>
-          <span style={{fontSize:11,color:"var(--text2)"}}>Ціна:</span>
+          <span style={{fontSize:11,color:"var(--text2)"}}>Ð¦ÑÐ½Ð°:</span>
           <input type="number" min="0" value={it.price} onChange={e=>updEditItem(idx,"price",Math.max(0,Number(e.target.value)))} style={{width:80,padding:"6px 8px",borderRadius:6,border:"1px solid var(--border)",fontSize:13,textAlign:"right"}}/>
           <span style={{fontWeight:700,fontSize:13}}>{fmt(it.price*it.qty)}</span>
           <button className="btn btn-danger btn-xs" style={{padding:"5px 8px"}} onClick={()=>rmEditItem(idx)}>{I.trash}</button>
         </div>)}
         <div style={{display:"flex",justifyContent:"space-between",marginTop:8,paddingTop:8,borderTop:"2px solid var(--border)",fontWeight:700,fontSize:14,flexWrap:"wrap",gap:4}}>
-          <span>Разом: {fmt(editItems.reduce((s,i)=>s+i.price*i.qty,0))}</span>
-          <span style={{color:"var(--green)"}}>Прибуток: {fmt(editItems.reduce((s,i)=>s+(i.price-i.cost)*i.qty,0))}</span>
+          <span>Ð Ð°Ð·Ð¾Ð¼: {fmt(editItems.reduce((s,i)=>s+i.price*i.qty,0))}</span>
+          <span style={{color:"var(--green)"}}>ÐÑÐ¸Ð±ÑÑÐ¾Ðº: {fmt(editItems.reduce((s,i)=>s+(i.price-i.cost)*i.qty,0))}</span>
         </div>
       </div>
       <div style={{display:"flex",gap:8,justifyContent:"flex-end",flexWrap:"wrap"}}>
-        <button className="btn btn-danger" onClick={()=>{if(confirm("Видалити замовлення?")){DB.remove("orders",editO.id);setOrders(orders.filter(o=>o.id!==editO.id));setEditO(null);}}}>Видалити</button>
-        <button className="btn btn-secondary" onClick={()=>setEditO(null)}>Скасувати</button>
-        <button className="btn btn-primary" style={{padding:"8px 20px",fontSize:13}} onClick={saveEdit}>Зберегти</button>
+        <button className="btn btn-danger" onClick={()=>{if(confirm("ÐÐ¸Ð´Ð°Ð»Ð¸ÑÐ¸ Ð·Ð°Ð¼Ð¾Ð²Ð»ÐµÐ½Ð½Ñ?")){DB.remove("orders",editO.id);setOrders(orders.filter(o=>o.id!==editO.id));setEditO(null);}}}>ÐÐ¸Ð´Ð°Ð»Ð¸ÑÐ¸</button>
+        <button className="btn btn-secondary" onClick={()=>setEditO(null)}>Ð¡ÐºÐ°ÑÑÐ²Ð°ÑÐ¸</button>
+        <button className="btn btn-primary" style={{padding:"8px 20px",fontSize:13}} onClick={saveEdit}>ÐÐ±ÐµÑÐµÐ³ÑÐ¸</button>
       </div>
     </Modal>}
     {createTTNOrder&&<CreateTTNModal order={createTTNOrder} onClose={()=>setCreateTTNOrder(null)} onCreated={ttn=>{setOrders(orders.map(o=>o.id===createTTNOrder.id?{...o,ttn,status:"ttn"}:o));setCreateTTNOrder(null);}}/>}
   </div>);
 }
 
-// ─── ADMIN ───
+// âââ ADMIN âââ
 function AdminPage({products,setProducts}){
-  const[filter,setFilter]=useState("Все");
+  const[filter,setFilter]=useState("ÐÑÐµ");
   const[showM,setShowM]=useState(false);
   const[editP,setEditP]=useState(null);
-  const[form,setForm]=useState({name:"",sku:"",category:"Стрижки",cost:"",price:"",stock:"",type:"service",photo:"",version:"oversize"});
-  const filtered=filter==="Все"?products:products.filter(p=>p.category===filter);
+  const[form,setForm]=useState({name:"",sku:"",category:"Ð¡ÑÑÐ¸Ð¶ÐºÐ¸",cost:"",price:"",stock:"",type:"service",photo:"",version:"oversize"});
+  const filtered=filter==="ÐÑÐµ"?products:products.filter(p=>p.category===filter);
 
-  const openNew=()=>{setEditP(null);setForm({name:"",sku:"",category:"Стрижки",cost:"",price:"",stock:"999",type:"service",photo:"",version:"oversize"});setShowM(true);};
+  const openNew=()=>{setEditP(null);setForm({name:"",sku:"",category:"Ð¡ÑÑÐ¸Ð¶ÐºÐ¸",cost:"",price:"",stock:"999",type:"service",photo:"",version:"oversize"});setShowM(true);};
   const openEdit=p=>{setEditP(p);setForm({name:p.name,sku:p.sku,category:p.category,cost:String(p.cost),price:String(p.price),stock:String(p.stock),type:p.type,photo:p.photo||"",version:p.version||"oversize"});setShowM(true);};
-  const catChange=c=>setForm({...form,category:c,type:c==="Стрижки"?"service":"product",stock:c==="Стрижки"?"999":form.stock});
+  const catChange=c=>setForm({...form,category:c,type:c==="Ð¡ÑÑÐ¸Ð¶ÐºÐ¸"?"service":"product",stock:c==="Ð¡ÑÑÐ¸Ð¶ÐºÐ¸"?"999":form.stock});
   const handlePhoto=e=>{
     const file=e.target.files[0];if(!file)return;
     const reader=new FileReader();
@@ -1560,57 +1560,57 @@ function AdminPage({products,setProducts}){
     reader.readAsDataURL(file);
   };
   const save=()=>{
-    if(!form.name){alert("Вкажіть назву");return;}
+    if(!form.name){alert("ÐÐºÐ°Ð¶ÑÑÑ Ð½Ð°Ð·Ð²Ñ");return;}
     const data={...form,cost:Number(form.cost)||0,price:Number(form.price)||0,stock:Number(form.stock)||0};
     if(editP)setProducts(products.map(p=>p.id===editP.id?{...p,...data}:p));
     else setProducts([...products,{...data,id:Date.now()}]);
     setShowM(false);
   };
-  const remove=id=>{if(confirm("Видалити?")){DB.remove("products",id);setProducts(products.filter(p=>p.id!==id));}};
+  const remove=id=>{if(confirm("ÐÐ¸Ð´Ð°Ð»Ð¸ÑÐ¸?")){DB.remove("products",id);setProducts(products.filter(p=>p.id!==id));}};
 
   return(<div>
     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14,flexWrap:"wrap",gap:8}}>
       <div className="filter-pills">{CATEGORIES.map(c=><button key={c} className={`filter-pill${filter===c?' active':''}`} onClick={()=>setFilter(c)}>{c}</button>)}</div>
-      <button className="btn btn-primary" onClick={openNew}>{I.plus} Додати</button>
+      <button className="btn btn-primary" onClick={openNew}>{I.plus} ÐÐ¾Ð´Ð°ÑÐ¸</button>
     </div>
     <div className="card" style={{padding:0,overflowX:"auto"}}>
-      <table className="tbl"><thead><tr><th style={{width:44}}></th><th>Назва</th><th>SKU</th><th>Кат.</th><th>Версія</th><th>Собів.</th><th>Ціна</th><th>Зал.</th><th>Маржа</th><th style={{width:80}}></th></tr></thead><tbody>
+      <table className="tbl"><thead><tr><th style={{width:44}}></th><th>ÐÐ°Ð·Ð²Ð°</th><th>SKU</th><th>ÐÐ°Ñ.</th><th>ÐÐµÑÑÑÑ</th><th>Ð¡Ð¾Ð±ÑÐ².</th><th>Ð¦ÑÐ½Ð°</th><th>ÐÐ°Ð».</th><th>ÐÐ°ÑÐ¶Ð°</th><th style={{width:80}}></th></tr></thead><tbody>
         {filtered.map(p=><tr key={p.id}>
-          <td>{p.photo?<img className="prod-photo" src={p.photo}/>:<div className="prod-photo-placeholder">{p.category==="Стрижки"?"\u2702":"\uD83D\uDCE6"}</div>}</td>
+          <td>{p.photo?<img className="prod-photo" src={p.photo}/>:<div className="prod-photo-placeholder">{p.category==="Ð¡ÑÑÐ¸Ð¶ÐºÐ¸"?"\u2702":"\uD83D\uDCE6"}</div>}</td>
           <td style={{fontWeight:600}}>{p.name}</td>
           <td><code style={{fontSize:11,color:"var(--text2)"}}>{p.sku}</code></td>
-          <td><span className={"badge "+(p.version==="long"?"badge-blue":"badge-amber")} style={{fontSize:10}}>{p.version==="long"?"Лонг":"Оверсайз"}</span></td><td><span className={`badge ${p.category==='Стрижки'?'badge-pink':p.category==='Косметика'?'badge-green':'badge-amber'}`}>{p.category}</span></td>
+          <td><span className={"badge "+(p.version==="long"?"badge-blue":"badge-amber")} style={{fontSize:10}}>{p.version==="long"?"ÐÐ¾Ð½Ð³":"ÐÐ²ÐµÑÑÐ°Ð¹Ð·"}</span></td><td><span className={`badge ${p.category==='Ð¡ÑÑÐ¸Ð¶ÐºÐ¸'?'badge-pink':p.category==='ÐÐ¾ÑÐ¼ÐµÑÐ¸ÐºÐ°'?'badge-green':'badge-amber'}`}>{p.category}</span></td>
           <td><input type="number" value={p.cost} onChange={e=>{const v=Number(e.target.value);setProducts(products.map(x=>x.id===p.id?{...x,cost:v}:x));}} style={{width:70,padding:"2px 4px",borderRadius:5,border:"1px solid var(--border)",fontSize:12,textAlign:"right",background:"transparent"}}/></td>
           <td style={{fontWeight:700}}>{fmt(p.price)}</td>
-          <td>{p.type==="service"?"—":<span className={p.stock<10?'badge badge-red':p.stock<20?'badge badge-amber':''}>{p.stock}</span>}</td>
+          <td>{p.type==="service"?"â":<span className={p.stock<10?'badge badge-red':p.stock<20?'badge badge-amber':''}>{p.stock}</span>}</td>
           <td><span className="badge badge-green">{Math.round((p.price-p.cost)/p.price*100)}%</span></td>
           <td><div style={{display:"flex",gap:3}}><button className="btn btn-secondary btn-xs" onClick={()=>openEdit(p)}>{I.edit}</button><button className="btn btn-danger btn-xs" onClick={()=>remove(p.id)}>{I.trash}</button></div></td>
         </tr>)}
       </tbody></table>
     </div>
-    {showM&&<Modal title={editP?"Редагувати":"Новий товар"} onClose={()=>setShowM(false)}>
+    {showM&&<Modal title={editP?"Ð ÐµÐ´Ð°Ð³ÑÐ²Ð°ÑÐ¸":"ÐÐ¾Ð²Ð¸Ð¹ ÑÐ¾Ð²Ð°Ñ"} onClose={()=>setShowM(false)}>
       <div style={{display:"flex",gap:14,marginBottom:12}}>
         <div className="photo-upload">{form.photo?<img src={form.photo}/>:<>{I.cam}</>}<input type="file" accept="image/*" onChange={handlePhoto}/></div>
         <div style={{flex:1}}>
-          <div className="form-group"><label className="form-label">Назва</label><input className="form-input" value={form.name} onChange={e=>setForm({...form,name:e.target.value})}/></div>
+          <div className="form-group"><label className="form-label">ÐÐ°Ð·Ð²Ð°</label><input className="form-input" value={form.name} onChange={e=>setForm({...form,name:e.target.value})}/></div>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
             <div className="form-group"><label className="form-label">SKU</label><input className="form-input" value={form.sku} onChange={e=>setForm({...form,sku:e.target.value})}/></div>
-            <div className="form-group"><label className="form-label">Категорія</label><select className="form-input" value={form.category} onChange={e=>catChange(e.target.value)}><option>Стрижки</option><option>Косметика</option><option>Футболки</option></select></div>
-            <div className="form-group"><label className="form-label">Версія</label><select className="form-input" value={form.version} onChange={e=>{const v=e.target.value;setForm({...form,version:v,price:v==="long"?"2500":form.price,cost:v==="long"?"480":form.cost});}}><option value="oversize">Оверсайз (1400)</option><option value="long">Лонг (2500)</option></select></div>
+            <div className="form-group"><label className="form-label">ÐÐ°ÑÐµÐ³Ð¾ÑÑÑ</label><select className="form-input" value={form.category} onChange={e=>catChange(e.target.value)}><option>Ð¡ÑÑÐ¸Ð¶ÐºÐ¸</option><option>ÐÐ¾ÑÐ¼ÐµÑÐ¸ÐºÐ°</option><option>Ð¤ÑÑÐ±Ð¾Ð»ÐºÐ¸</option></select></div>
+            <div className="form-group"><label className="form-label">ÐÐµÑÑÑÑ</label><select className="form-input" value={form.version} onChange={e=>{const v=e.target.value;setForm({...form,version:v,price:v==="long"?"2500":form.price,cost:v==="long"?"480":form.cost});}}><option value="oversize">ÐÐ²ÐµÑÑÐ°Ð¹Ð· (1400)</option><option value="long">ÐÐ¾Ð½Ð³ (2500)</option></select></div>
           </div>
         </div>
       </div>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8}}>
-        <div className="form-group"><label className="form-label">Собівартість ₴</label><input className="form-input" type="number" value={form.cost} onChange={e=>setForm({...form,cost:e.target.value})}/></div>
-        <div className="form-group"><label className="form-label">Ціна ₴</label><input className="form-input" type="number" value={form.price} onChange={e=>setForm({...form,price:e.target.value})}/></div>
-        <div className="form-group"><label className="form-label">Залишок</label><input className="form-input" type="number" value={form.stock} onChange={e=>setForm({...form,stock:e.target.value})} disabled={form.category==="Стрижки"}/></div>
+        <div className="form-group"><label className="form-label">Ð¡Ð¾Ð±ÑÐ²Ð°ÑÑÑÑÑÑ â´</label><input className="form-input" type="number" value={form.cost} onChange={e=>setForm({...form,cost:e.target.value})}/></div>
+        <div className="form-group"><label className="form-label">Ð¦ÑÐ½Ð° â´</label><input className="form-input" type="number" value={form.price} onChange={e=>setForm({...form,price:e.target.value})}/></div>
+        <div className="form-group"><label className="form-label">ÐÐ°Ð»Ð¸ÑÐ¾Ðº</label><input className="form-input" type="number" value={form.stock} onChange={e=>setForm({...form,stock:e.target.value})} disabled={form.category==="Ð¡ÑÑÐ¸Ð¶ÐºÐ¸"}/></div>
       </div>
-      <div style={{display:"flex",gap:8,justifyContent:"flex-end",marginTop:8}}><button className="btn btn-secondary" onClick={()=>setShowM(false)}>Скасувати</button><button className="btn btn-primary" onClick={save}>{editP?"Зберегти":"Додати"}</button></div>
+      <div style={{display:"flex",gap:8,justifyContent:"flex-end",marginTop:8}}><button className="btn btn-secondary" onClick={()=>setShowM(false)}>Ð¡ÐºÐ°ÑÑÐ²Ð°ÑÐ¸</button><button className="btn btn-primary" onClick={save}>{editP?"ÐÐ±ÐµÑÐµÐ³ÑÐ¸":"ÐÐ¾Ð´Ð°ÑÐ¸"}</button></div>
     </Modal>}
   </div>);
 }
 
-// ─── CLIENTS ───
+// âââ CLIENTS âââ
 function ClientsPage({clients,orders}){
   const[search,setSearch]=useState("");
   const[selClient,setSelClient]=useState(null);
@@ -1622,12 +1622,12 @@ function ClientsPage({clients,orders}){
   return(<div style={{display:"flex",flexDirection:"column",height:"100%"}}>
     {/* Search */}
     <div style={{marginBottom:12}}>
-      <input className="form-input" placeholder="Пошук клієнта..." value={search} onChange={e=>setSearch(e.target.value)} style={{maxWidth:400}}/>
-      <div style={{fontSize:12,color:"var(--text2)",marginTop:4}}>Всього клієнтів: {clients.length}</div>
+      <input className="form-input" placeholder="ÐÐ¾ÑÑÐº ÐºÐ»ÑÑÐ½ÑÐ°..." value={search} onChange={e=>setSearch(e.target.value)} style={{maxWidth:400}}/>
+      <div style={{fontSize:12,color:"var(--text2)",marginTop:4}}>ÐÑÑÐ¾Ð³Ð¾ ÐºÐ»ÑÑÐ½ÑÑÐ²: {clients.length}</div>
     </div>
     {/* List */}
     <div style={{flex:1,overflowY:"auto"}}>
-      {sorted.length===0?<div className="empty-state"><p>Немає клієнтів</p></div>:
+      {sorted.length===0?<div className="empty-state"><p>ÐÐµÐ¼Ð°Ñ ÐºÐ»ÑÑÐ½ÑÑÐ²</p></div>:
       <div className="orders-feed">{sorted.map(c=>{
         const co=clientOrders(c);
         const isOpen=selClient===c.id;
@@ -1637,17 +1637,17 @@ function ClientsPage({clients,orders}){
               <span style={{width:28,height:28,borderRadius:"50%",background:"var(--pink-pale)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:700,color:"var(--pink2)",flexShrink:0}}>{c.name.charAt(0).toUpperCase()}</span>
               <span>{c.name}</span>
             </span>
-            <span style={{fontSize:12,color:"var(--text2)"}}>{co.length} зам.</span>
+            <span style={{fontSize:12,color:"var(--text2)"}}>{co.length} Ð·Ð°Ð¼.</span>
           </div>
           <div style={{display:"flex",gap:12,flexWrap:"wrap",fontSize:12,color:"var(--text2)",marginTop:4}}>
             {c.phone&&<span>{"\uD83D\uDCDE"} {c.phone}</span>}
-            {c.city&&<span>{"\uD83D\uDCCD"} {c.city}{c.npBranch?` №${c.npBranch}`:""}</span>}
-            <span style={{marginLeft:"auto",fontWeight:700,color:"var(--pink2)"}}>Всього: {fmt(clientTotal(c))}</span>
+            {c.city&&<span>{"\uD83D\uDCCD"} {c.city}{c.npBranch?` â${c.npBranch}`:""}</span>}
+            <span style={{marginLeft:"auto",fontWeight:700,color:"var(--pink2)"}}>ÐÑÑÐ¾Ð³Ð¾: {fmt(clientTotal(c))}</span>
           </div>
-          {/* Expanded — order history */}
+          {/* Expanded â order history */}
           {isOpen&&<div style={{marginTop:10,borderTop:"1px solid var(--border)",paddingTop:8}} onClick={e=>e.stopPropagation()}>
-            <div style={{fontWeight:600,fontSize:12,marginBottom:6,color:"var(--pink2)"}}>Історія замовлень</div>
-            {co.length===0?<div style={{fontSize:12,color:"var(--text2)"}}>Немає замовлень</div>:
+            <div style={{fontWeight:600,fontSize:12,marginBottom:6,color:"var(--pink2)"}}>ÐÑÑÐ¾ÑÑÑ Ð·Ð°Ð¼Ð¾Ð²Ð»ÐµÐ½Ñ</div>
+            {co.length===0?<div style={{fontSize:12,color:"var(--text2)"}}>ÐÐµÐ¼Ð°Ñ Ð·Ð°Ð¼Ð¾Ð²Ð»ÐµÐ½Ñ</div>:
             co.map(o=>(
               <div key={o.id} style={{padding:"6px 0",borderBottom:"1px solid var(--border)",fontSize:12}}>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
@@ -1658,9 +1658,9 @@ function ClientsPage({clients,orders}){
                   </div>
                 </div>
                 <div style={{color:"var(--text2)",fontSize:11,marginTop:2}}>
-                  {o.items.map((it,i)=><span key={i}>{it.name} ×{it.qty}{i<o.items.length-1?", ":""}</span>)}
+                  {o.items.map((it,i)=><span key={i}>{it.name} Ã{it.qty}{i<o.items.length-1?", ":""}</span>)}
                 </div>
-                {o.deliveryType==="np"&&<div style={{fontSize:10,color:"var(--text2)",marginTop:2}}>НП {o.city}{o.npBranch?` №${o.npBranch}`:""} {o.payment==="cod"?"(Наложка)":"(Контроль оплати)"}{o.ttn?` ТТН: ${o.ttn}`:""}</div>}
+                {o.deliveryType==="np"&&<div style={{fontSize:10,color:"var(--text2)",marginTop:2}}>ÐÐ {o.city}{o.npBranch?` â${o.npBranch}`:""} {o.payment==="cod"?"(ÐÐ°Ð»Ð¾Ð¶ÐºÐ°)":"(ÐÐ¾Ð½ÑÑÐ¾Ð»Ñ Ð¾Ð¿Ð»Ð°ÑÐ¸)"}{o.ttn?` Ð¢Ð¢Ð: ${o.ttn}`:""}</div>}
               </div>
             ))}
           </div>}
@@ -1670,7 +1670,7 @@ function ClientsPage({clients,orders}){
   </div>);
 }
 
-// ─── EXPENSES ───
+// âââ EXPENSES âââ
 function ExpensesPage({expenses,setExpenses}){
   const[cat,setCat]=useState(EXPENSE_CATS[0]);
   const[amount,setAmount]=useState("");
@@ -1679,10 +1679,10 @@ function ExpensesPage({expenses,setExpenses}){
   useEffect(()=>{endRef.current?.scrollIntoView({behavior:"smooth"});},[expenses]);
   const remove=id=>{DB.remove("expenses",id);setExpenses(expenses.filter(x=>x.id!==id));};
   const add=()=>{
-    if(!amount){alert("Вкажіть суму");return;}
+    if(!amount){alert("ÐÐºÐ°Ð¶ÑÑÑ ÑÑÐ¼Ñ");return;}
     setExpenses([...expenses,{id:Date.now(),category:cat,amount:Number(amount),note,date:new Date().toISOString()}]);
     setAmount("");setNote("");
-    const nb=document.createElement("div");nb.textContent="\u2705 Витрату додано!";Object.assign(nb.style,{position:"fixed",top:"20px",left:"50%",transform:"translateX(-50%)",background:"#22c55e",color:"#fff",padding:"12px 24px",borderRadius:"12px",fontSize:"15px",fontWeight:"600",zIndex:"9999",boxShadow:"0 4px 20px rgba(0,0,0,.25)"});document.body.appendChild(nb);setTimeout(()=>nb.remove(),2000);
+    const nb=document.createElement("div");nb.textContent="\u2705 ÐÐ¸ÑÑÐ°ÑÑ Ð´Ð¾Ð´Ð°Ð½Ð¾!";Object.assign(nb.style,{position:"fixed",top:"20px",left:"50%",transform:"translateX(-50%)",background:"#22c55e",color:"#fff",padding:"12px 24px",borderRadius:"12px",fontSize:"15px",fontWeight:"600",zIndex:"9999",boxShadow:"0 4px 20px rgba(0,0,0,.25)"});document.body.appendChild(nb);setTimeout(()=>nb.remove(),2000);
   };
   const monthTotal=expenses.filter(x=>{const d=new Date(x.date),n=new Date();return d.getMonth()===n.getMonth()&&d.getFullYear()===n.getFullYear();}).reduce((s,x)=>s+x.amount,0);
   const totalByCategory={};expenses.forEach(x=>{totalByCategory[x.category]=(totalByCategory[x.category]||0)+x.amount;});
@@ -1691,14 +1691,14 @@ function ExpensesPage({expenses,setExpenses}){
     {/* Header stats */}
     <div style={{padding:"0 0 8px",borderBottom:"1px solid var(--border)",marginBottom:8}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
-        <div><span style={{fontSize:13,color:"var(--text2)"}}>За місяць: </span><strong style={{color:"var(--red)",fontSize:18}}>{fmt(monthTotal)}</strong></div>
+        <div><span style={{fontSize:13,color:"var(--text2)"}}>ÐÐ° Ð¼ÑÑÑÑÑ: </span><strong style={{color:"var(--red)",fontSize:18}}>{fmt(monthTotal)}</strong></div>
       </div>
       {Object.keys(totalByCategory).length>0&&<div style={{display:"flex",gap:6,flexWrap:"wrap"}}>{Object.entries(totalByCategory).map(([c,a])=><span key={c} style={{background:"var(--pink-pale)",border:"1px solid var(--border)",borderRadius:8,padding:"3px 8px",fontSize:11}}>{c}: <strong style={{color:"var(--red)"}}>{fmt(a)}</strong></span>)}</div>}
     </div>
     {/* Feed */}
     <div style={{flex:1,overflowY:"auto",paddingBottom:12}}>
       <div className="orders-feed">
-        {expenses.length===0&&<div style={{background:"var(--pink-pale)",border:"1px solid var(--border)",borderRadius:12,padding:14,textAlign:"center",fontSize:13,color:"var(--pink2)",marginBottom:12}}>Додайте витрату — оренда, податки, закупівля...</div>}
+        {expenses.length===0&&<div style={{background:"var(--pink-pale)",border:"1px solid var(--border)",borderRadius:12,padding:14,textAlign:"center",fontSize:13,color:"var(--pink2)",marginBottom:12}}>ÐÐ¾Ð´Ð°Ð¹ÑÐµ Ð²Ð¸ÑÑÐ°ÑÑ â Ð¾ÑÐµÐ½Ð´Ð°, Ð¿Ð¾Ð´Ð°ÑÐºÐ¸, Ð·Ð°ÐºÑÐ¿ÑÐ²Ð»Ñ...</div>}
         {expenses.map(x=>(
           <div key={x.id} className="order-card">
             <div className="oh">
@@ -1721,29 +1721,29 @@ function ExpensesPage({expenses,setExpenses}){
           <select className="form-input" value={cat} onChange={e=>setCat(e.target.value)}>{EXPENSE_CATS.map(c=><option key={c}>{c}</option>)}</select>
         </div>
         <div className="form-group" style={{width:90,marginBottom:0}}>
-          <input className="form-input" type="number" min="0" placeholder="Сума ₴" value={amount} onChange={e=>setAmount(e.target.value)} style={{textAlign:"right"}}/>
+          <input className="form-input" type="number" min="0" placeholder="Ð¡ÑÐ¼Ð° â´" value={amount} onChange={e=>setAmount(e.target.value)} style={{textAlign:"right"}}/>
         </div>
         <div className="form-group" style={{flex:"1 1 100px",marginBottom:0}}>
-          <input className="form-input" placeholder="Опис..." value={note} onChange={e=>setNote(e.target.value)}/>
+          <input className="form-input" placeholder="ÐÐ¿Ð¸Ñ..." value={note} onChange={e=>setNote(e.target.value)}/>
         </div>
-        <button className="btn btn-primary" onClick={add} disabled={!amount} style={{height:36}}>{I.plus} Додати</button>
+        <button className="btn btn-primary" onClick={add} disabled={!amount} style={{height:36}}>{I.plus} ÐÐ¾Ð´Ð°ÑÐ¸</button>
       </div>
     </div>
   </div>);
 }
 
-// ─── STORAGE (localStorage cache + Supabase cloud) ───
+// âââ STORAGE (localStorage cache + Supabase cloud) âââ
 const LS={
   get(k,def){try{const v=localStorage.getItem("lyh_"+k);return v?JSON.parse(v):def;}catch{return def;}},
   set(k,v){try{localStorage.setItem("lyh_"+k,JSON.stringify(v));}catch{}}
 };
 
-// ─── SUPABASE ───
+// âââ SUPABASE âââ
 const SUPABASE_URL="https://fsihlzzjewhxpogvjapu.supabase.co";
 const SUPABASE_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZzaWhsenpqZXdoeHBvZ3ZqYXB1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUyOTY2MzUsImV4cCI6MjA5MDg3MjYzNX0._hS7TA8EqIHgz7CH6XxGKuDdOnVBb6u40ntEtZ__MjU";
-let supabase=null;let supabaseInitErr="";try{if(window.supabase&&window.supabase.createClient){supabase=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);console.log("Supabase client initialized OK");}else{supabaseInitErr="SDK не завантажився";console.warn("Supabase SDK not loaded from CDN");}}catch(e){supabaseInitErr=e.message;console.error("Supabase init:",e);}
+let supabase=null;let supabaseInitErr="";try{if(window.supabase&&window.supabase.createClient){supabase=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);console.log("Supabase client initialized OK");}else{supabaseInitErr="SDK Ð½Ðµ Ð·Ð°Ð²Ð°Ð½ÑÐ°Ð¶Ð¸Ð²ÑÑ";console.warn("Supabase SDK not loaded from CDN");}}catch(e){supabaseInitErr=e.message;console.error("Supabase init:",e);}
 
-// Helper: map DB row (snake_case) → app object (camelCase) for orders
+// Helper: map DB row (snake_case) â app object (camelCase) for orders
 const mapOrderFromDB=r=>({id:r.id,client:r.client,phone:r.phone,city:r.city,npBranch:r.np_branch,payment:r.payment,deliveryType:r.delivery_type,items:r.items,total:Number(r.total),totalCost:Number(r.total_cost),date:r.date,status:r.status,ttn:r.ttn,codAmount:r.cod_amount!=null?Number(r.cod_amount):null,prepayment:r.prepayment!=null?Number(r.prepayment):null,comment:r.comment||""});
 const mapOrderToDB=o=>({id:o.id,client:o.client,phone:o.phone||"",city:o.city||"",np_branch:o.npBranch||"",payment:o.payment||"cod",delivery_type:o.deliveryType||"np",items:o.items,total:o.total,total_cost:o.totalCost,date:o.date,status:o.status,ttn:o.ttn||"",cod_amount:o.codAmount!=null?o.codAmount:null,prepayment:o.prepayment!=null?o.prepayment:null,comment:o.comment||""});
 
@@ -1759,7 +1759,7 @@ const DB={
 };
 
 
-// ─── NOVA POSHTA API ───
+// âââ NOVA POSHTA API âââ
 const NP_API_KEY="4299d316a302da241c2b62cd4171765b";
 const NP_API="https://api.novaposhta.ua/v2.0/json/";
 
@@ -1792,7 +1792,7 @@ const NP={
     const r=await NP.call("TrackingDocument","getStatusDocuments",{Documents:[{DocumentNumber:ttn}]});
     if(!r.success||!r.data||!r.data[0])return null;
     const d=r.data[0];
-    return{status:d.Status,statusCode:d.StatusCode,city:d.CitySender+" → "+d.CityRecipient,weight:d.DocumentWeight,cost:d.DocumentCost,deliveryCost:d.CostOnSite,scheduledDate:d.ScheduledDeliveryDate,actualDate:d.ActualDeliveryDate,warehouseRecipient:d.WarehouseRecipient,redeliverySum:d.RedeliverySum};
+    return{status:d.Status,statusCode:d.StatusCode,city:d.CitySender+" â "+d.CityRecipient,weight:d.DocumentWeight,cost:d.DocumentCost,deliveryCost:d.CostOnSite,scheduledDate:d.ScheduledDeliveryDate,actualDate:d.ActualDeliveryDate,warehouseRecipient:d.WarehouseRecipient,redeliverySum:d.RedeliverySum};
   },
   async calcDeliveryCost(citySenderRef,cityRecipientRef,weight,cost,seatsAmount=1){
     const r=await NP.call("InternetDocument","getDocumentPrice",{
@@ -1822,10 +1822,10 @@ const NP={
   }
 };
 
-// ─── LOGIN ───
+// âââ LOGIN âââ
 const USERS_FALLBACK=[
-  {login:"admin",password:"loveyourhaire2024",name:"Адміністратор",role:"admin"},
-  {login:"yura",password:"yura123",name:"Юра",role:"admin"},
+  {login:"admin",password:"loveyourhaire2024",name:"ÐÐ´Ð¼ÑÐ½ÑÑÑÑÐ°ÑÐ¾Ñ",role:"admin"},
+  {login:"yura",password:"yura123",name:"Ð®ÑÐ°",role:"admin"},
 ];
 
 function LoginPage({onLogin}){
@@ -1841,22 +1841,22 @@ function LoginPage({onLogin}){
     }catch{}
     if(!u) u=USERS_FALLBACK.find(x=>x.login===login.toLowerCase()&&x.password===pass);
     if(u){LS.set("user",u);onLogin(u);}
-    else setErr("Невірний логін або пароль");
+    else setErr("ÐÐµÐ²ÑÑÐ½Ð¸Ð¹ Ð»Ð¾Ð³ÑÐ½ Ð°Ð±Ð¾ Ð¿Ð°ÑÐ¾Ð»Ñ");
   };
   return(<div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"linear-gradient(135deg,#fff0f3 0%,#ffd6e0 50%,#f5c6a0 100%)"}}>
     <div style={{background:"#fff",borderRadius:20,padding:"40px 32px",maxWidth:360,width:"100%",boxShadow:"0 20px 60px rgba(180,80,100,.2)",textAlign:"center"}}>
       <div style={{fontSize:40,marginBottom:4}}>{I.scissors}</div>
       <h1 style={{fontSize:22,fontWeight:800,color:"var(--pink2)",marginBottom:4}}>Love Your Haire</h1>
-      <p style={{fontSize:13,color:"var(--text2)",marginBottom:24}}>CRM Система</p>
-      <div className="form-group"><input className="form-input" placeholder="Логін" value={login} onChange={e=>{setLogin(e.target.value);setErr("");}} onKeyDown={e=>e.key==="Enter"&&doLogin()} style={{textAlign:"center",fontSize:15}}/></div>
-      <div className="form-group"><input className="form-input" type="password" placeholder="Пароль" value={pass} onChange={e=>{setPass(e.target.value);setErr("");}} onKeyDown={e=>e.key==="Enter"&&doLogin()} style={{textAlign:"center",fontSize:15}}/></div>
+      <p style={{fontSize:13,color:"var(--text2)",marginBottom:24}}>CRM Ð¡Ð¸ÑÑÐµÐ¼Ð°</p>
+      <div className="form-group"><input className="form-input" placeholder="ÐÐ¾Ð³ÑÐ½" value={login} onChange={e=>{setLogin(e.target.value);setErr("");}} onKeyDown={e=>e.key==="Enter"&&doLogin()} style={{textAlign:"center",fontSize:15}}/></div>
+      <div className="form-group"><input className="form-input" type="password" placeholder="ÐÐ°ÑÐ¾Ð»Ñ" value={pass} onChange={e=>{setPass(e.target.value);setErr("");}} onKeyDown={e=>e.key==="Enter"&&doLogin()} style={{textAlign:"center",fontSize:15}}/></div>
       {err&&<div style={{color:"var(--red)",fontSize:13,marginBottom:12}}>{err}</div>}
-      <button className="btn btn-primary" onClick={doLogin} style={{width:"100%",padding:"10px",fontSize:15}}>Увійти</button>
+      <button className="btn btn-primary" onClick={doLogin} style={{width:"100%",padding:"10px",fontSize:15}}>Ð£Ð²ÑÐ¹ÑÐ¸</button>
     </div>
   </div>);
 }
 
-// ─── BULK IMPORT ───
+// âââ BULK IMPORT âââ
 function BulkImportPage({orders,setOrders,products,clients,setClients}){
   const[text,setText]=useState('');
   const[parsed,setParsed]=useState([]);
@@ -1892,18 +1892,18 @@ function BulkImportPage({orders,setOrders,products,clients,setClients}){
     });
     setOrders(prev=>[...prev,...newOrders]);
     if(newClients.length)setClients(prev=>[...prev,...newClients]);
-    const nb=document.createElement("div");nb.textContent=`\u2705 Додано ${newOrders.length} замовлень!`;Object.assign(nb.style,{position:"fixed",top:"20px",left:"50%",transform:"translateX(-50%)",background:"#22c55e",color:"#fff",padding:"12px 24px",borderRadius:"12px",fontSize:"15px",fontWeight:"600",zIndex:"9999",boxShadow:"0 4px 20px rgba(0,0,0,.25)"});document.body.appendChild(nb);setTimeout(()=>nb.remove(),3000);
+    const nb=document.createElement("div");nb.textContent=`\u2705 ÐÐ¾Ð´Ð°Ð½Ð¾ ${newOrders.length} Ð·Ð°Ð¼Ð¾Ð²Ð»ÐµÐ½Ñ!`;Object.assign(nb.style,{position:"fixed",top:"20px",left:"50%",transform:"translateX(-50%)",background:"#22c55e",color:"#fff",padding:"12px 24px",borderRadius:"12px",fontSize:"15px",fontWeight:"600",zIndex:"9999",boxShadow:"0 4px 20px rgba(0,0,0,.25)"});document.body.appendChild(nb);setTimeout(()=>nb.remove(),3000);
     setText('');setParsed([]);setStep('input');
   };
 
   if(step==='input')return(<div style={{maxWidth:700,margin:"0 auto"}}>
     <div className="card" style={{marginBottom:16}}>
-      <div className="card-header"><span className="card-title">Масове завантаження замовлень</span></div>
-      <p style={{fontSize:13,color:"var(--text2)",marginBottom:12}}>Вставте список замовлень з месенджера. Кожне замовлення розділяйте рискою (---) або підкресленням (___).</p>
-      <textarea className="form-input" placeholder={"Іванова Марія\n0931234567\nКиїв 321\nЕмінем розова\nОПЛАЧЕН\n-----\nНаступне замовлення..."} value={text} onChange={e=>setText(e.target.value)} rows={15} style={{fontSize:13,lineHeight:1.6,fontFamily:"monospace"}}/>
+      <div className="card-header"><span className="card-title">ÐÐ°ÑÐ¾Ð²Ðµ Ð·Ð°Ð²Ð°Ð½ÑÐ°Ð¶ÐµÐ½Ð½Ñ Ð·Ð°Ð¼Ð¾Ð²Ð»ÐµÐ½Ñ</span></div>
+      <p style={{fontSize:13,color:"var(--text2)",marginBottom:12}}>ÐÑÑÐ°Ð²ÑÐµ ÑÐ¿Ð¸ÑÐ¾Ðº Ð·Ð°Ð¼Ð¾Ð²Ð»ÐµÐ½Ñ Ð· Ð¼ÐµÑÐµÐ½Ð´Ð¶ÐµÑÐ°. ÐÐ¾Ð¶Ð½Ðµ Ð·Ð°Ð¼Ð¾Ð²Ð»ÐµÐ½Ð½Ñ ÑÐ¾Ð·Ð´ÑÐ»ÑÐ¹ÑÐµ ÑÐ¸ÑÐºÐ¾Ñ (---) Ð°Ð±Ð¾ Ð¿ÑÐ´ÐºÑÐµÑÐ»ÐµÐ½Ð½ÑÐ¼ (___).</p>
+      <textarea className="form-input" placeholder={"ÐÐ²Ð°Ð½Ð¾Ð²Ð° ÐÐ°ÑÑÑ\n0931234567\nÐÐ¸ÑÐ² 321\nÐÐ¼ÑÐ½ÐµÐ¼ ÑÐ¾Ð·Ð¾Ð²Ð°\nÐÐÐÐÐ§ÐÐ\n-----\nÐÐ°ÑÑÑÐ¿Ð½Ðµ Ð·Ð°Ð¼Ð¾Ð²Ð»ÐµÐ½Ð½Ñ..."} value={text} onChange={e=>setText(e.target.value)} rows={15} style={{fontSize:13,lineHeight:1.6,fontFamily:"monospace"}}/>
       <div style={{marginTop:12,display:"flex",gap:8}}>
-        <button className="btn btn-primary" onClick={doParse} disabled={!text.trim()} style={{padding:"10px 24px"}}>{I.eye} Розпізнати замовлення</button>
-        <button className="btn btn-secondary" onClick={()=>setText('')} disabled={!text.trim()}>Очистити</button>
+        <button className="btn btn-primary" onClick={doParse} disabled={!text.trim()} style={{padding:"10px 24px"}}>{I.eye} Ð Ð¾Ð·Ð¿ÑÐ·Ð½Ð°ÑÐ¸ Ð·Ð°Ð¼Ð¾Ð²Ð»ÐµÐ½Ð½Ñ</button>
+        <button className="btn btn-secondary" onClick={()=>setText('')} disabled={!text.trim()}>ÐÑÐ¸ÑÑÐ¸ÑÐ¸</button>
       </div>
     </div>
   </div>);
@@ -1913,12 +1913,12 @@ function BulkImportPage({orders,setOrders,products,clients,setClients}){
   return(<div style={{maxWidth:800,margin:"0 auto"}}>
     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16,flexWrap:"wrap",gap:8}}>
       <div>
-        <h2 style={{fontSize:16,fontWeight:700,color:"var(--pink2)"}}>Розпізнано {parsed.length} замовлень</h2>
-        <span style={{fontSize:12,color:"var(--text2)"}}>{validCount} готові до збереження · Перевірте дані</span>
+        <h2 style={{fontSize:16,fontWeight:700,color:"var(--pink2)"}}>Ð Ð¾Ð·Ð¿ÑÐ·Ð½Ð°Ð½Ð¾ {parsed.length} Ð·Ð°Ð¼Ð¾Ð²Ð»ÐµÐ½Ñ</h2>
+        <span style={{fontSize:12,color:"var(--text2)"}}>{validCount} Ð³Ð¾ÑÐ¾Ð²Ñ Ð´Ð¾ Ð·Ð±ÐµÑÐµÐ¶ÐµÐ½Ð½Ñ Â· ÐÐµÑÐµÐ²ÑÑÑÐµ Ð´Ð°Ð½Ñ</span>
       </div>
       <div style={{display:"flex",gap:8}}>
-        <button className="btn btn-secondary" onClick={()=>setStep('input')}>← Назад</button>
-        <button className="btn btn-primary" onClick={saveAll} disabled={!validCount}>Зберегти {validCount} замовлень</button>
+        <button className="btn btn-secondary" onClick={()=>setStep('input')}>â ÐÐ°Ð·Ð°Ð´</button>
+        <button className="btn btn-primary" onClick={saveAll} disabled={!validCount}>ÐÐ±ÐµÑÐµÐ³ÑÐ¸ {validCount} Ð·Ð°Ð¼Ð¾Ð²Ð»ÐµÐ½Ñ</button>
       </div>
     </div>
 
@@ -1927,58 +1927,58 @@ function BulkImportPage({orders,setOrders,products,clients,setClients}){
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
         <div style={{display:"flex",alignItems:"center",gap:8}}>
           <span style={{fontSize:14,fontWeight:700,color:ok?"var(--green)":"var(--red)"}}>#{idx+1}</span>
-          {!ok&&<span style={{fontSize:11,color:"var(--red)",background:"var(--red-light)",padding:"1px 8px",borderRadius:6}}>\u26A0\uFE0F {!hasName?"Немає імені":""}{!hasItems?"Немає товару":""}</span>}
+          {!ok&&<span style={{fontSize:11,color:"var(--red)",background:"var(--red-light)",padding:"1px 8px",borderRadius:6}}>\u26A0\uFE0F {!hasName?"ÐÐµÐ¼Ð°Ñ ÑÐ¼ÐµÐ½Ñ":""}{!hasItems?"ÐÐµÐ¼Ð°Ñ ÑÐ¾Ð²Ð°ÑÑ":""}</span>}
         </div>
         <button className="btn btn-danger btn-xs" onClick={()=>rmOrder(idx)}>{I.trash}</button>
       </div>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:10}}>
-        <div><label style={{fontSize:10,fontWeight:700,color:"var(--text2)"}}>Ім'я</label><input className="form-input" value={o.name} onChange={e=>upd(idx,'name',e.target.value)} style={{fontSize:12,marginTop:2}}/></div>
-        <div><label style={{fontSize:10,fontWeight:700,color:"var(--text2)"}}>Телефон</label><input className="form-input" value={o.phone} onChange={e=>upd(idx,'phone',e.target.value)} style={{fontSize:12,marginTop:2}}/></div>
-        <div><label style={{fontSize:10,fontWeight:700,color:"var(--text2)"}}>Місто</label><input className="form-input" value={o.city} onChange={e=>upd(idx,'city',e.target.value)} style={{fontSize:12,marginTop:2}}/></div>
-        <div><label style={{fontSize:10,fontWeight:700,color:"var(--text2)"}}>Відділення НП</label><input className="form-input" value={o.branch} onChange={e=>upd(idx,'branch',e.target.value)} style={{fontSize:12,marginTop:2}}/></div>
+        <div><label style={{fontSize:10,fontWeight:700,color:"var(--text2)"}}>ÐÐ¼'Ñ</label><input className="form-input" value={o.name} onChange={e=>upd(idx,'name',e.target.value)} style={{fontSize:12,marginTop:2}}/></div>
+        <div><label style={{fontSize:10,fontWeight:700,color:"var(--text2)"}}>Ð¢ÐµÐ»ÐµÑÐ¾Ð½</label><input className="form-input" value={o.phone} onChange={e=>upd(idx,'phone',e.target.value)} style={{fontSize:12,marginTop:2}}/></div>
+        <div><label style={{fontSize:10,fontWeight:700,color:"var(--text2)"}}>ÐÑÑÑÐ¾</label><input className="form-input" value={o.city} onChange={e=>upd(idx,'city',e.target.value)} style={{fontSize:12,marginTop:2}}/></div>
+        <div><label style={{fontSize:10,fontWeight:700,color:"var(--text2)"}}>ÐÑÐ´Ð´ÑÐ»ÐµÐ½Ð½Ñ ÐÐ</label><input className="form-input" value={o.branch} onChange={e=>upd(idx,'branch',e.target.value)} style={{fontSize:12,marginTop:2}}/></div>
       </div>
       <div style={{marginBottom:8}}>
-        <span style={{fontSize:10,fontWeight:700,color:"var(--text2)"}}>ТОВАРИ</span>
+        <span style={{fontSize:10,fontWeight:700,color:"var(--text2)"}}>Ð¢ÐÐÐÐ Ð</span>
         {o.items.map((it,j)=>(<div key={j} style={{display:"flex",alignItems:"center",gap:6,padding:"4px 0",borderBottom:"1px solid var(--border)",fontSize:12}}>
           <span style={{flex:1,fontWeight:500}}>{it.name}</span>
           <input type="number" min="1" value={it.qty} onChange={e=>{const v=Math.max(1,Number(e.target.value));setParsed(p=>p.map((o2,i2)=>{if(i2!==idx)return o2;const ni=o2.items.map((x,k)=>k===j?{...x,qty:v}:x);return{...o2,items:ni,total:ni.reduce((s,x)=>s+x.price*x.qty,0)};}));}} style={{width:40,padding:"2px 4px",borderRadius:5,border:"1px solid var(--border)",fontSize:11,textAlign:"center"}}/>
-          <span style={{color:"var(--text2)",fontSize:10}}>×</span>
+          <span style={{color:"var(--text2)",fontSize:10}}>Ã</span>
           <input type="number" min="0" value={it.price} onChange={e=>{const v=Math.max(0,Number(e.target.value));setParsed(p=>p.map((o2,i2)=>{if(i2!==idx)return o2;const ni=o2.items.map((x,k)=>k===j?{...x,price:v}:x);return{...o2,items:ni,total:ni.reduce((s,x)=>s+x.price*x.qty,0)};}));}} style={{width:60,padding:"2px 4px",borderRadius:5,border:"1px solid var(--border)",fontSize:11,textAlign:"right"}}/>
-          <span style={{fontSize:10}}>₴</span>
+          <span style={{fontSize:10}}>â´</span>
           <span style={{fontWeight:700,minWidth:50,textAlign:"right"}}>{fmt(it.price*it.qty)}</span>
-          <button style={{background:"none",border:"none",color:"var(--red)",cursor:"pointer",fontSize:14,padding:"0 2px"}} onClick={()=>rmItem(idx,j)}>×</button>
+          <button style={{background:"none",border:"none",color:"var(--red)",cursor:"pointer",fontSize:14,padding:"0 2px"}} onClick={()=>rmItem(idx,j)}>Ã</button>
         </div>))}
         <div style={{display:"flex",gap:4,marginTop:6,alignItems:"center"}}>
           <select className="form-input" value={addProd[idx]||''} onChange={e=>setAddProd(p=>({...p,[idx]:e.target.value}))} style={{fontSize:11,padding:"4px 6px",flex:1}}>
-            <option value="">+ Додати товар...</option>
-            {products.map(p=><option key={p.id} value={p.id}>{p.name} — {fmt(Number(p.price))}</option>)}
+            <option value="">+ ÐÐ¾Ð´Ð°ÑÐ¸ ÑÐ¾Ð²Ð°Ñ...</option>
+            {products.map(p=><option key={p.id} value={p.id}>{p.name} â {fmt(Number(p.price))}</option>)}
           </select>
           <button className="btn btn-secondary btn-xs" onClick={()=>addItemTo(idx)} disabled={!addProd[idx]}>+</button>
         </div>
       </div>
       <div style={{display:"flex",gap:12,alignItems:"center",flexWrap:"wrap",fontSize:12}}>
         <div style={{display:"flex",alignItems:"center",gap:4}}>
-          <span style={{color:"var(--text2)"}}>Оплата:</span>
+          <span style={{color:"var(--text2)"}}>ÐÐ¿Ð»Ð°ÑÐ°:</span>
           <select className="form-input" value={o.payment} onChange={e=>upd(idx,'payment',e.target.value)} style={{fontSize:11,padding:"3px 6px",width:"auto"}}>
-            <option value="cod">Наложка</option>
-            <option value="control">Оплачено/Передоплата</option>
+            <option value="cod">ÐÐ°Ð»Ð¾Ð¶ÐºÐ°</option>
+            <option value="control">ÐÐ¿Ð»Ð°ÑÐµÐ½Ð¾/ÐÐµÑÐµÐ´Ð¾Ð¿Ð»Ð°ÑÐ°</option>
           </select>
         </div>
-        {o.paid&&<span className="badge badge-green" style={{fontSize:10}}>Оплачено{o.prepaid>0?` ${o.prepaid} ₴`:''}</span>}
-        {!o.paid&&o.prepaid>0&&<span className="badge badge-blue" style={{fontSize:10}}>Передоплата {o.prepaid} ₴</span>}
-        {o.items.length>0&&<span style={{fontWeight:700,marginLeft:"auto"}}>Разом: {fmt(o.items.reduce((s,x)=>s+x.price*x.qty,0))}</span>}
+        {o.paid&&<span className="badge badge-green" style={{fontSize:10}}>ÐÐ¿Ð»Ð°ÑÐµÐ½Ð¾{o.prepaid>0?` ${o.prepaid} â´`:''}</span>}
+        {!o.paid&&o.prepaid>0&&<span className="badge badge-blue" style={{fontSize:10}}>ÐÐµÑÐµÐ´Ð¾Ð¿Ð»Ð°ÑÐ° {o.prepaid} â´</span>}
+        {o.items.length>0&&<span style={{fontWeight:700,marginLeft:"auto"}}>Ð Ð°Ð·Ð¾Ð¼: {fmt(o.items.reduce((s,x)=>s+x.price*x.qty,0))}</span>}
       </div>
-      {o.notes&&o.notes.length>0&&<div style={{marginTop:6,fontSize:11,color:"var(--text2)",fontStyle:"italic"}}>{"\uD83D\uDCDD"} {o.notes.join(' · ')}</div>}
+      {o.notes&&o.notes.length>0&&<div style={{marginTop:6,fontSize:11,color:"var(--text2)",fontStyle:"italic"}}>{"\uD83D\uDCDD"} {o.notes.join(' Â· ')}</div>}
     </div>);})}
 
     <div style={{marginTop:16,display:"flex",gap:8,justifyContent:"center",paddingBottom:40}}>
-      <button className="btn btn-secondary" onClick={()=>setStep('input')}>← Назад до тексту</button>
-      <button className="btn btn-primary" onClick={saveAll} disabled={!validCount} style={{padding:"10px 30px"}}>\u2705 Зберегти {validCount} замовлень</button>
+      <button className="btn btn-secondary" onClick={()=>setStep('input')}>â ÐÐ°Ð·Ð°Ð´ Ð´Ð¾ ÑÐµÐºÑÑÑ</button>
+      <button className="btn btn-primary" onClick={saveAll} disabled={!validCount} style={{padding:"10px 30px"}}>\u2705 ÐÐ±ÐµÑÐµÐ³ÑÐ¸ {validCount} Ð·Ð°Ð¼Ð¾Ð²Ð»ÐµÐ½Ñ</button>
     </div>
   </div>);
 }
 
-// ─── APP ───
+// âââ APP âââ
 function App(){
   const[user,setUser]=useState(()=>LS.get("user",null));
   const[page,setPage]=useState("neworder");
@@ -1991,11 +1991,11 @@ function App(){
   const[syncErr,setSyncErr]=useState("");
   const fromRT=useRef(false); // flag to skip sync-back on realtime events
 
-  // ─── Load from Supabase on mount ───
+  // âââ Load from Supabase on mount âââ
   const doLoad=async()=>{
     if(!supabase){
       console.warn("Supabase not available:",supabaseInitErr);
-      setSyncErr(supabaseInitErr||"Немає з'єднання");
+      setSyncErr(supabaseInitErr||"ÐÐµÐ¼Ð°Ñ Ð·'ÑÐ´Ð½Ð°Ð½Ð½Ñ");
       setSynced(true);
       return;
     }
@@ -2010,7 +2010,7 @@ function App(){
       ]);
       console.log("Supabase data:",{products:pData?.length,orders:oData?.length,clients:cData?.length,expenses:eData?.length});
       if(pData&&pData.length>0){
-        const fixed=pData.map(p=>p.category==="Футболки"||p.category==="Oversize футболки"?{...p,cost:p.cost<450?450:p.cost}:p);
+        const fixed=pData.map(p=>p.category==="Ð¤ÑÑÐ±Ð¾Ð»ÐºÐ¸"||p.category==="Oversize ÑÑÑÐ±Ð¾Ð»ÐºÐ¸"?{...p,cost:p.cost<450?450:p.cost}:p);
         const changed=fixed.filter((p,i)=>p.cost!==pData[i].cost);
         if(changed.length>0)DB.upsertMany("products",changed);
         setProducts(fixed);LS.set("products",fixed);
@@ -2021,20 +2021,20 @@ function App(){
         if(mapped.length>0||cached.length===0){setOrders(mapped);LS.set("orders",mapped);}
         else{console.warn("Supabase returned 0 orders but cache has "+cached.length+", keeping cache");setOrders(cached);}
       }else{
-        // oData is null — Supabase error; keep localStorage
+        // oData is null â Supabase error; keep localStorage
         const cached=LS.get("orders",[]);
         if(cached.length>0){setOrders(cached);console.warn("Using cached orders:",cached.length);}
       }
       if(cData){const mapped=cData.map(mapClientFromDB);setClients(mapped);LS.set("clients",mapped);}
       if(eData){setExpenses(eData);LS.set("expenses",eData);}
       setSynced(true);setSyncErr("");
-    }catch(e){console.error("Sync load error",e);setSyncErr("Помилка: "+e.message);setSynced(true);}
+    }catch(e){console.error("Sync load error",e);setSyncErr("ÐÐ¾Ð¼Ð¸Ð»ÐºÐ°: "+e.message);setSynced(true);}
   };
   useEffect(()=>{
     if(user)doLoad();
   },[user]);
 
-  // ─── Realtime subscriptions ───
+  // âââ Realtime subscriptions âââ
   useEffect(()=>{
     if(!user||!supabase)return;
     const rtUpdate=(setter,mapper)=>payload=>{
@@ -2063,13 +2063,13 @@ function App(){
   if(!user) return <LoginPage onLogin={setUser}/>;
 
   const pages=[
-    {id:"neworder",label:"Замовлення",icon:I.plus2,mob:"Нове"},
-    {id:"orders",label:"Всі замовлення",icon:I.list,mob:"Список"},
-    {id:"admin",label:"Товари",icon:I.bag,mob:"Товари"},
-    {id:"clients",label:"Клієнти",icon:I.users,mob:"Клієнти"},
-    {id:"expenses",label:"Витрати",icon:I.wallet,mob:"Витрати"},
-    {id:"bulk",label:"Масове",icon:I.bulk,mob:"Масове"},
-    {id:"dashboard",label:"Сводка",icon:I.dash,mob:"Сводка"},
+    {id:"neworder",label:"ÐÐ°Ð¼Ð¾Ð²Ð»ÐµÐ½Ð½Ñ",icon:I.plus2,mob:"ÐÐ¾Ð²Ðµ"},
+    {id:"orders",label:"ÐÑÑ Ð·Ð°Ð¼Ð¾Ð²Ð»ÐµÐ½Ð½Ñ",icon:I.list,mob:"Ð¡Ð¿Ð¸ÑÐ¾Ðº"},
+    {id:"admin",label:"Ð¢Ð¾Ð²Ð°ÑÐ¸",icon:I.bag,mob:"Ð¢Ð¾Ð²Ð°ÑÐ¸"},
+    {id:"clients",label:"ÐÐ»ÑÑÐ½ÑÐ¸",icon:I.users,mob:"ÐÐ»ÑÑÐ½ÑÐ¸"},
+    {id:"expenses",label:"ÐÐ¸ÑÑÐ°ÑÐ¸",icon:I.wallet,mob:"ÐÐ¸ÑÑÐ°ÑÐ¸"},
+    {id:"bulk",label:"ÐÐ°ÑÐ¾Ð²Ðµ",icon:I.bulk,mob:"ÐÐ°ÑÐ¾Ð²Ðµ"},
+    {id:"dashboard",label:"Ð¡Ð²Ð¾Ð´ÐºÐ°",icon:I.dash,mob:"Ð¡Ð²Ð¾Ð´ÐºÐ°"},
   ];
   const todayOrders=orders.filter(o=>{const d=new Date(o.date),t=new Date();return sameDay(d,t);});
   const todayRev=todayOrders.reduce((s,o)=>s+o.total,0);
@@ -2081,13 +2081,13 @@ function App(){
       <nav className="sidebar-nav">{pages.map(p=><button key={p.id} className={`nav-item${page===p.id?' active':''}`} onClick={()=>setPage(p.id)}>{p.icon}<span>{p.label}</span>{p.id==="orders"&&newCnt>0&&<span className="nav-badge">{newCnt}</span>}</button>)}</nav>
       <div className="sidebar-stats">
         <div className="leopard-bg" style={{borderRadius:8,padding:"8px 10px",marginBottom:8}}>
-          <div style={{fontSize:10,fontWeight:700,color:"#5a3a1a"}}>Сьогодні</div>
+          <div style={{fontSize:10,fontWeight:700,color:"#5a3a1a"}}>Ð¡ÑÐ¾Ð³Ð¾Ð´Ð½Ñ</div>
           <div style={{fontSize:16,fontWeight:800,color:"#2d1b1b"}}>{fmt(todayRev)}</div>
-          <div style={{fontSize:10,color:"#5a3a1a"}}>{todayOrders.length} замовлень</div>
+          <div style={{fontSize:10,color:"#5a3a1a"}}>{todayOrders.length} Ð·Ð°Ð¼Ð¾Ð²Ð»ÐµÐ½Ñ</div>
         </div>
         <div style={{padding:"8px 0",borderTop:"1px solid rgba(0,0,0,.1)",marginTop:8}}>
           <div style={{fontSize:11,color:"#5a3a1a"}}>{"\uD83D\uDC64"} {user.name}</div>
-          <button onClick={logout} style={{background:"none",border:"none",color:"var(--pink2)",fontSize:11,cursor:"pointer",padding:"4px 0",textDecoration:"underline"}}>Вийти</button>
+          <button onClick={logout} style={{background:"none",border:"none",color:"var(--pink2)",fontSize:11,cursor:"pointer",padding:"4px 0",textDecoration:"underline"}}>ÐÐ¸Ð¹ÑÐ¸</button>
         </div>
       </div>
     </div>
@@ -2096,13 +2096,13 @@ function App(){
         <h1>{pages.find(p=>p.id===page)?.label}</h1>
         <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
           {syncErr
-            ?<span onClick={doLoad} style={{fontSize:11,color:"var(--red)",background:"var(--red-light)",padding:"2px 8px",borderRadius:6,cursor:"pointer"}} title="Натисніть для повторної спроби">{"\u26A0\uFE0F"} {syncErr} ↻</span>
+            ?<span onClick={doLoad} style={{fontSize:11,color:"var(--red)",background:"var(--red-light)",padding:"2px 8px",borderRadius:6,cursor:"pointer"}} title="ÐÐ°ÑÐ¸ÑÐ½ÑÑÑ Ð´Ð»Ñ Ð¿Ð¾Ð²ÑÐ¾ÑÐ½Ð¾Ñ ÑÐ¿ÑÐ¾Ð±Ð¸">{"\u26A0\uFE0F"} {syncErr} â»</span>
             :!synced
-            ?<span style={{fontSize:11,color:"var(--blue)",background:"var(--blue-light)",padding:"2px 8px",borderRadius:6}}>{"⏳"} {"Завантаження..."}</span>
-            :<span onClick={doLoad} style={{fontSize:11,color:"var(--green)",background:"var(--green-light)",padding:"2px 8px",borderRadius:6,cursor:"pointer"}} title="Натисніть для оновлення">{"\u2601\uFE0F"} {"Синхронізовано"}</span>
+            ?<span style={{fontSize:11,color:"var(--blue)",background:"var(--blue-light)",padding:"2px 8px",borderRadius:6}}>{"â³"} {"ÐÐ°Ð²Ð°Ð½ÑÐ°Ð¶ÐµÐ½Ð½Ñ..."}</span>
+            :<span onClick={doLoad} style={{fontSize:11,color:"var(--green)",background:"var(--green-light)",padding:"2px 8px",borderRadius:6,cursor:"pointer"}} title="ÐÐ°ÑÐ¸ÑÐ½ÑÑÑ Ð´Ð»Ñ Ð¾Ð½Ð¾Ð²Ð»ÐµÐ½Ð½Ñ">{"\u2601\uFE0F"} {"Ð¡Ð¸Ð½ÑÑÐ¾Ð½ÑÐ·Ð¾Ð²Ð°Ð½Ð¾"}</span>
           }
           <span className="topbar-date">{new Date().toLocaleDateString("uk-UA",{weekday:"short",day:"numeric",month:"long"})}</span>
-          <button onClick={logout} className="btn btn-sm btn-secondary" style={{fontSize:11,padding:"4px 10px"}}>Вийти</button>
+          <button onClick={logout} className="btn btn-sm btn-secondary" style={{fontSize:11,padding:"4px 10px"}}>ÐÐ¸Ð¹ÑÐ¸</button>
         </div>
       </div>
       <div className="content">
@@ -2123,7 +2123,7 @@ function App(){
 }
 
 ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
-// v16 — mobile cards, supabase key fix, retry sync
+// v16 â mobile cards, supabase key fix, retry sync
 </script>
 </body>
 </html>
