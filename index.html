@@ -1066,6 +1066,7 @@ function CreateTTNModal({order,onClose,onCreated}){
   const savedSW=LS.get("np_sender_wh")||{};
   const[senderInfo,setSenderInfo]=useState(null);
   const[loading,setLoading]=useState(true);
+  const[loadErr,setLoadErr]=useState("");
   const[creating,setCreating]=useState(false);
   const[sCityRef,setSCityRef]=useState(savedSW.cityRef||"");
   const[sCity,setSCity]=useState(savedSW.city||"");
@@ -1081,14 +1082,22 @@ function CreateTTNModal({order,onClose,onCreated}){
   const[description,setDescription]=useState(prodDesc);
   const[cost,setCost]=useState(String(order.total));
   const[payerDel,setPayerDel]=useState("Recipient");
-  const codAmt=order.codAmount!=null?order.codAmount:order.total;
-  const initPT=order.payment==="cod"?"cod":(order.payment==="control"||order.payment==="card")?"control":"prepaid";
+  // Calculate COD with prepayment deduction
+  const prepayAmt=order.prepayment||0;
+  const codAmt=order.codAmount!=null?order.codAmount:Math.max(0,order.total-prepayAmt);
+  const initPT=prepayAmt>=order.total?"prepaid":order.payment==="cod"?"cod":(order.payment==="control"||order.payment==="card")?"control":"cod";
   const[payType,setPayType]=useState(initPT);
-  const[backMoney,setBackMoney]=useState(initPT==="cod"?String(codAmt):"0");
+  const[backMoney,setBackMoney]=useState(initPT==="cod"?String(codAmt):initPT==="control"?String(codAmt):"0");
+  const[controlAmount,setControlAmount]=useState(String(codAmt));
   const[result,setResult]=useState(null);
   const[err,setErr]=useState("");
   useEffect(()=>{
-    NP.getSenderInfo().then(s=>{setSenderInfo(s);setLoading(false);});
+    let timeout=setTimeout(()=>{setLoadErr("Таймаут завантаження даних відправника. Перевірте API ключ НП.");setLoading(false);},15000);
+    NP.getSenderInfo().then(s=>{
+      clearTimeout(timeout);
+      if(!s){setLoadErr("Не вдалося завантажити дані відправника. Можливо невірний API ключ.");setLoading(false);return;}
+      setSenderInfo(s);setLoading(false);
+    }).catch(e=>{clearTimeout(timeout);setLoadErr("Помилка: "+e.message);setLoading(false);});
     // Auto-resolve receiver city + warehouse from order data
     if(order.city){
       NP.searchCity(order.city).then(cities=>{
@@ -1096,7 +1105,6 @@ function CreateTTNModal({order,onClose,onCreated}){
           const c=cities[0];
           setRCityRef(c.ref);
           setRCity(c.city||c.name);
-          // Now auto-search warehouse by branch number
           if(order.npBranch){
             NP.getWarehouses(c.ref,order.npBranch).then(whs=>{
               const exact=whs.find(w=>w.num===order.npBranch)||whs[0];
@@ -1107,7 +1115,11 @@ function CreateTTNModal({order,onClose,onCreated}){
       });
     }
   },[]);
-  useEffect(()=>{setBackMoney(payType==="cod"?String(codAmt):"0");},[payType]);
+  useEffect(()=>{
+    if(payType==="cod")setBackMoney(String(codAmt));
+    else if(payType==="control")setControlAmount(String(codAmt));
+    else{setBackMoney("0");setControlAmount("0");}
+  },[payType]);
   const saveSW=(city,cr,wd,wr)=>{LS.set("np_sender_wh",{city,cityRef:cr,whDesc:wd,whRef:wr});setSCity(city);setSCityRef(cr);setSWhDesc(wd);setSWhRef(wr);setShowSP(false);};
   const doCreate=async()=>{
     if(!senderInfo){setErr("Не вдалося завантажити дані відправника");return;}
@@ -1126,11 +1138,13 @@ function CreateTTNModal({order,onClose,onCreated}){
       RecipientName:order.client,RecipientsPhone:order.phone,RecipientType:"PrivatePerson",
     };
     if(payType==="cod"&&Number(backMoney)>0){params.BackwardDeliveryData=[{PayerType:"Recipient",CargoType:"Money",RedeliveryString:backMoney}];}
+    if(payType==="control"&&Number(controlAmount)>0){params.AfterpaymentOnGoodsCost=controlAmount;}
     const r=await NP.createTTN(params);setCreating(false);
     if(r.ok){setResult(r);if(onCreated)onCreated(r.ttn);}
     else{setErr((r.errors||[]).join(", ")||"Помилка створення");}
   };
-  if(loading)return(<Modal title="Створити ТТН" onClose={onClose}><div style={{textAlign:"center",padding:20,color:"var(--text2)"}}>{"Завантаження даних відправника..."}</div></Modal>);
+  if(loading)return(<Modal title="Створити ТТН" onClose={onClose}><div style={{textAlign:"center",padding:20,color:"var(--text2)"}}>{"Завантаження даних відправника..."}<div style={{marginTop:10,fontSize:11}}>{"Зачекайте, йде з'єднання з API Нової Пошти..."}</div></div></Modal>);
+  if(loadErr&&!senderInfo)return(<Modal title="Створити ТТН" onClose={onClose}><div style={{textAlign:"center",padding:20}}><div style={{color:"var(--red)",fontWeight:600,marginBottom:10}}>{loadErr}</div><button className="btn btn-secondary" onClick={()=>{setLoading(true);setLoadErr("");NP.getSenderInfo().then(s=>{if(s)setSenderInfo(s);else setLoadErr("Не вдалося завантажити");setLoading(false);}).catch(e=>{setLoadErr(e.message);setLoading(false);});}}>{"Спробувати знову"}</button></div></Modal>);
   return(<Modal title="Створити ТТН" onClose={onClose} wide>
     {result?<div style={{textAlign:"center",padding:20}}>
       <div style={{fontSize:20,fontWeight:800,color:"var(--green)",marginBottom:8}}>{"ТТН створено!"}</div>
@@ -1165,16 +1179,18 @@ function CreateTTNModal({order,onClose,onCreated}){
           <button key={v} onClick={()=>setPayType(v)} style={{padding:"8px 6px",borderRadius:8,border:payType===v?"2px solid "+c:"1px solid var(--border)",background:payType===v?"#fff":"var(--surface)",fontSize:11,fontWeight:payType===v?700:400,cursor:"pointer",color:payType===v?c:"var(--text2)",textAlign:"center"}}>{l}</button>
         )}
       </div>
-      <div style={{display:"grid",gridTemplateColumns:payType==="cod"?"1fr 1fr 1fr 1fr":"1fr 1fr 1fr",gap:10,marginBottom:12}}>
+      {prepayAmt>0&&<div style={{background:"var(--green-light)",borderRadius:8,padding:"6px 12px",marginBottom:8,fontSize:12,color:"var(--green)",fontWeight:600}}>{"Передоплата: "}{fmt(prepayAmt)}{"₴"}{" → До сплати: "}{fmt(codAmt)}{"₴"}</div>}
+      <div style={{display:"grid",gridTemplateColumns:payType!=="prepaid"?"1fr 1fr 1fr 1fr":"1fr 1fr 1fr",gap:10,marginBottom:12}}>
         <div className="form-group" style={{marginBottom:0}}><label style={{fontSize:10,fontWeight:700,color:"var(--text2)"}}>{"Вага (кг)"}</label><input className="form-input" value={weight} onChange={e=>setWeight(e.target.value)} style={{fontSize:12}}/></div>
         <div className="form-group" style={{marginBottom:0}}><label style={{fontSize:10,fontWeight:700,color:"var(--text2)"}}>{"Огол. вартість"}</label><input className="form-input" value={cost} onChange={e=>setCost(e.target.value)} style={{fontSize:12}}/></div>
         {payType==="cod"&&<div className="form-group" style={{marginBottom:0}}><label style={{fontSize:10,fontWeight:700,color:"var(--gold)"}}>{"Наложка ₴"}</label><input className="form-input" value={backMoney} onChange={e=>setBackMoney(e.target.value)} style={{fontSize:12,borderColor:"var(--gold)"}}/></div>}
+        {payType==="control"&&<div className="form-group" style={{marginBottom:0}}><label style={{fontSize:10,fontWeight:700,color:"var(--blue)"}}>{"Контроль ₴"}</label><input className="form-input" value={controlAmount} onChange={e=>setControlAmount(e.target.value)} style={{fontSize:12,borderColor:"var(--blue)"}}/></div>}
         <div className="form-group" style={{marginBottom:0}}><label style={{fontSize:10,fontWeight:700,color:"var(--text2)"}}>{"Платник дост."}</label><select className="form-input" value={payerDel} onChange={e=>setPayerDel(e.target.value)} style={{fontSize:12}}><option value="Recipient">{"Отримувач"}</option><option value="Sender">{"Відправник"}</option></select></div>
       </div>
       <div className="form-group" style={{marginBottom:12}}><label style={{fontSize:10,fontWeight:700,color:"var(--text2)"}}>{"Опис вмісту (в ТТН)"}</label><input className="form-input" value={description} onChange={e=>setDescription(e.target.value)} style={{fontSize:12}}/></div>
       <div style={{background:"var(--surface)",borderRadius:8,padding:"8px 12px",marginBottom:12,fontSize:11,color:"var(--text2)"}}>
         {order.items.map((it,i)=><div key={i}>{it.name}{it.qty>1?" x"+it.qty:""}{" — "}{it.price}{" ₴"}</div>)}
-        <div style={{fontWeight:700,color:"var(--text1)",marginTop:4}}>{"Разом: "}{order.total}{" ₴"}{payType==="cod"?" | Наложка: "+backMoney+" ₴":payType==="control"?" | Контроль оплати":" | Передоплата"}</div>
+        <div style={{fontWeight:700,color:"var(--text1)",marginTop:4}}>{"Разом: "}{fmt(order.total)}{prepayAmt>0?" (передопл "+fmt(prepayAmt)+")":""}{payType==="cod"?" | Наложка: "+backMoney+" ₴":payType==="control"?" | Контроль: "+controlAmount+" ₴":" | Повна передоплата"}</div>
       </div>
       {err&&<div style={{color:"var(--red)",fontSize:12,marginBottom:8}}>{err}</div>}
       <button className="btn btn-primary" onClick={doCreate} disabled={creating} style={{width:"100%"}}>{creating?"Створюю ТТН...":"Створити ТТН"}</button>
