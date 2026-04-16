@@ -9,11 +9,7 @@
 <script crossorigin="anonymous" src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script crossorigin="anonymous" src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
 <script crossorigin="anonymous" src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/dist/umd/supabase.min.js"></script>
-<script>
-if(!window.supabase){
-  document.write('<scr'+'ipt crossorigin="anonymous" src="https://unpkg.com/@supabase/supabase-js@2.49.1/dist/umd/supabase.min.js"><\/scr'+'ipt>');
-}
-</script>
+<script crossorigin="anonymous" src="https://unpkg.com/@supabase/supabase-js@2.49.1/dist/umd/supabase.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -1854,6 +1850,16 @@ if(!initSupabase()){
   _s.onload=()=>{if(initSupabase())console.log("Supabase: dynamic load OK");else console.warn("Supabase: dynamic load failed too");};
   document.head.appendChild(_s);
 }
+// Polling: keep trying until SDK loads (max 15 seconds)
+let _sbPollCount=0;
+const _sbPoll=setInterval(()=>{
+  _sbPollCount++;
+  if(supabase||_sbPollCount>30){clearInterval(_sbPoll);return;}
+  if(initSupabase()){clearInterval(_sbPoll);console.log("Supabase: poll init OK after "+(_sbPollCount*500)+"ms");
+    // Dispatch event so App can re-trigger load
+    window.dispatchEvent(new Event("supabase-ready"));
+  }
+},500);
 
 // Helper: map DB row (snake_case) → app object (camelCase) for orders
 const mapOrderFromDB=r=>({id:r.id,client:r.client,phone:r.phone,city:r.city,npBranch:r.np_branch,payment:r.payment,deliveryType:r.delivery_type,items:r.items,total:Number(r.total),totalCost:Number(r.total_cost),date:r.date,status:r.status,ttn:r.ttn,codAmount:r.cod_amount!=null?Number(r.cod_amount):null,prepayment:r.prepayment!=null?Number(r.prepayment):null,comment:r.comment||""});
@@ -2168,6 +2174,10 @@ function App(){
   };
   useEffect(()=>{
     if(user)doLoad();
+    // If SDK loaded late, re-trigger data load
+    const onSbReady=()=>{if(user&&!supabase)initSupabase();if(user&&supabase)doLoad();};
+    window.addEventListener("supabase-ready",onSbReady);
+    return()=>window.removeEventListener("supabase-ready",onSbReady);
   },[user]);
 
   // ─── Realtime subscriptions ───
