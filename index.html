@@ -178,6 +178,23 @@ textarea.form-input{resize:vertical;min-height:60px;line-height:1.5}
 .ttn-value{font-family:monospace;font-size:12px;font-weight:700;cursor:pointer;padding:2px 5px;border-radius:4px;background:#f5f5f5}
 .ttn-value:hover{background:#e8e8e8}
 
+/* Mobile order cards */
+.mob-order-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin-bottom:10px;cursor:pointer;transition:all .15s;-webkit-tap-highlight-color:transparent}
+.mob-order-card:active{transform:scale(.98);background:var(--pink-pale)}
+.mob-order-card.dupe-highlight{background:#fef3c7;border-color:#f59e0b}
+.mob-oc-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px}
+.mob-oc-name{font-weight:700;font-size:14px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mob-oc-badge{flex-shrink:0;margin-left:8px}
+.mob-oc-info{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:12px;color:var(--text2);margin-bottom:8px}
+.mob-oc-info span{display:flex;align-items:center;gap:3px}
+.mob-oc-items{font-size:11px;color:var(--text2);margin-bottom:8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mob-oc-bottom{display:flex;justify-content:space-between;align-items:center}
+.mob-oc-total{font-weight:800;font-size:16px}
+.mob-oc-actions{display:flex;gap:6px}
+.mob-oc-actions .btn{padding:6px 12px;font-size:11px;border-radius:8px}
+.desktop-tbl{display:block}
+.mob-orders-feed{display:none}
+
 /* ─── MOBILE ─── */
 @media(max-width:768px){
   .sidebar{display:none}
@@ -196,6 +213,11 @@ textarea.form-input{resize:vertical;min-height:60px;line-height:1.5}
   .form-input{padding:7px 9px;font-size:13px}
   .chat-form-row{flex-wrap:wrap}
   .chat-form-row .form-group{min-width:calc(50% - 5px)}
+  .desktop-tbl{display:none!important}
+  .mob-orders-feed{display:block}
+  .modal{max-width:100%;border-radius:12px}
+  .filter-pills{gap:4px}
+  .filter-pill{padding:4px 10px;font-size:10px}
 }
 @media(max-width:400px){
   .stats-row{grid-template-columns:1fr 1fr;gap:6px}
@@ -1407,8 +1429,9 @@ function OrdersListPage({orders,setOrders}){
     {filter==="dupes"&&dupeCount>0&&<div style={{background:"#fef3c7",border:"1px solid #f59e0b",borderRadius:10,padding:"10px 14px",marginBottom:12,fontSize:12,color:"#78350f"}}>
       ⚠ Знайдено {dupeCount} можливих дублі ({new Set(Array.from(dupeMap.values()).map(v=>v.key)).size} груп). Показані замовлення, у яких той самий телефон або ім'я зустрічається більше одного разу протягом 7 днів. Перевірте їх перед відправкою ТТН.
     </div>}
-    {sorted.length===0?<div className="empty-state"><p>Немає замовлень</p></div>:
-    <div className="card" style={{padding:0,overflowX:"auto"}}>
+    {sorted.length===0?<div className="empty-state"><p>Немає замовлень</p></div>:<>
+    {/* Desktop table */}
+    <div className="desktop-tbl card" style={{padding:0,overflowX:"auto"}}>
       <table className="tbl"><thead><tr><th>Дата</th><th>Клієнт</th><th>Тел</th><th>Доставка</th><th>Сума</th><th>Оплата</th><th>ТТН</th><th>Статус</th><th></th></tr></thead><tbody>
         {sorted.map(o=>{const dupe=dupeMap.get(o.id);const dupeOthers=dupe?dupe.groupIds.filter(x=>x!==o.id):[];return(<tr key={o.id} style={dupe?{background:"#fef3c7"}:null}>
           <td style={{whiteSpace:"nowrap",fontSize:12}}>{new Date(o.date).toLocaleDateString("uk-UA")}</td>
@@ -1428,7 +1451,36 @@ function OrdersListPage({orders,setOrders}){
           </div></td>
         </tr>);})}
       </tbody></table>
-    </div>}
+    </div>
+    {/* Mobile cards */}
+    <div className="mob-orders-feed">
+      {sorted.map(o=>{const dupe=dupeMap.get(o.id);return(
+        <div key={o.id} className={`mob-order-card${dupe?' dupe-highlight':''}`} onClick={()=>openEdit(o)}>
+          <div className="mob-oc-top">
+            <div className="mob-oc-name">{o.client||"Без імені"}{dupe&&<span style={{background:"var(--red)",color:"#fff",fontSize:9,padding:"1px 5px",borderRadius:6,fontWeight:700,marginLeft:6,verticalAlign:"middle"}}>ДУБЛЬ</span>}</div>
+            <div className="mob-oc-badge"><span className={`badge ${STCLS[o.status]}`}>{STATUSES[o.status]}</span></div>
+          </div>
+          <div className="mob-oc-info">
+            <span>{new Date(o.date).toLocaleDateString("uk-UA",{day:"numeric",month:"short"})}</span>
+            {o.phone&&<span>{o.phone}</span>}
+            {o.deliveryType==="np"?<span>{o.city}{o.npBranch?` №${o.npBranch}`:""}</span>:<span style={{color:"var(--pink2)"}}>Студія</span>}
+            {o.deliveryType==="np"&&<span>{o.payment==="cod"?<span className="badge badge-amber" style={{fontSize:9}}>Нал</span>:<span className="badge badge-blue" style={{fontSize:9}}>Контр</span>}</span>}
+          </div>
+          <div className="mob-oc-items">{o.items.map(i=>`${i.name} ×${i.qty}`).join(", ")}</div>
+          {o.ttn&&<div style={{fontSize:11,marginBottom:6,display:"flex",alignItems:"center",gap:6}}><span className="ttn-value" onClick={e=>{e.stopPropagation();navigator.clipboard.writeText(o.ttn).catch(()=>{})}}>{o.ttn}</span><TTNStatus ttn={o.ttn}/></div>}
+          {o.comment&&<div style={{fontSize:11,color:"var(--text2)",marginBottom:6,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{o.comment}</div>}
+          <div className="mob-oc-bottom">
+            <div><span className="mob-oc-total">{fmt(o.total)}</span>{o.prepayment>0&&<span style={{fontSize:10,color:"var(--green)",marginLeft:6}}>передопл {fmt(o.prepayment)}</span>}</div>
+            <div className="mob-oc-actions" onClick={e=>e.stopPropagation()}>
+              {o.deliveryType==="np"&&!o.ttn&&<button className="btn btn-np" style={{padding:"6px 12px",fontSize:11,fontWeight:700}} onClick={()=>setCreateTTNOrder(o)}>Оформити ТТН</button>}
+              {o.deliveryType==="np"&&o.ttn&&!o.ttn.startsWith("2")&&o.status==="ttn"&&<button className="btn btn-secondary" style={{padding:"5px 10px",fontSize:11}} onClick={()=>updSt(o.id,"shipped")}>Відправлено</button>}
+              {o.status==="shipped"&&<button className="btn btn-secondary" style={{padding:"5px 10px",fontSize:11}} onClick={()=>updSt(o.id,"delivered")}>Доставлено</button>}
+            </div>
+          </div>
+        </div>
+      );})}
+    </div>
+    </>}
     {/* TTN Modal */}
     {ttnM&&<Modal title="ТТН — Нова Пошта" onClose={()=>setTtnM(null)}>
       <div style={{background:"var(--np-light)",borderRadius:10,padding:12,marginBottom:14,fontSize:13}}>
@@ -1445,6 +1497,11 @@ function OrdersListPage({orders,setOrders}){
     </Modal>}
     {/* Edit Order Modal */}
     {editO&&<Modal title="Редагувати замовлення" onClose={()=>setEditO(null)} wide>
+      {/* Quick TTN button at top for NP orders without TTN */}
+      {editO.deliveryType==="np"&&!editO.ttn&&<div style={{background:"var(--np-light)",border:"1px solid var(--np-red)",borderRadius:10,padding:"10px 14px",marginBottom:14,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+        <span style={{fontSize:13,fontWeight:600,color:"var(--np-red)"}}>ТТН не оформлено</span>
+        <button className="btn btn-np" style={{padding:"8px 16px",fontSize:13,fontWeight:700}} onClick={()=>{setEditO(null);setCreateTTNOrder(editO);}}>Оформити ТТН</button>
+      </div>}
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:14}}>
         <div className="form-group" style={{marginBottom:0}}><label className="form-label">Клієнт</label><input className="form-input" value={editO.client} onChange={e=>setEditO({...editO,client:e.target.value})}/></div>
         <div className="form-group" style={{marginBottom:0}}><label className="form-label">Телефон</label><input className="form-input" value={editO.phone} onChange={e=>setEditO({...editO,phone:e.target.value})}/></div>
@@ -1452,32 +1509,33 @@ function OrdersListPage({orders,setOrders}){
           <div className="form-group" style={{marginBottom:0}}><label className="form-label">Місто</label><input className="form-input" value={editO.city} onChange={e=>setEditO({...editO,city:e.target.value})}/></div>
           <div className="form-group" style={{marginBottom:0}}><label className="form-label">№ відділення</label><input className="form-input" value={editO.npBranch} onChange={e=>setEditO({...editO,npBranch:e.target.value})}/></div>
           <div className="form-group" style={{marginBottom:0}}><label className="form-label">Оплата</label><select className="form-input" value={editO.payment} onChange={e=>setEditO({...editO,payment:e.target.value})}><option value="cod">Наложка</option><option value="control">Контроль оплати</option></select></div>
-          <div className="form-group" style={{marginBottom:0}}><label className="form-label">ТТН</label><input className="form-input" value={editO.ttn} onChange={e=>setEditO({...editO,ttn:e.target.value})} style={{fontFamily:"monospace"}}/></div>
+          <div className="form-group" style={{marginBottom:0}}><label className="form-label">ТТН</label><input className="form-input" value={editO.ttn||""} onChange={e=>setEditO({...editO,ttn:e.target.value})} style={{fontFamily:"monospace"}}/></div>
         </>}
         <div className="form-group" style={{marginBottom:0}}><label className="form-label">Статус</label><select className="form-input" value={editO.status} onChange={e=>setEditO({...editO,status:e.target.value})}>
           {Object.entries(STATUSES).map(([k,v])=><option key={k} value={k}>{v}</option>)}
         </select></div>
+        <div className="form-group" style={{marginBottom:0}}><label className="form-label">Коментар</label><input className="form-input" value={editO.comment||""} onChange={e=>setEditO({...editO,comment:e.target.value})}/></div>
       </div>
       <div style={{marginBottom:12}}>
         <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",color:"var(--text2)",marginBottom:6}}>Товари</div>
-        {editItems.map((it,idx)=><div key={idx} style={{display:"flex",alignItems:"center",gap:6,padding:"6px 0",borderBottom:"1px solid var(--border)",fontSize:13}}>
-          <span style={{flex:1,fontWeight:500}}>{it.name}</span>
-          <input type="number" min="1" value={it.qty} onChange={e=>updEditItem(idx,"qty",Math.max(1,Number(e.target.value)))} style={{width:48,padding:"4px 6px",borderRadius:6,border:"1px solid var(--border)",fontSize:12,textAlign:"center"}}/>
-          <span style={{color:"var(--text2)",fontSize:11}}>×</span>
-          <input type="number" min="0" value={it.price} onChange={e=>updEditItem(idx,"price",Math.max(0,Number(e.target.value)))} style={{width:80,padding:"4px 6px",borderRadius:6,border:"1px solid var(--border)",fontSize:12,textAlign:"right"}}/>
-          <span style={{fontSize:11,color:"var(--text2)"}}>₴</span>
-          <span style={{fontWeight:700,minWidth:72,textAlign:"right",fontSize:12}}>{fmt(it.price*it.qty)}</span>
-          <button className="btn btn-danger btn-xs" onClick={()=>rmEditItem(idx)}>{I.trash}</button>
+        {editItems.map((it,idx)=><div key={idx} style={{display:"flex",alignItems:"center",gap:6,padding:"8px 0",borderBottom:"1px solid var(--border)",fontSize:13,flexWrap:"wrap"}}>
+          <span style={{flex:"1 1 100%",fontWeight:500,marginBottom:4}}>{it.name}</span>
+          <span style={{fontSize:11,color:"var(--text2)"}}>К-сть:</span>
+          <input type="number" min="1" value={it.qty} onChange={e=>updEditItem(idx,"qty",Math.max(1,Number(e.target.value)))} style={{width:52,padding:"6px 8px",borderRadius:6,border:"1px solid var(--border)",fontSize:13,textAlign:"center"}}/>
+          <span style={{fontSize:11,color:"var(--text2)"}}>Ціна:</span>
+          <input type="number" min="0" value={it.price} onChange={e=>updEditItem(idx,"price",Math.max(0,Number(e.target.value)))} style={{width:80,padding:"6px 8px",borderRadius:6,border:"1px solid var(--border)",fontSize:13,textAlign:"right"}}/>
+          <span style={{fontWeight:700,fontSize:13}}>{fmt(it.price*it.qty)}</span>
+          <button className="btn btn-danger btn-xs" style={{padding:"5px 8px"}} onClick={()=>rmEditItem(idx)}>{I.trash}</button>
         </div>)}
-        <div style={{display:"flex",justifyContent:"space-between",marginTop:8,paddingTop:8,borderTop:"2px solid var(--border)",fontWeight:700,fontSize:14}}>
+        <div style={{display:"flex",justifyContent:"space-between",marginTop:8,paddingTop:8,borderTop:"2px solid var(--border)",fontWeight:700,fontSize:14,flexWrap:"wrap",gap:4}}>
           <span>Разом: {fmt(editItems.reduce((s,i)=>s+i.price*i.qty,0))}</span>
           <span style={{color:"var(--green)"}}>Прибуток: {fmt(editItems.reduce((s,i)=>s+(i.price-i.cost)*i.qty,0))}</span>
         </div>
       </div>
-      <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}>
+      <div style={{display:"flex",gap:8,justifyContent:"flex-end",flexWrap:"wrap"}}>
         <button className="btn btn-danger" onClick={()=>{if(confirm("Видалити замовлення?")){DB.remove("orders",editO.id);setOrders(orders.filter(o=>o.id!==editO.id));setEditO(null);}}}>Видалити</button>
         <button className="btn btn-secondary" onClick={()=>setEditO(null)}>Скасувати</button>
-        <button className="btn btn-primary" onClick={saveEdit}>Зберегти</button>
+        <button className="btn btn-primary" style={{padding:"8px 20px",fontSize:13}} onClick={saveEdit}>Зберегти</button>
       </div>
     </Modal>}
     {createTTNOrder&&<CreateTTNModal order={createTTNOrder} onClose={()=>setCreateTTNOrder(null)} onCreated={ttn=>{setOrders(orders.map(o=>o.id===createTTNOrder.id?{...o,ttn,status:"ttn"}:o));setCreateTTNOrder(null);}}/>}
@@ -1952,7 +2010,13 @@ function App(){
           if(changed.length>0)DB.upsertMany("products",changed);
           setProducts(fixed);LS.set("products",fixed);
         }
-        if(oData){const mapped=oData.map(mapOrderFromDB);setOrders(mapped);LS.set("orders",mapped);}
+        if(oData){
+          const mapped=oData.map(mapOrderFromDB);
+          // Don't overwrite localStorage cache with empty data if we had orders cached
+          const cached=LS.get("orders",[]);
+          if(mapped.length>0||cached.length===0){setOrders(mapped);LS.set("orders",mapped);}
+          else{console.warn("Supabase returned 0 orders but cache has "+cached.length+", keeping cache");setOrders(cached);}
+        }
         if(cData){const mapped=cData.map(mapClientFromDB);setClients(mapped);LS.set("clients",mapped);}
         if(eData){setExpenses(eData);LS.set("expenses",eData);}
         setSynced(true);setSyncErr("");
