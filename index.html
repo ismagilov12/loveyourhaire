@@ -1233,8 +1233,9 @@ function NewOrderPage({orders,setOrders,products,setProducts,clients,setClients}
   const[comment,setComment]=useState("");
   const[prodCat,setProdCat]=useState("Все");
   const[prodSize,setProdSize]=useState("oversize");
-  const[isPC,setIsPC]=useState(window.innerWidth>768);
-  useEffect(()=>{const h=()=>setIsPC(window.innerWidth>768);window.addEventListener("resize",h);return()=>window.removeEventListener("resize",h);},[]);
+  const[prodDropOpen,setProdDropOpen]=useState(false);
+  const prodDropRef=useRef(null);
+  useEffect(()=>{const h=e=>{if(prodDropRef.current&&!prodDropRef.current.contains(e.target))setProdDropOpen(false);};document.addEventListener("mousedown",h);return()=>document.removeEventListener("mousedown",h);},[]);
   const[codManual,setCodManual]=useState(false);
   const[cityRef,setCityRef]=useState("");
   const[whRef,setWhRef]=useState("");
@@ -1376,54 +1377,44 @@ function NewOrderPage({orders,setOrders,products,setProducts,clients,setClients}
           <button className={"filter-pill"+(prodSize==="oversize"?" active":"")} onClick={()=>setProdSize("oversize")} style={{fontSize:11,padding:"4px 10px",background:prodSize==="oversize"?"var(--pink)":"var(--surface)",color:prodSize==="oversize"?"#fff":"var(--text)",border:"1px solid var(--border)"}}>Оверсайз</button>
           <button className={"filter-pill"+(prodSize==="long"?" active":"")} onClick={()=>setProdSize("long")} style={{fontSize:11,padding:"4px 10px",background:prodSize==="long"?"var(--blue)":"var(--surface)",color:prodSize==="long"?"#fff":"var(--text)",border:"1px solid var(--border)"}}>Лонг</button>
         </span>
-        {!isPC&&<span style={{display:"flex",gap:4,marginLeft:"auto"}}>{CATEGORIES.map(cat=><button key={cat} className={"filter-pill"+(prodCat===cat?" active":"")} onClick={()=>setProdCat(cat)} style={{fontSize:11,padding:"4px 10px"}}>{cat}</button>)}</span>}
       </div>
-      {/* PC: dropdown select | Mobile: image grid */}
-      {isPC ? (
-        <div style={{display:"flex",gap:6,marginBottom:8,alignItems:"center"}}>
-          <select style={{flex:1,padding:"10px 12px",borderRadius:10,border:"1px solid var(--border)",fontSize:14,background:"var(--surface)",cursor:"pointer"}} defaultValue="" onChange={e=>{
-            const pid=Number(e.target.value);if(!pid)return;
-            const p=products.find(x=>x.id===pid);if(!p)return;
-            const inCart=items.find(i=>i.productId===p.id);
-            const isShirt=p.category==="Oversize футболки";const sz=isShirt&&prodSize==="long";const itemPrice=sz?2500:p.price;const itemCost=sz?480:p.cost;const itemName=sz?p.name+" (Long)":p.name;
-            if(inCart){setItems(items.map(i=>i.productId===p.id?{...i,qty:i.qty+1}:i));}
-            else{setItems([...items,{productId:p.id,name:itemName,price:itemPrice,cost:itemCost,qty:1,type:p.type}]);setParsedOpen(false);setInputOpen(false);}
-            e.target.value="";
-          }}>
-            <option value="">{"Обрати товар..."}</option>
-            {CATEGORIES.filter(c=>c!=="Все").map(cat=>(
-              <optgroup key={cat} label={cat}>
-                {products.filter(p=>p.category===cat).map(p=>{
-                  const inCart=items.find(i=>i.productId===p.id);
-                  const isShirt=p.category==="Oversize футболки";const sz=isShirt&&prodSize==="long";
-                  const price=sz?2500:p.price;
-                  return <option key={p.id} value={p.id}>{p.name}{sz?" (Long)":""} — {price}₴{inCart?" (x"+inCart.qty+")":""}</option>;
-                })}
-              </optgroup>
-            ))}
-          </select>
+      {/* Custom product dropdown with photos */}
+      <div ref={prodDropRef} style={{position:"relative",marginBottom:8}}>
+        <div onClick={()=>setProdDropOpen(!prodDropOpen)} style={{padding:"10px 12px",borderRadius:10,border:"1px solid var(--border)",background:"var(--surface)",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"space-between",fontSize:14}}>
+          <span style={{color:"var(--text2)"}}>{"Обрати товар..."}</span>
+          <span style={{fontSize:10,transform:prodDropOpen?"rotate(180deg)":"",transition:"transform .2s"}}>{"▼"}</span>
         </div>
-      ) : (
-        <React.Fragment>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:6,marginBottom:8,maxHeight:240,overflowY:"auto",paddingRight:2}}>
-            {products.filter(p=>prodCat==="Все"||p.category===prodCat).map(p=>{
-              const inCart=items.find(i=>i.productId===p.id);
-              return(<div key={p.id} onClick={()=>{
-                const isShirt=p.category==="Oversize футболки";const sz=isShirt&&prodSize==="long";const itemPrice=sz?2500:p.price;const itemCost=sz?480:p.cost;const itemName=sz?p.name+" (Long)":p.name;if(inCart){setItems(items.map(i=>i.productId===p.id?{...i,qty:i.qty+1}:i));}
-                else{setItems([...items,{productId:p.id,name:itemName,price:itemPrice,cost:itemCost,qty:1,type:p.type}]);setParsedOpen(false);setInputOpen(false);}
-              }} style={{border:inCart?"2px solid var(--pink2)":"1px solid var(--border)",borderRadius:10,padding:6,cursor:"pointer",background:inCart?"var(--pink-pale)":"var(--surface)",textAlign:"center",position:"relative",transition:"all .15s"}}>
-                <div style={{width:"100%",aspectRatio:"1/1",borderRadius:8,overflow:"hidden",marginBottom:4,background:"#f3f0ed",display:"flex",alignItems:"center",justifyContent:"center"}}>
-                  {p.photo?<img src={p.photo} alt={p.name} style={{width:"100%",height:"100%",objectFit:"cover"}}/>:<span style={{fontSize:28,opacity:.3}}>{p.category==="Косметика для волосся"?"🧴":"👕"}</span>}
-                </div>
-                <div style={{fontSize:10,fontWeight:600,lineHeight:"1.2",minHeight:24,overflow:"hidden"}}>{p.name.replace(/^Футболка /,"")}</div>
-                <div style={{fontSize:12,fontWeight:700,color:p.category==="Oversize футболки"&&prodSize==="long"?"var(--blue)":"var(--pink2)"}}>{fmt(p.category==="Oversize футболки"&&prodSize==="long"?2500:p.price)}</div>
-                {p.type==="product"&&<div style={{fontSize:9,color:p.stock<1?"var(--red)":"var(--text2)"}}>{p.stock<1?"немає":"зал: "+p.stock}</div>}
-                {inCart&&<div style={{position:"absolute",top:3,right:3,background:"var(--pink2)",color:"#fff",borderRadius:"50%",width:20,height:20,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700}}>{inCart.qty}</div>}
-              </div>);
-            })}
-          </div>
-        </React.Fragment>
-      )}
+        {prodDropOpen&&<div style={{position:"absolute",top:"100%",left:0,right:0,zIndex:50,background:"var(--surface)",border:"1px solid var(--border)",borderRadius:10,marginTop:4,maxHeight:300,overflowY:"auto",boxShadow:"0 8px 24px rgba(0,0,0,.15)"}}>
+          {CATEGORIES.filter(c=>c!=="Все").map(cat=>(
+            <div key={cat}>
+              <div style={{padding:"8px 12px",fontSize:11,fontWeight:700,color:"var(--text2)",background:"var(--bg)",borderBottom:"1px solid var(--border)",position:"sticky",top:0,zIndex:1}}>{cat}</div>
+              {products.filter(p=>p.category===cat).map(p=>{
+                const inCart=items.find(i=>i.productId===p.id);
+                const isShirt=p.category==="Oversize футболки";const sz=isShirt&&prodSize==="long";
+                const price=sz?2500:p.price;
+                return(<div key={p.id} onClick={()=>{
+                  const itemPrice=sz?2500:p.price;const itemCost=sz?480:p.cost;const itemName=sz?p.name+" (Long)":p.name;
+                  if(inCart){setItems(items.map(i=>i.productId===p.id?{...i,qty:i.qty+1}:i));}
+                  else{setItems([...items,{productId:p.id,name:itemName,price:itemPrice,cost:itemCost,qty:1,type:p.type}]);setParsedOpen(false);setInputOpen(false);}
+                  setProdDropOpen(false);
+                }} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 12px",cursor:"pointer",borderBottom:"1px solid var(--border)",background:inCart?"var(--pink-pale)":"transparent",transition:"background .15s"}}>
+                  <div style={{width:40,height:40,minWidth:40,borderRadius:8,overflow:"hidden",background:"#f3f0ed",display:"flex",alignItems:"center",justifyContent:"center"}}>
+                    {p.photo?<img src={p.photo} alt={p.name} style={{width:"100%",height:"100%",objectFit:"cover"}}/>:<span style={{fontSize:18,opacity:.3}}>{cat==="Косметика для волосся"?"🧴":"👕"}</span>}
+                  </div>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontSize:13,fontWeight:600,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{p.name}{sz?" (Long)":""}</div>
+                    <div style={{fontSize:11,color:"var(--text2)"}}>{p.type==="product"?(p.stock<1?"немає на складі":"склад: "+p.stock):""}</div>
+                  </div>
+                  <div style={{textAlign:"right",minWidth:60}}>
+                    <div style={{fontSize:14,fontWeight:700,color:sz?"var(--blue)":"var(--pink2)"}}>{price}{"₴"}</div>
+                    {inCart&&<div style={{fontSize:10,color:"var(--pink2)",fontWeight:700}}>{"x"}{inCart.qty}</div>}
+                  </div>
+                </div>);
+              })}
+            </div>
+          ))}
+        </div>}
+      </div>
       <div style={{display:"flex",gap:8,alignItems:"center"}}>
         <button className="btn btn-primary" onClick={submit} disabled={!items.length||!parsed.name.trim()} style={{flex:1,height:40,fontSize:14}}>{I.send}{" Оформити"}</button>
       </div>
