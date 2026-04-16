@@ -1096,7 +1096,7 @@ function CreateTTNModal({order,onClose,onCreated}){
   const[whRef,setWhRef]=useState("");
   const[whNum,setWhNum]=useState(order.npBranch||"");
   const[weight,setWeight]=useState("0.5");
-  const prodDesc=order.items.map(i=>i.name+(i.qty>1?" x"+i.qty:"")).join(", ");
+  const prodDesc=order.items.map(i=>i.name+(i.qty>1?" x"+i.qty:"")).join(", ")+(order.comment?" | "+order.comment:"");
   const[description,setDescription]=useState(prodDesc);
   const[cost,setCost]=useState(String(order.total));
   const[payerDel,setPayerDel]=useState("Recipient");
@@ -1160,6 +1160,7 @@ function CreateTTNModal({order,onClose,onCreated}){
         Recipient:recip.ref,ContactRecipient:recip.contactRef,RecipientsPhone:order.phone,
       };
       if(payType==="control"&&Number(controlAmount)>0){params.AfterpaymentOnGoodsCost=controlAmount;}
+      if(order.comment){params.AdditionalInformation=order.comment;}
       const r=await NP.createTTN(params);setCreating(false);
       if(r.ok){setResult(r);if(onCreated)onCreated(r.ttn);}
       else{setErr((r.errors||[]).join(", ")||"Помилка створення");}
@@ -1516,7 +1517,7 @@ function OrdersListPage({orders,setOrders,products}){
     if(editO){
       setTtnErr("");setTtnResult(null);setTtnCreating(false);setTtnSettings(false);
       setTtnPayerDel("Recipient");setTtnWeight("0.5");
-      setTtnDesc(editO.items?editO.items.map(i=>i.name+(i.qty>1?" x"+i.qty:"")).join(", "):"");
+      setTtnDesc(editO.items?(editO.items.map(i=>i.name+(i.qty>1?" x"+i.qty:"")).join(", ")+(editO.comment?" | "+editO.comment:"")):"");
       // Preload sender info
       if(editO.deliveryType==="np"&&!editO.ttn&&!ttnSenderInfo){
         setTtnSenderLoading(true);
@@ -1561,6 +1562,7 @@ function OrdersListPage({orders,setOrders,products}){
         Recipient:recip.ref,ContactRecipient:recip.contactRef,RecipientsPhone:editO.phone,
       };
       if(payType==="control"&&cod>0){params.AfterpaymentOnGoodsCost=String(cod);}
+      if(editO.comment){params.AdditionalInformation=editO.comment;}
       // 6. Create TTN
       const r=await NP.createTTN(params);
       setTtnCreating(false);
