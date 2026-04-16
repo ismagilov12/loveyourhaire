@@ -1475,7 +1475,7 @@ function OrdersListPage({orders,setOrders}){
           {o.ttn&&<div style={{fontSize:11,marginBottom:6,display:"flex",alignItems:"center",gap:6}}><span className="ttn-value" onClick={e=>{e.stopPropagation();navigator.clipboard.writeText(o.ttn).catch(()=>{})}}>{o.ttn}</span><TTNStatus ttn={o.ttn}/></div>}
           {o.comment&&<div style={{fontSize:11,color:"var(--text2)",marginBottom:6,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{o.comment}</div>}
           <div className="mob-oc-bottom">
-            <div><span className="mob-oc-total">{fmt(o.total)}</span>{o.prepayment>0&&<span style={{fontSize:10,color:"var(--green)",marginLeft:6}}>передопл {fmt(o.prepayment)}</span>}</div>
+            <div><span className="mob-oc-total">{fmt(o.total)}</span>{o.prepayment>0&&<span style={{fontSize:10,color:"var(--green)",marginLeft:6}}>передопл {fmt(o.prepayment)}</span>}{o.codAmount!=null&&o.codAmount>0&&<span style={{fontSize:10,color:"var(--gold)",marginLeft:6}}>нал {fmt(o.codAmount)}</span>}</div>
             <div className="mob-oc-actions" onClick={e=>e.stopPropagation()}>
               {o.deliveryType==="np"&&!o.ttn&&<button className="btn btn-np" style={{padding:"6px 12px",fontSize:11,fontWeight:700}} onClick={()=>setCreateTTNOrder(o)}>Оформити ТТН</button>}
               {o.deliveryType==="np"&&o.ttn&&!o.ttn.startsWith("2")&&o.status==="ttn"&&<button className="btn btn-secondary" style={{padding:"5px 10px",fontSize:11}} onClick={()=>updSt(o.id,"shipped")}>Відправлено</button>}
@@ -1520,6 +1520,17 @@ function OrdersListPage({orders,setOrders}){
           {Object.entries(STATUSES).map(([k,v])=><option key={k} value={k}>{v}</option>)}
         </select></div>
         <div className="form-group" style={{marginBottom:0}}><label className="form-label">Коментар</label><input className="form-input" value={editO.comment||""} onChange={e=>setEditO({...editO,comment:e.target.value})}/></div>
+      </div>
+      {/* Prepayment & COD editing */}
+      <div style={{background:"var(--pink-pale)",borderRadius:10,padding:"10px 12px",marginBottom:14}}>
+        <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",color:"var(--text2)",marginBottom:8}}>Контроль оплати</div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8}}>
+          <div className="form-group" style={{marginBottom:0}}><label className="form-label" style={{fontSize:10,color:"var(--green)",fontWeight:700}}>Передоплата ₴</label><input className="form-input" type="number" placeholder="0" value={editO.prepayment!=null?editO.prepayment:""} onChange={e=>{const v=e.target.value;const p=v!==""?Number(v):null;const total=editItems.reduce((s,i)=>s+i.price*i.qty,0);const cod=p!=null?Math.max(0,total-p):editO.codAmount;setEditO({...editO,prepayment:p,codAmount:cod});}} style={{fontSize:13,borderColor:"var(--green)"}}/></div>
+          <div className="form-group" style={{marginBottom:0}}><label className="form-label" style={{fontSize:10,color:"var(--gold)",fontWeight:700}}>Наложка ₴</label><input className="form-input" type="number" placeholder="0" value={editO.codAmount!=null?editO.codAmount:""} onChange={e=>{const v=e.target.value;setEditO({...editO,codAmount:v!==""?Number(v):null});}} style={{fontSize:13,borderColor:"var(--gold)"}}/></div>
+          <div style={{display:"flex",alignItems:"flex-end",paddingBottom:2}}>
+            {(()=>{const t=editItems.reduce((s,i)=>s+i.price*i.qty,0);const p=editO.prepayment||0;const c=editO.codAmount!=null?editO.codAmount:0;const isPaid=p>=t&&t>0;return isPaid?<span className="badge badge-green" style={{fontSize:11,padding:"5px 10px"}}>Оплачено ✅</span>:<span style={{fontSize:12,color:"var(--gold)",fontWeight:700}}>До сплати: {fmt(c)}₴</span>;})()}
+          </div>
+        </div>
       </div>
       <div style={{marginBottom:12}}>
         <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",color:"var(--text2)",marginBottom:6}}>Товари</div>
