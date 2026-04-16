@@ -1125,23 +1125,28 @@ function CreateTTNModal({order,onClose,onCreated}){
     if(!senderInfo){setErr("Не вдалося завантажити дані відправника");return;}
     if(!rCityRef||!whRef){setErr("Оберіть місто та відділення отримувача");return;}
     if(!sWhRef&&!senderInfo.address?.ref){setErr("Оберіть відділення відправника");return;}
+    if(!order.client||!order.phone){setErr("Не вказано ПІБ або телефон отримувача");return;}
     setCreating(true);setErr("");
-    const params={
-      PayerType:payerDel==="Sender"?"Sender":"Recipient",
-      PaymentMethod:payType==="control"?"NonCash":"Cash",
-      CargoType:"Parcel",Weight:weight,ServiceType:"WarehouseWarehouse",SeatsAmount:"1",
-      Description:description,Cost:cost,
-      CitySender:sCityRef||senderInfo.address?.cityRef||"",
-      Sender:senderInfo.ref,SenderAddress:sWhRef||senderInfo.address?.ref||"",
-      ContactSender:senderInfo.contact?.ref||"",SendersPhone:senderInfo.contact?.phone||"",
-      CityRecipient:rCityRef,RecipientAddress:whRef,
-      RecipientName:order.client,RecipientsPhone:order.phone,RecipientType:"PrivatePerson",
-    };
-    if(payType==="cod"&&Number(backMoney)>0){params.BackwardDeliveryData=[{PayerType:"Recipient",CargoType:"Money",RedeliveryString:backMoney}];}
-    if(payType==="control"&&Number(controlAmount)>0){params.AfterpaymentOnGoodsCost=controlAmount;}
-    const r=await NP.createTTN(params);setCreating(false);
-    if(r.ok){setResult(r);if(onCreated)onCreated(r.ttn);}
-    else{setErr((r.errors||[]).join(", ")||"Помилка створення");}
+    try{
+      const recip=await NP.createRecipient(order.client,order.phone,rCityRef);
+      if(!recip.ok){setCreating(false);setErr("Помилка створення отримувача: "+(recip.errors||[]).join(", "));return;}
+      const params={
+        PayerType:payerDel==="Sender"?"Sender":"Recipient",
+        PaymentMethod:payType==="control"?"NonCash":"Cash",
+        CargoType:"Parcel",Weight:weight,ServiceType:"WarehouseWarehouse",SeatsAmount:"1",
+        Description:description,Cost:cost,
+        CitySender:sCityRef||senderInfo.address?.cityRef||"",
+        Sender:senderInfo.ref,SenderAddress:sWhRef||senderInfo.address?.ref||"",
+        ContactSender:senderInfo.contact?.ref||"",SendersPhone:senderInfo.contact?.phone||"",
+        CityRecipient:rCityRef,RecipientAddress:whRef,
+        Recipient:recip.ref,ContactRecipient:recip.contactRef,RecipientsPhone:order.phone,
+      };
+      if(payType==="cod"&&Number(backMoney)>0){params.BackwardDeliveryData=[{PayerType:"Recipient",CargoType:"Money",RedeliveryString:backMoney}];}
+      if(payType==="control"&&Number(controlAmount)>0){params.AfterpaymentOnGoodsCost=controlAmount;}
+      const r=await NP.createTTN(params);setCreating(false);
+      if(r.ok){setResult(r);if(onCreated)onCreated(r.ttn);}
+      else{setErr((r.errors||[]).join(", ")||"Помилка створення");}
+    }catch(e){setCreating(false);setErr("Помилка: "+e.message);}
   };
   if(loading)return(<Modal title="Створити ТТН" onClose={onClose}><div style={{textAlign:"center",padding:20,color:"var(--text2)"}}>{"Завантаження даних відправника..."}<div style={{marginTop:10,fontSize:11}}>{"Зачекайте, йде з'єднання з API Нової Пошти..."}</div></div></Modal>);
   if(loadErr&&!senderInfo)return(<Modal title="Створити ТТН" onClose={onClose}><div style={{textAlign:"center",padding:20}}><div style={{color:"var(--red)",fontWeight:600,marginBottom:10}}>{loadErr}</div><button className="btn btn-secondary" onClick={()=>{setLoading(true);setLoadErr("");NP.getSenderInfo().then(s=>{if(s)setSenderInfo(s);else setLoadErr("Не вдалося завантажити");setLoading(false);}).catch(e=>{setLoadErr(e.message);setLoading(false);});}}>{"Спробувати знову"}</button></div></Modal>);
@@ -1386,14 +1391,19 @@ function NewOrderPage({orders,setOrders,products,setProducts,clients,setClients}
 }
 
 // ─── ORDERS LIST ───
-function OrdersListPage({orders,setOrders}){
+function OrdersListPage({orders,setOrders,products}){
   const[filter,setFilter]=useState("all");
   const[search,setSearch]=useState("");
   const[ttnM,setTtnM]=useState(null);
   const[ttnV,setTtnV]=useState("");
   const[editO,setEditO]=useState(null);// editing order copy
+  const[addProdId,setAddProdId]=useState("");
+  const[addProdQty,setAddProdQty]=useState(1);
+  const[addProdPrice,setAddProdPrice]=useState("");
   const[editItems,setEditItems]=useState([]);
   const[createTTNOrder,setCreateTTNOrder]=useState(null);
+  const[prepayO,setPrepayO]=useState(null);// quick prepayment order
+  const[prepayV,setPrepayV]=useState("");
   const searched=useMemo(()=>{
     if(!search.trim())return orders;
     const q=search.trim().toLowerCase();
@@ -1419,8 +1429,25 @@ function OrdersListPage({orders,setOrders}){
   const counts={all:searched.length,new:np.filter(o=>o.status==="new").length,ttn:np.filter(o=>o.status==="ttn").length,shipped:np.filter(o=>o.status==="shipped").length,delivered:np.filter(o=>o.status==="delivered").length,studio:searched.filter(o=>o.status==="studio").length,paid:searched.filter(o=>o.status==="paid").length,dupes:dupeCount};
   const openTtn=o=>{setTtnM(o);setTtnV(o.ttn||"");};
   const saveTtn=()=>{if(!ttnM)return;setOrders(orders.map(o=>o.id===ttnM.id?{...o,ttn:ttnV.trim(),status:ttnV.trim()?"ttn":"new"}:o));setTtnM(null);};
+  const openPrepay=o=>{setPrepayO(o);setPrepayV(String(o.prepayment||""));};
+  const savePrepay=()=>{
+    if(!prepayO)return;
+    const pp=Number(prepayV)||0;
+    // codAmount = total - prepayment (for control payment, this is what remains to collect)
+    const cod=Math.max(0,prepayO.total-pp);
+    setOrders(orders.map(o=>o.id===prepayO.id?{...o,prepayment:pp,codAmount:cod}:o));
+    setPrepayO(null);
+  };
   const updSt=(id,st)=>setOrders(orders.map(o=>o.id===id?{...o,status:st}:o));
-  const openEdit=o=>{setEditO({...o});setEditItems(o.items.map(i=>({...i})));};
+  const openEdit=o=>{setEditO({...o});setEditItems(o.items.map(i=>({...i})));setAddProdId("");setAddProdQty(1);setAddProdPrice("");};
+  const addEditItem=()=>{
+    const p=products.find(x=>x.id===Number(addProdId));if(!p)return;
+    const finalPrice=addProdPrice!==""?Number(addProdPrice):p.price;
+    const ex=editItems.find(i=>i.productId===p.id);
+    if(ex)setEditItems(editItems.map(i=>i.productId===p.id?{...i,qty:i.qty+addProdQty,price:finalPrice}:i));
+    else setEditItems([...editItems,{productId:p.id,name:p.name,price:finalPrice,cost:p.cost,qty:addProdQty,type:p.type}]);
+    setAddProdId("");setAddProdQty(1);setAddProdPrice("");
+  };
   const saveEdit=()=>{
     if(!editO)return;
     const total=editItems.reduce((s,i)=>s+i.price*i.qty,0);
@@ -1464,6 +1491,7 @@ function OrdersListPage({orders,setOrders}){
           <td>{o.ttn?<div><span className="ttn-value" onClick={()=>{navigator.clipboard.writeText(o.ttn).catch(()=>{})}} title="Копіювати">{o.ttn}</span><TTNStatus ttn={o.ttn}/></div>:o.deliveryType==="np"?<span style={{fontSize:11,color:"var(--text2)"}}>{"—"}</span>:"—"}</td>
           <td><span className={`badge ${STCLS[o.status]}`}>{STATUSES[o.status]}</span></td>
           <td><div style={{display:"flex",gap:3,flexWrap:"wrap"}}>
+            <button className="btn btn-gold btn-xs" onClick={()=>openPrepay(o)} title="Передоплата">₴</button>
             {o.deliveryType==="np"&&!o.ttn&&<button className="btn btn-np btn-xs" onClick={()=>setCreateTTNOrder(o)} title="Створити ТТН через НП">{I.send}</button>}
             {o.deliveryType==="np"&&<button className="btn btn-np btn-xs" onClick={()=>openTtn(o)}>ТТН</button>}
             {o.status==="ttn"&&<button className="btn btn-secondary btn-xs" onClick={()=>updSt(o.id,"shipped")}>Відпр</button>}
@@ -1491,11 +1519,12 @@ function OrdersListPage({orders,setOrders}){
           {o.ttn&&<div style={{fontSize:11,marginBottom:6,display:"flex",alignItems:"center",gap:6}}><span className="ttn-value" onClick={e=>{e.stopPropagation();navigator.clipboard.writeText(o.ttn).catch(()=>{})}}>{o.ttn}</span><TTNStatus ttn={o.ttn}/></div>}
           {o.comment&&<div style={{fontSize:11,color:"var(--text2)",marginBottom:6,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{o.comment}</div>}
           <div className="mob-oc-bottom">
-            <div><span className="mob-oc-total">{fmt(o.total)}</span>{o.prepayment>0&&<span style={{fontSize:10,color:"var(--green)",marginLeft:6}}>передопл {fmt(o.prepayment)}</span>}{o.codAmount!=null&&o.codAmount>0&&<span style={{fontSize:10,color:"var(--gold)",marginLeft:6}}>нал {fmt(o.codAmount)}</span>}</div>
+            <div><span className="mob-oc-total">{fmt(o.total)}</span>{o.prepayment>0&&<span style={{fontSize:10,color:"var(--green)",marginLeft:6}}>передопл {fmt(o.prepayment)}</span>}{o.prepayment>0&&o.prepayment<o.total&&<span style={{fontSize:10,color:"var(--gold)",marginLeft:4}}>зал {fmt(o.total-(o.prepayment||0))}</span>}{o.prepayment>=o.total&&<span style={{fontSize:10,color:"var(--green)",marginLeft:4,fontWeight:700}}>ОПЛАЧ</span>}</div>
             <div className="mob-oc-actions" onClick={e=>e.stopPropagation()}>
-              {o.deliveryType==="np"&&!o.ttn&&<button className="btn btn-np" style={{padding:"6px 12px",fontSize:11,fontWeight:700}} onClick={()=>setCreateTTNOrder(o)}>Оформити ТТН</button>}
-              {o.deliveryType==="np"&&o.ttn&&!o.ttn.startsWith("2")&&o.status==="ttn"&&<button className="btn btn-secondary" style={{padding:"5px 10px",fontSize:11}} onClick={()=>updSt(o.id,"shipped")}>Відправлено</button>}
-              {o.status==="shipped"&&<button className="btn btn-secondary" style={{padding:"5px 10px",fontSize:11}} onClick={()=>updSt(o.id,"delivered")}>Доставлено</button>}
+              <button className="btn btn-gold" style={{padding:"5px 10px",fontSize:11}} onClick={()=>openPrepay(o)}>₴ Передопл</button>
+              {o.deliveryType==="np"&&!o.ttn&&<button className="btn btn-np" style={{padding:"6px 12px",fontSize:11,fontWeight:700}} onClick={()=>setCreateTTNOrder(o)}>ТТН</button>}
+              {o.deliveryType==="np"&&o.ttn&&!o.ttn.startsWith("2")&&o.status==="ttn"&&<button className="btn btn-secondary" style={{padding:"5px 10px",fontSize:11}} onClick={()=>updSt(o.id,"shipped")}>Відпр</button>}
+              {o.status==="shipped"&&<button className="btn btn-secondary" style={{padding:"5px 10px",fontSize:11}} onClick={()=>updSt(o.id,"delivered")}>Дост</button>}
             </div>
           </div>
         </div>
@@ -1515,6 +1544,33 @@ function OrdersListPage({orders,setOrders}){
       <div style={{fontSize:12,color:"var(--text2)",marginBottom:10}}>Товари: {ttnM.items.map(i=>`${i.name} ×${i.qty}`).join(", ")}</div>
       <div className="form-group"><label className="form-label">Номер ТТН</label><input className="form-input" placeholder="59000000000000" value={ttnV} onChange={e=>setTtnV(e.target.value)} style={{fontFamily:"monospace",fontSize:16,letterSpacing:1}}/></div>
       <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}><button className="btn btn-secondary" onClick={()=>setTtnM(null)}>Скасувати</button><button className="btn btn-np" onClick={saveTtn}>{I.truck} Зберегти</button></div>
+    </Modal>}
+    {/* Quick Prepayment Modal */}
+    {prepayO&&<Modal title="Передоплата" onClose={()=>setPrepayO(null)}>
+      <div style={{background:"var(--gold-light)",borderRadius:10,padding:12,marginBottom:14,fontSize:13}}>
+        <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}><span style={{fontWeight:700}}>{prepayO.client}</span><span style={{color:"var(--text2)"}}>{prepayO.phone}</span></div>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+          <span>Сума замовлення: <strong>{fmt(prepayO.total)}</strong></span>
+          <span className={`badge ${STCLS[prepayO.status]}`}>{STATUSES[prepayO.status]}</span>
+        </div>
+        {prepayO.items&&<div style={{fontSize:11,color:"var(--text2)",marginTop:4}}>{prepayO.items.map(i=>`${i.name} ×${i.qty}`).join(", ")}</div>}
+      </div>
+      <div className="form-group">
+        <label className="form-label">Сума передоплати</label>
+        <input className="form-input" type="number" min="0" placeholder="0" value={prepayV} onChange={e=>setPrepayV(e.target.value)} style={{fontSize:18,fontWeight:700,textAlign:"center"}} autoFocus onKeyDown={e=>e.key==="Enter"&&savePrepay()}/>
+      </div>
+      {Number(prepayV)>0&&<div style={{background:"var(--green-light)",borderRadius:8,padding:"8px 12px",marginBottom:12,fontSize:13,display:"flex",justifyContent:"space-between"}}>
+        <span>Залишок до сплати (контроль):</span>
+        <strong style={{color:"var(--gold)"}}>{fmt(Math.max(0,prepayO.total-Number(prepayV)))}</strong>
+      </div>}
+      {Number(prepayV)>=prepayO.total&&<div style={{background:"var(--green-light)",borderRadius:8,padding:"8px 12px",marginBottom:12,fontSize:13,fontWeight:700,color:"var(--green)",textAlign:"center"}}>
+        Повна оплата
+      </div>}
+      <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}>
+        {prepayO.prepayment>0&&<button className="btn btn-danger" onClick={()=>{setPrepayV("0");}} style={{marginRight:"auto"}}>Скинути</button>}
+        <button className="btn btn-secondary" onClick={()=>setPrepayO(null)}>Скасувати</button>
+        <button className="btn btn-gold" onClick={savePrepay} style={{padding:"8px 20px",fontSize:14}}>Зберегти</button>
+      </div>
     </Modal>}
     {/* Edit Order Modal */}
     {editO&&<Modal title="Редагувати замовлення" onClose={()=>setEditO(null)} wide>
@@ -1559,6 +1615,13 @@ function OrdersListPage({orders,setOrders}){
           <span style={{fontWeight:700,fontSize:13}}>{fmt(it.price*it.qty)}</span>
           <button className="btn btn-danger btn-xs" style={{padding:"5px 8px"}} onClick={()=>rmEditItem(idx)}>{I.trash}</button>
         </div>)}
+        {/* Add product */}
+        <div style={{display:"flex",gap:6,alignItems:"flex-end",padding:"10px 0",borderTop:"1px dashed var(--border)",flexWrap:"wrap"}}>
+          <div style={{flex:"1 1 140px"}}><label style={{fontSize:10,fontWeight:700,color:"var(--text2)"}}>Додати товар</label><select className="form-input" value={addProdId} onChange={e=>{setAddProdId(e.target.value);const p=products.find(x=>x.id===Number(e.target.value));if(p)setAddProdPrice(String(p.price));}} style={{fontSize:12,padding:"6px 8px"}}><option value="">Обрати...</option>{products.filter(p=>p.type==="product").map(p=><option key={p.id} value={p.id}>{p.name} ({fmt(p.price)})</option>)}</select></div>
+          <div style={{width:52}}><label style={{fontSize:10,fontWeight:700,color:"var(--text2)"}}>К-сть</label><input type="number" min="1" value={addProdQty} onChange={e=>setAddProdQty(Math.max(1,Number(e.target.value)))} style={{width:52,padding:"6px 8px",borderRadius:6,border:"1px solid var(--border)",fontSize:12,textAlign:"center"}}/></div>
+          <div style={{width:72}}><label style={{fontSize:10,fontWeight:700,color:"var(--text2)"}}>Ціна</label><input type="number" min="0" value={addProdPrice} onChange={e=>setAddProdPrice(e.target.value)} style={{width:72,padding:"6px 8px",borderRadius:6,border:"1px solid var(--border)",fontSize:12,textAlign:"right"}}/></div>
+          <button className="btn btn-primary btn-xs" onClick={addEditItem} disabled={!addProdId} style={{padding:"7px 12px",fontSize:12,whiteSpace:"nowrap"}}>+ Додати</button>
+        </div>
         <div style={{display:"flex",justifyContent:"space-between",marginTop:8,paddingTop:8,borderTop:"2px solid var(--border)",fontWeight:700,fontSize:14,flexWrap:"wrap",gap:4}}>
           <span>Разом: {fmt(editItems.reduce((s,i)=>s+i.price*i.qty,0))}</span>
           <span style={{color:"var(--green)"}}>Прибуток: {fmt(editItems.reduce((s,i)=>s+(i.price-i.cost)*i.qty,0))}</span>
@@ -1868,6 +1931,27 @@ const NP={
     const a=await NP.call("Counterparty","getCounterpartyAddresses",{Ref:sender.Ref,CounterpartyProperty:"Sender"});
     const addr=a.success&&a.data&&a.data[0]?a.data[0]:null;
     return{ref:sender.Ref,contact:contact?{ref:contact.Ref,name:contact.Description,phone:contact.Phones}:null,address:addr?{ref:addr.Ref,desc:addr.Description,cityRef:addr.CityRef}:null};
+  },
+  async createRecipient(fullName,phone,cityRef){
+    // Split name into parts
+    const parts=fullName.trim().split(/\s+/);
+    const lastName=parts[0]||fullName;
+    const firstName=parts[1]||".";
+    const middleName=parts.slice(2).join(" ")||"";
+    // Save recipient counterparty
+    const r=await NP.call("Counterparty","save",{
+      FirstName:firstName,LastName:lastName,MiddleName:middleName,
+      Phone:phone,CounterpartyType:"PrivatePerson",CounterpartyProperty:"Recipient",CityRef:cityRef
+    });
+    if(!r.success||!r.data||!r.data[0])return{ok:false,errors:r.errors||["Не вдалося створити отримувача"]};
+    const cp=r.data[0];
+    // Get contact person ref
+    let contactRef=cp.ContactPerson?.data?.[0]?.Ref||"";
+    if(!contactRef){
+      const c=await NP.call("Counterparty","getCounterpartyContactPersons",{Ref:cp.Ref,Page:"1"});
+      if(c.success&&c.data&&c.data[0])contactRef=c.data[0].Ref;
+    }
+    return{ok:true,ref:cp.Ref,contactRef};
   }
 };
 
@@ -2159,7 +2243,7 @@ function App(){
       </div>
       <div className="content">
         {page==="neworder"&&<NewOrderPage orders={orders} setOrders={setOrders} products={products} setProducts={setProducts} clients={clients} setClients={setClients}/>}
-        {page==="orders"&&<OrdersListPage orders={orders} setOrders={setOrders}/>}
+        {page==="orders"&&<OrdersListPage orders={orders} setOrders={setOrders} products={products}/>}
         {page==="admin"&&<AdminPage products={products} setProducts={setProducts}/>}
         {page==="clients"&&<ClientsPage clients={clients} orders={orders}/>}
         {page==="expenses"&&<ExpensesPage expenses={expenses} setExpenses={setExpenses}/>}
