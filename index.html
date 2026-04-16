@@ -1448,6 +1448,7 @@ function OrdersListPage({orders,setOrders,products}){
     setPrepayO(null);
   };
   const updSt=(id,st)=>setOrders(orders.map(o=>o.id===id?{...o,status:st}:o));
+  const inlinePrepay=(id,val)=>{const pp=Number(val)||0;setOrders(orders.map(o=>{if(o.id!==id)return o;const cod=Math.max(0,o.total-pp);return{...o,prepayment:pp,codAmount:cod};}));};
   const openEdit=o=>{setEditO({...o});setEditItems(o.items.map(i=>({...i})));setAddProdId("");setAddProdQty(1);setAddProdPrice("");};
   const addEditItem=()=>{
     const p=products.find(x=>x.id===Number(addProdId));if(!p)return;
@@ -1552,22 +1553,20 @@ function OrdersListPage({orders,setOrders,products}){
     {sorted.length===0?<div className="empty-state"><p>Немає замовлень</p></div>:<>
     {/* Desktop table */}
     <div className="desktop-tbl card" style={{padding:0,overflowX:"auto"}}>
-      <table className="tbl"><thead><tr><th>Дата</th><th>Клієнт</th><th>Тел</th><th>Доставка</th><th>Сума</th><th>Оплата</th><th>ТТН</th><th>Статус</th><th></th></tr></thead><tbody>
+      <table className="tbl"><thead><tr><th>Дата</th><th>Клієнт</th><th>Тел</th><th>Доставка</th><th>Сума</th><th>Передопл</th><th>Оплата</th><th>ТТН</th><th>Статус</th><th></th></tr></thead><tbody>
         {sorted.map(o=>{const dupe=dupeMap.get(o.id);const dupeOthers=dupe?dupe.groupIds.filter(x=>x!==o.id):[];return(<tr key={o.id} style={dupe?{background:"#fef3c7"}:null}>
           <td style={{whiteSpace:"nowrap",fontSize:12}}>{new Date(o.date).toLocaleDateString("uk-UA")}</td>
           <td><div style={{fontWeight:600,display:"flex",alignItems:"center",gap:4}}>{o.client}{dupe&&<span title={`Можливий дубль — ще ${dupeOthers.length} замовл. від цього клієнта за останні 7 днів`} style={{background:"var(--red)",color:"#fff",fontSize:9,padding:"2px 6px",borderRadius:8,fontWeight:700,whiteSpace:"nowrap"}}>⚠ ДУБЛЬ ×{dupe.groupIds.length}</span>}</div>{o.comment&&<div style={{fontSize:10,color:"var(--text2)",maxWidth:160,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}} title={o.comment}>{o.comment}</div>}</td>
           <td style={{fontSize:12,color:"var(--text2)"}}>{o.phone||"—"}</td>
           <td style={{fontSize:11}}>{o.deliveryType==="np"?`${o.city}${o.npBranch?` №${o.npBranch}`:""}`:<span style={{color:"var(--pink2)"}}>Студія</span>}</td>
-          <td><div style={{fontWeight:700}}>{fmt(o.total)}</div>{o.codAmount!=null&&<div style={{fontSize:10,color:"var(--gold)"}}>{"Нал: "}{fmt(o.codAmount)}</div>}{o.prepayment!=null&&o.prepayment>0&&<div style={{fontSize:10,color:"var(--green)"}}>{"Передопл: "}{fmt(o.prepayment)}</div>}</td>
+          <td><div style={{fontWeight:700}}>{fmt(o.total)}</div>{o.codAmount!=null&&o.codAmount>0&&<div style={{fontSize:10,color:"var(--gold)"}}>{"Нал: "}{fmt(o.codAmount)}</div>}</td>
+          <td><input type="number" min="0" defaultValue={o.prepayment||""} placeholder="0" onBlur={e=>inlinePrepay(o.id,e.target.value)} onKeyDown={e=>{if(e.key==="Enter")e.target.blur();}} style={{width:70,padding:"4px 6px",borderRadius:6,border:"1px solid var(--border)",fontSize:12,textAlign:"right",background:o.prepayment>=o.total&&o.total>0?"var(--green-light)":"#fff"}}/>{o.prepayment>0&&o.prepayment<o.total&&<div style={{fontSize:9,color:"var(--gold)",marginTop:2}}>{"зал "}{fmt(o.total-(o.prepayment||0))}</div>}{o.prepayment>=o.total&&o.total>0&&<div style={{fontSize:9,color:"var(--green)",fontWeight:700,marginTop:2}}>ОПЛАЧ</div>}</td>
           <td>{o.deliveryType==="np"?(o.payment==="cod"?<span className="badge badge-amber">Нал</span>:<span className="badge badge-blue">Контр</span>):"—"}</td>
           <td>{o.ttn?<div><span className="ttn-value" onClick={()=>{navigator.clipboard.writeText(o.ttn).catch(()=>{})}} title="Копіювати">{o.ttn}</span><TTNStatus ttn={o.ttn}/></div>:o.deliveryType==="np"?<span style={{fontSize:11,color:"var(--text2)"}}>{"—"}</span>:"—"}</td>
-          <td><span className={`badge ${STCLS[o.status]}`}>{STATUSES[o.status]}</span></td>
+          <td><select value={o.status} onChange={e=>updSt(o.id,e.target.value)} style={{padding:"4px 6px",borderRadius:6,border:"1px solid var(--border)",fontSize:11,fontWeight:600,cursor:"pointer",background:"#fff"}}>{Object.entries(STATUSES).map(([k,v])=><option key={k} value={k}>{v}</option>)}</select></td>
           <td><div style={{display:"flex",gap:3,flexWrap:"wrap"}}>
-            <button className="btn btn-gold btn-xs" onClick={()=>openPrepay(o)} title="Передоплата">₴</button>
             {o.deliveryType==="np"&&!o.ttn&&<button className="btn btn-np btn-xs" onClick={()=>setCreateTTNOrder(o)} title="Створити ТТН через НП">{I.send}</button>}
-            {o.deliveryType==="np"&&<button className="btn btn-np btn-xs" onClick={()=>openTtn(o)}>ТТН</button>}
-            {o.status==="ttn"&&<button className="btn btn-secondary btn-xs" onClick={()=>updSt(o.id,"shipped")}>Відпр</button>}
-            {o.status==="shipped"&&<button className="btn btn-secondary btn-xs" onClick={()=>updSt(o.id,"delivered")}>Дост</button>}
+            {o.deliveryType==="np"&&o.ttn&&<button className="btn btn-np btn-xs" onClick={()=>openTtn(o)}>ТТН</button>}
             <button className="btn btn-secondary btn-xs" onClick={()=>openEdit(o)}>{I.edit}</button>
           </div></td>
         </tr>);})}
