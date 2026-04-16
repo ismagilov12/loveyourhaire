@@ -1757,7 +1757,13 @@ function initSupabase(){
     supabaseInitErr="SDK не завантажився";console.warn("Supabase SDK not found on window");return false;
   }catch(e){supabaseInitErr=e.message;console.error("Supabase init:",e);return false;}
 }
-initSupabase();
+if(!initSupabase()){
+  console.log("Supabase: retrying with dynamic load...");
+  const _s=document.createElement("script");
+  _s.src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/dist/umd/supabase.min.js";
+  _s.onload=()=>{if(initSupabase())console.log("Supabase: dynamic load OK");else console.warn("Supabase: dynamic load failed too");};
+  document.head.appendChild(_s);
+}
 
 // Helper: map DB row (snake_case) → app object (camelCase) for orders
 const mapOrderFromDB=r=>({id:r.id,client:r.client,phone:r.phone,city:r.city,npBranch:r.np_branch,payment:r.payment,deliveryType:r.delivery_type,items:r.items,total:Number(r.total),totalCost:Number(r.total_cost),date:r.date,status:r.status,ttn:r.ttn,codAmount:r.cod_amount!=null?Number(r.cod_amount):null,prepayment:r.prepayment!=null?Number(r.prepayment):null,comment:r.comment||""});
