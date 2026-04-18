@@ -1982,12 +1982,22 @@ const mapOrderToDB=o=>({id:o.id,client:o.client,phone:o.phone||"",city:o.city||"
 const mapClientFromDB=r=>({id:r.id,name:r.name,phone:r.phone,city:r.city,npBranch:r.np_branch,created:r.created});
 const mapClientToDB=c=>({id:c.id,name:c.name,phone:c.phone||"",city:c.city||"",np_branch:c.npBranch||"",created:c.created});
 
+// ─── Offline queue: track tables that have unsynced local changes ───
+// When supabase is offline and we write locally, mark table as dirty.
+// When supabase comes online, flush the full local state of each dirty table to DB.
+const PendingSync={
+  get(){try{return JSON.parse(localStorage.getItem("lyh_pending_sync")||"{}");}catch{return{};}},
+  mark(table){try{const p=PendingSync.get();p[table]=true;localStorage.setItem("lyh_pending_sync",JSON.stringify(p));}catch{}},
+  clear(table){try{const p=PendingSync.get();delete p[table];localStorage.setItem("lyh_pending_sync",JSON.stringify(p));}catch{}},
+  hasAny(){const p=PendingSync.get();return Object.keys(p).length>0;}
+};
+
 // DB helper for CRUD
 const DB={
   async loadAll(table){if(!supabase)return null;const{data,error}=await supabase.from(table).select("*");if(error){console.error("DB load "+table,error);return null;}return data;},
-  async upsert(table,row){if(!supabase)return;const{error}=await supabase.from(table).upsert(row,{onConflict:"id"});if(error)console.error("DB upsert "+table,error);},
-  async upsertMany(table,rows){if(!supabase||!rows.length)return;const{error}=await supabase.from(table).upsert(rows,{onConflict:"id"});if(error)console.error("DB upsertMany "+table,error);},
-  async remove(table,id){if(!supabase)return;const{error}=await supabase.from(table).delete().eq("id",id);if(error)console.error("DB delete "+table,error);},
+  async upsert(table,row){if(!supabase){PendingSync.mark(table);return;}const{error}=await supabase.from(table).upsert(row,{onConflict:"id"});if(error){console.error("DB upsert "+table,error);PendingSync.mark(table);}},
+  async upsertMany(table,rows){if(!rows.length)return;if(!supabase){PendingSync.mark(table);return;}const{error}=await supabase.from(table).upsert(rows,{onConflict:"id"});if(error){console.error("DB upsertMany "+table,error);PendingSync.mark(table);}},
+  async remove(table,id){if(!supabase){PendingSync.mark(table);return;}const{error}=await supabase.from(table).delete().eq("id",id);if(error){console.error("DB delete "+table,error);PendingSync.mark(table);}},
 };
 
 
@@ -2246,7 +2256,7 @@ function App(){
     if(!supabase){
       // Try one more time
       if(!initSupabase()){
-        console.warn("Supabase not available");
+        console.warn("Supabase not available, working from localStorage");
         setSyncErr("Офлайн — база не підключена");
         setSynced(true);
         return;
@@ -2254,6 +2264,21 @@ function App(){
     }
     try{
       setSynced(false);setSyncErr("");
+
+      // ─── STEP 1: flush any pending offline changes to DB before pulling ───
+      const pending=PendingSync.get();
+      if(Object.keys(pending).length>0){
+        console.log("Flushing offline changes:",Object.keys(pending));
+        const localO=LS.get("orders",[]),localP=LS.get("products",INIT_PRODUCTS),localC=LS.get("clients",[]),localE=LS.get("expenses",[]);
+        const flushTasks=[];
+        if(pending.orders&&localO.length)flushTasks.push(supabase.from("orders").upsert(localO.map(mapOrderToDB),{onConflict:"id"}).then(r=>{if(!r.error)PendingSync.clear("orders");else console.error("Flush orders failed",r.error);}));
+        if(pending.products&&localP.length)flushTasks.push(supabase.from("products").upsert(localP,{onConflict:"id"}).then(r=>{if(!r.error)PendingSync.clear("products");else console.error("Flush products failed",r.error);}));
+        if(pending.clients&&localC.length)flushTasks.push(supabase.from("clients").upsert(localC.map(mapClientToDB),{onConflict:"id"}).then(r=>{if(!r.error)PendingSync.clear("clients");else console.error("Flush clients failed",r.error);}));
+        if(pending.expenses&&localE.length)flushTasks.push(supabase.from("expenses").upsert(localE,{onConflict:"id"}).then(r=>{if(!r.error)PendingSync.clear("expenses");else console.error("Flush expenses failed",r.error);}));
+        if(flushTasks.length)await Promise.all(flushTasks);
+      }
+
+      // ─── STEP 2: pull fresh data from DB ───
       console.log("Loading data from Supabase...");
       const[pData,oData,cData,eData]=await Promise.all([
         DB.loadAll("products"),
@@ -2270,21 +2295,54 @@ function App(){
       }
       if(oData){
         const mapped=oData.map(mapOrderFromDB);
+        // Merge: keep local orders whose id isn't in DB (in case flush just failed)
         const cached=LS.get("orders",[]);
-        if(mapped.length>0||cached.length===0){setOrders(mapped);LS.set("orders",mapped);}
-        else{console.warn("Supabase returned 0 orders but cache has "+cached.length+", keeping cache");setOrders(cached);}
+        const dbIds=new Set(mapped.map(o=>o.id));
+        const localOnly=cached.filter(o=>!dbIds.has(o.id));
+        if(localOnly.length>0){
+          console.warn("Found "+localOnly.length+" local-only orders, merging and retrying sync");
+          const merged=[...mapped,...localOnly];
+          setOrders(merged);LS.set("orders",merged);
+          // Retry pushing local-only to DB
+          supabase.from("orders").upsert(localOnly.map(mapOrderToDB),{onConflict:"id"}).then(r=>{if(r.error)PendingSync.mark("orders");});
+        }else{
+          setOrders(mapped);LS.set("orders",mapped);
+        }
       }else{
         // oData is null — Supabase error; keep localStorage
         const cached=LS.get("orders",[]);
         if(cached.length>0){setOrders(cached);console.warn("Using cached orders:",cached.length);}
       }
-      if(cData){const mapped=cData.map(mapClientFromDB);setClients(mapped);LS.set("clients",mapped);}
-      if(eData){setExpenses(eData);LS.set("expenses",eData);}
+      if(cData){
+        const mapped=cData.map(mapClientFromDB);
+        const cached=LS.get("clients",[]);
+        const dbIds=new Set(mapped.map(c=>c.id));
+        const localOnly=cached.filter(c=>!dbIds.has(c.id));
+        const merged=localOnly.length>0?[...mapped,...localOnly]:mapped;
+        if(localOnly.length>0)supabase.from("clients").upsert(localOnly.map(mapClientToDB),{onConflict:"id"}).then(r=>{if(r.error)PendingSync.mark("clients");});
+        setClients(merged);LS.set("clients",merged);
+      }
+      if(eData){
+        const cached=LS.get("expenses",[]);
+        const dbIds=new Set(eData.map(e=>e.id));
+        const localOnly=cached.filter(e=>!dbIds.has(e.id));
+        const merged=localOnly.length>0?[...eData,...localOnly]:eData;
+        if(localOnly.length>0)supabase.from("expenses").upsert(localOnly,{onConflict:"id"}).then(r=>{if(r.error)PendingSync.mark("expenses");});
+        setExpenses(merged);LS.set("expenses",merged);
+      }
       setSynced(true);setSyncErr("");
     }catch(e){console.error("Sync load error",e);setSyncErr("Помилка: "+e.message);setSynced(true);}
   };
   useEffect(()=>{
     if(user)doLoad();
+  },[user]);
+
+  // ─── React to supabase-ready event from background loader ───
+  useEffect(()=>{
+    if(!user)return;
+    const onReady=()=>{console.log("supabase-ready event received, running doLoad");doLoad();};
+    window.addEventListener("supabase-ready",onReady);
+    return()=>window.removeEventListener("supabase-ready",onReady);
   },[user]);
 
   // ─── Realtime subscriptions ───
@@ -2306,10 +2364,11 @@ function App(){
   },[user]);
 
   // Persist to localStorage + Supabase on changes (skip if update came from realtime)
-  useEffect(()=>{LS.set("products",products);if(synced&&!fromRT.current)DB.upsertMany("products",products);},[products]);
-  useEffect(()=>{LS.set("orders",orders);if(synced&&!fromRT.current)DB.upsertMany("orders",orders.map(mapOrderToDB));},[orders]);
-  useEffect(()=>{LS.set("clients",clients);if(synced&&!fromRT.current)DB.upsertMany("clients",clients.map(mapClientToDB));},[clients]);
-  useEffect(()=>{LS.set("expenses",expenses);if(synced&&!fromRT.current)DB.upsertMany("expenses",expenses);},[expenses]);
+  // If supabase is offline, DB.upsertMany marks the table as pending-sync automatically.
+  useEffect(()=>{LS.set("products",products);if(synced&&!fromRT.current){if(supabase)DB.upsertMany("products",products);else PendingSync.mark("products");}},[products]);
+  useEffect(()=>{LS.set("orders",orders);if(synced&&!fromRT.current){if(supabase)DB.upsertMany("orders",orders.map(mapOrderToDB));else PendingSync.mark("orders");}},[orders]);
+  useEffect(()=>{LS.set("clients",clients);if(synced&&!fromRT.current){if(supabase)DB.upsertMany("clients",clients.map(mapClientToDB));else PendingSync.mark("clients");}},[clients]);
+  useEffect(()=>{LS.set("expenses",expenses);if(synced&&!fromRT.current){if(supabase)DB.upsertMany("expenses",expenses);else PendingSync.mark("expenses");}},[expenses]);
 
   const logout=()=>{LS.set("user",null);setUser(null);};
 
@@ -2377,51 +2436,31 @@ function App(){
   </div>);
 }
 
-// ─── BOOT: wait for Supabase then render ───
+// ─── BOOT: render immediately from localStorage, init Supabase in background ───
 function bootApp(){
-  if(supabase){
-    document.getElementById("boot-loader")?.remove();
-    ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
-    return;
+  // Render app right away — App reads from LS and will sync when supabase becomes ready
+  initSupabase(); // try immediately (no-op if SDK not ready yet)
+  document.getElementById("boot-loader")?.remove();
+  ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+  // Keep trying to init supabase in background for up to 60s
+  if(!supabase){
+    let attempts=0;
+    const poll=setInterval(()=>{
+      attempts++;
+      if(initSupabase()){
+        clearInterval(poll);
+        console.log("Supabase ready after "+attempts+" bg attempts");
+        // Notify app that supabase is now available
+        window.dispatchEvent(new CustomEvent("supabase-ready"));
+      }else if(attempts>120){
+        clearInterval(poll);
+        console.warn("Supabase still not available after 60s, staying offline");
+      }
+    },500);
   }
-  // Not ready yet — retry init
-  if(initSupabase()){
-    document.getElementById("boot-loader")?.remove();
-    ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
-    return;
-  }
-  // Still not ready — show loading and poll
-  let el=document.getElementById("boot-loader");
-  if(!el){
-    el=document.createElement("div");el.id="boot-loader";
-    Object.assign(el.style,{position:"fixed",inset:"0",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",background:"#fff5f5",zIndex:"99999",fontFamily:"Nunito,system-ui,sans-serif"});
-    el.innerHTML='<div style="font-size:32px;margin-bottom:12px">💗</div><div style="font-size:16px;font-weight:700;color:#c2185b;margin-bottom:8px">Love Your Haire</div><div id="boot-msg" style="font-size:13px;color:#8c6b6b">Підключення до бази даних...</div>';
-    document.body.appendChild(el);
-  }
-  let attempts=0;
-  const poll=setInterval(()=>{
-    attempts++;
-    if(initSupabase()){
-      clearInterval(poll);
-      document.getElementById("boot-loader")?.remove();
-      ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
-    }else if(attempts>40){
-      // 20 seconds passed — start without DB (offline mode)
-      clearInterval(poll);
-      const msg=document.getElementById("boot-msg");
-      if(msg)msg.innerHTML='<span style="color:#d32f2f">Не вдалося підключитися до бази. Працюємо офлайн.</span>';
-      setTimeout(()=>{
-        document.getElementById("boot-loader")?.remove();
-        ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
-      },1500);
-    }else{
-      const msg=document.getElementById("boot-msg");
-      if(msg)msg.textContent="Підключення до бази даних... ("+attempts+"/40)";
-    }
-  },500);
 }
 bootApp();
-// v17 — guaranteed supabase boot, direct DB saves, control-only
+// v18 — instant boot + offline queue for unsynced changes
 </script>
 </body>
 </html>
