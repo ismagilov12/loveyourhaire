@@ -12,9 +12,9 @@
 // Boot loader: ensure Supabase SDK is loaded before app starts
 window.__sbReady=false;
 window.__sbCDNs=[
-  "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/dist/umd/supabase.min.js",
-  "https://unpkg.com/@supabase/supabase-js@2.49.1/dist/umd/supabase.min.js",
-  "https://cdnjs.cloudflare.com/ajax/libs/supabase/2.49.1/umd/supabase.min.js"
+  "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.33.0/dist/umd/supabase.js",
+  "https://unpkg.com/@supabase/supabase-js@2.33.0/dist/umd/supabase.js",
+  "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.33.0/dist/umd/supabase.min.js"
 ];
 function __tryLoadSB(idx){
   if(window.supabase){window.__sbReady=true;return;}
@@ -2346,22 +2346,32 @@ function App(){
   },[user]);
 
   // ─── Realtime subscriptions ───
+  const [sbReady,setSbReady]=useState(!!supabase);
+  useEffect(()=>{
+    const check=()=>setSbReady(!!supabase);
+    window.addEventListener("supabase-ready",check);
+    return()=>window.removeEventListener("supabase-ready",check);
+  },[]);
   useEffect(()=>{
     if(!user||!supabase)return;
+    if(typeof supabase.channel!=="function"){console.warn("realtime unavailable: supabase.channel missing — skipping subscription");return;}
     const rtUpdate=(setter,mapper)=>payload=>{
       fromRT.current=true;
       if(payload.eventType==="DELETE"){setter(prev=>{const next=prev.filter(x=>x.id!==payload.old.id);return next;});}
       else{const row=mapper?mapper(payload.new):payload.new;setter(prev=>{const idx=prev.findIndex(x=>x.id===row.id);let next;if(idx>=0){next=[...prev];next[idx]=row;}else{next=[...prev,row];}return next;});}
       setTimeout(()=>{fromRT.current=false;},100);
     };
-    const channel=supabase.channel("crm-realtime")
-      .on("postgres_changes",{event:"*",schema:"public",table:"products"},rtUpdate(setProducts,null))
-      .on("postgres_changes",{event:"*",schema:"public",table:"orders"},rtUpdate(setOrders,mapOrderFromDB))
-      .on("postgres_changes",{event:"*",schema:"public",table:"clients"},rtUpdate(setClients,mapClientFromDB))
-      .on("postgres_changes",{event:"*",schema:"public",table:"expenses"},rtUpdate(setExpenses,null))
-      .subscribe();
-    return()=>{if(supabase)supabase.removeChannel(channel);};
-  },[user]);
+    let channel;
+    try{
+      channel=supabase.channel("crm-realtime")
+        .on("postgres_changes",{event:"*",schema:"public",table:"products"},rtUpdate(setProducts,null))
+        .on("postgres_changes",{event:"*",schema:"public",table:"orders"},rtUpdate(setOrders,mapOrderFromDB))
+        .on("postgres_changes",{event:"*",schema:"public",table:"clients"},rtUpdate(setClients,mapClientFromDB))
+        .on("postgres_changes",{event:"*",schema:"public",table:"expenses"},rtUpdate(setExpenses,null))
+        .subscribe();
+    }catch(e){console.error("realtime setup failed:",e);return;}
+    return()=>{try{if(supabase&&channel&&typeof supabase.removeChannel==="function")supabase.removeChannel(channel);}catch(e){console.warn("removeChannel failed:",e);}};
+  },[user,sbReady]);
 
   // Persist to localStorage + Supabase on changes (skip if update came from realtime)
   // If supabase is offline, DB.upsertMany marks the table as pending-sync automatically.
@@ -2460,7 +2470,7 @@ function bootApp(){
   }
 }
 bootApp();
-// v18 — instant boot + offline queue for unsynced changes
+// v19 — pin SDK to 2.33.0 + defensive realtime setup
 </script>
 </body>
 </html>
