@@ -2590,16 +2590,28 @@ function App(){
   },[user]);
 
   // ─── Self-heal: orders with TTN filled → status="toSend" (На відправку) unless already shipped/delivered/paid ───
+  const selfHealDone=useRef(false);
   useEffect(()=>{
-    if(!synced||!orders.length)return;
-    const FINAL=new Set(["toSend","shipped","delivered","paid"]);
-    const broken=orders.filter(o=>o.ttn&&String(o.ttn).trim()&&!FINAL.has(o.status));
-    if(broken.length===0)return;
-    const ids=new Set(broken.map(o=>o.id));
-    setOrders(prev=>prev.map(o=>ids.has(o.id)?{...o,status:"toSend"}:o));
-    if(supabase){broken.forEach(o=>{supabase.from("orders").update({status:"toSend"}).eq("id",o.id).then(({error})=>{if(error)console.error("self-heal DB err",error);});});}
-    console.log("self-heal: moved "+broken.length+" orders with TTN to 'На відправку' (toSend)");
-  },[synced]);
+    if(!synced||!orders.length||selfHealDone.current)return;
+    try{
+      const FINAL=new Set(["toSend","shipped","delivered","paid"]);
+      const broken=orders.filter(o=>o.ttn&&String(o.ttn).trim()&&!FINAL.has(o.status));
+      if(broken.length===0){selfHealDone.current=true;return;}
+      const ids=new Set(broken.map(o=>o.id));
+      setOrders(prev=>prev.map(o=>ids.has(o.id)?{...o,status:"toSend"}:o));
+      // Persist to DB only if supabase client is fully ready
+      if(supabase&&typeof supabase.from==="function"){
+        broken.forEach(o=>{
+          try{
+            const q=supabase.from("orders").update({status:"toSend"}).eq("id",o.id);
+            if(q&&typeof q.then==="function"){q.then(r=>{if(r&&r.error)console.error("self-heal DB err",r.error);}).catch(e=>console.error("self-heal DB throw",e));}
+          }catch(e){console.error("self-heal DB inner throw",e);}
+        });
+      }else{console.warn("self-heal: supabase client not ready, local-only migration");}
+      console.log("self-heal: moved "+broken.length+" orders with TTN to \"На відправку\"");
+      selfHealDone.current=true;
+    }catch(e){console.error("self-heal outer error",e);}
+  },[synced,orders]);
 
   // ─── React to supabase-ready event from background loader ───
   useEffect(()=>{
