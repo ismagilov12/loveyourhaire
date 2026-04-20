@@ -1486,6 +1486,9 @@ function OrdersListPage({orders,setOrders,products}){
   const[editItems,setEditItems]=useState([]);
   const[createTTNOrder,setCreateTTNOrder]=useState(null);
   const[prepayO,setPrepayO]=useState(null);// quick prepayment order
+  const[selectedIds,setSelectedIds]=useState(()=>new Set());
+  const[bulkRunning,setBulkRunning]=useState(false);
+  const[bulkResults,setBulkResults]=useState(null);// {total,done:[{id,client,ok,ttn?,err?}]}
   // Inline TTN creation states
   const[ttnCreating,setTtnCreating]=useState(false);
   const[ttnErr,setTtnErr]=useState("");
@@ -1533,6 +1536,95 @@ function OrdersListPage({orders,setOrders,products}){
   };
   // Direct save to Supabase for single-field updates
   const saveOrderField=(id,fields)=>{if(supabase){supabase.from("orders").update(fields).eq("id",id).then(({error})=>{if(error)console.error("DB save err",error);});}};
+  // Bulk TTN creation — processes selected orders sequentially, resolves city/warehouse, creates TTN, saves ttn+status
+  const bulkCreateTTN=async()=>{
+    const savedSW=LS.get("np_sender_wh")||{};
+    const sender=await NP.getSenderInfo();
+    if(!sender){alert("Не вдалося завантажити дані відправника НП. Перевірте API ключ.");return;}
+    if(!savedSW.whRef&&!sender.address?.ref){alert("Спочатку створіть один ТТН вручну, щоб зафіксувати відділення відправника.");return;}
+    const list=orders.filter(o=>selectedIds.has(o.id)&&o.deliveryType==="np"&&!o.ttn&&o.city&&o.npBranch&&o.client&&o.phone);
+    if(!list.length){alert("Серед виділених немає замовлень, придатних до створення ТТН (потрібно: НП, без ТТН, є місто/відділення/ПІБ/телефон).");return;}
+    setBulkRunning(true);
+    setBulkResults({total:list.length,done:[]});
+    let cargoRef="";try{cargoRef=await NP.getCargoDescriptionRef("одяг");}catch(e){}
+    const results=[];
+    let updated=[...orders];
+    for(const o of list){
+      const item={id:o.id,client:o.client,ok:false};
+      try{
+        // Resolve city
+        const cities=await NP.searchCity(o.city);
+        if(!cities.length)throw new Error("місто \""+o.city+"\" не знайдено");
+        const want=NP._normCity(o.city);
+        const byEx=cities.filter(x=>NP._normCity(x.city||"")===want||NP._normCity(x.name||"")===want);
+        const byS=cities.filter(x=>NP._normCity(x.city||"").startsWith(want)||NP._normCity(x.name||"").startsWith(want));
+        const pool=(byEx.length?byEx:(byS.length?byS:cities));
+        const city=pool.find(x=>/\bм\./i.test(x.name||"")||x.settlementType==="М")||pool[0];
+        // Resolve warehouse
+        const branchStr=String(o.npBranch);
+        const numM=branchStr.match(/\d+/);
+        const branchNum=numM?numM[0]:branchStr;
+        const isPost=/поштомат|почтомат|postomat/i.test(branchStr);
+        let whs=await NP.getWarehouses(city.ref,branchNum);
+        if(!whs.length)whs=await NP.getWarehouses(city.ref,branchStr);
+        if(!whs.length)whs=await NP.getWarehouses(city.ref);
+        if(!whs.length)throw new Error("відділень не знайдено в НП");
+        const isPD=d=>/поштомат|postomat/i.test(d||"");
+        let wh=null;
+        if(isPost){
+          wh=whs.find(w=>w.num===branchNum&&isPD(w.desc))
+            ||whs.find(w=>isPD(w.desc)&&(w.desc||"").includes(branchNum))
+            ||whs.find(w=>w.num===branchNum);
+        }else{
+          wh=whs.find(w=>w.num===branchNum&&!isPD(w.desc))
+            ||whs.find(w=>w.num===branchNum);
+        }
+        if(!wh)wh=whs[0];
+        if(!wh)throw new Error("відділення №"+branchNum+" не знайдено");
+        // Create recipient
+        const recip=await NP.createRecipient(o.client,o.phone,city.deliveryCityRef||city.ref);
+        if(!recip.ok)throw new Error("отримувач: "+(recip.errors||[]).join(", "));
+        // Amounts
+        const prepay=o.prepayment||0;
+        const cod=o.codAmount!=null?o.codAmount:Math.max(0,o.total-prepay);
+        const payType=prepay>=o.total?"prepaid":"control";
+        const payerDel="Recipient";
+        const desc=(o.items||[]).map(i=>i.name+(i.qty>1?" x"+i.qty:"")).join(", ");
+        const addInfo=desc+(o.comment?" | "+o.comment:"");
+        const params={
+          PayerType:payerDel,PaymentMethod:(payType==="control"&&payerDel==="Sender")?"NonCash":"Cash",
+          CargoType:"Parcel",Weight:"0.5",ServiceType:"WarehouseWarehouse",SeatsAmount:"1",
+          Description:desc||"Товар",Cost:String(o.total),
+          CitySender:savedSW.cityRef||sender.address?.cityRef||"",
+          Sender:sender.ref,SenderAddress:savedSW.whRef||sender.address?.ref||"",
+          ContactSender:sender.contact?.ref||"",SendersPhone:sender.contact?.phone||"",
+          CityRecipient:city.ref,RecipientAddress:wh.ref,
+          Recipient:recip.ref,ContactRecipient:recip.contactRef,RecipientsPhone:o.phone,
+          OptionsSeat:[{volumetricVolume:"1",volumetricWidth:"10",volumetricLength:"20",volumetricHeight:"10",weight:"0.5"}]
+        };
+        if(payType==="control"&&cod>0)params.AfterpaymentOnGoodsCost=String(cod);
+        if(cargoRef)params.CargoDescription=cargoRef;
+        if(addInfo.trim())params.AdditionalInformation=addInfo.trim().slice(0,200);
+        const r=await NP.createTTN(params);
+        if(!r.ok)throw new Error((r.errors||[]).join(", ")||"Помилка створення ТТН");
+        item.ok=true;item.ttn=r.ttn;
+        updated=updated.map(x=>x.id===o.id?{...x,ttn:r.ttn,status:"ttn"}:x);
+        // Persist
+        saveOrderField(o.id,{ttn:r.ttn,status:"ttn"});
+      }catch(e){item.err=e.message||String(e);}
+      results.push(item);
+      setBulkResults({total:list.length,done:[...results]});
+    }
+    setOrders(updated);
+    setBulkRunning(false);
+    // Keep selection cleared for successful ones, preserve for failed ones so user can retry
+    const okIds=new Set(results.filter(x=>x.ok).map(x=>x.id));
+    setSelectedIds(prev=>{const n=new Set(prev);okIds.forEach(id=>n.delete(id));return n;});
+  };
+  const toggleSelect=(id)=>{setSelectedIds(prev=>{const n=new Set(prev);if(n.has(id))n.delete(id);else n.add(id);return n;});};
+  const toggleSelectAll=()=>{const eligible=sorted.filter(o=>o.deliveryType==="np"&&!o.ttn).map(o=>o.id);const allSelected=eligible.every(id=>selectedIds.has(id));setSelectedIds(prev=>{const n=new Set(prev);if(allSelected)eligible.forEach(id=>n.delete(id));else eligible.forEach(id=>n.add(id));return n;});};
+  const clearSelection=()=>setSelectedIds(new Set());
+  const eligibleSelectedCount=()=>{let n=0;for(const o of orders){if(selectedIds.has(o.id)&&o.deliveryType==="np"&&!o.ttn&&o.city&&o.npBranch&&o.client&&o.phone)n++;}return n;};
   const updSt=(id,st)=>{setOrders(orders.map(o=>o.id===id?{...o,status:st}:o));saveOrderField(id,{status:st});};
   const inlinePrepay=(id,val)=>{const pp=Number(val)||0;setOrders(orders.map(o=>{if(o.id!==id)return o;const cod=Math.max(0,o.total-pp);return{...o,prepayment:pp,codAmount:cod};}));saveOrderField(id,{prepayment:pp,cod_amount:Math.max(0,(orders.find(o=>o.id===id)?.total||0)-pp)});};
   const openEdit=o=>{setEditO({...o});setEditItems(o.items.map(i=>({...i})));setAddProdId("");setAddProdQty(1);setAddProdPrice("");};
@@ -1659,14 +1751,22 @@ function OrdersListPage({orders,setOrders,products}){
       <button className={`filter-pill${filter==="studio"?' active':''}`} onClick={()=>setFilter("studio")}>Студія ({counts.studio})</button>
       {dupeCount>0&&<button className={`filter-pill${filter==="dupes"?' active':''}`} onClick={()=>setFilter("dupes")} style={{color:filter==="dupes"?"#fff":"var(--red)",background:filter==="dupes"?"var(--red)":"",borderColor:"var(--red)",fontWeight:700}} title="Замовлення від одного клієнта в межах 7 днів">⚠ Дублі ({dupeCount})</button>}
     </div>
+    {selectedIds.size>0&&<div style={{background:"var(--np-light)",border:"1px solid var(--np-red)",borderRadius:10,padding:"10px 14px",marginBottom:12,display:"flex",alignItems:"center",justifyContent:"space-between",gap:10,flexWrap:"wrap"}}>
+      <div style={{fontSize:13,fontWeight:600}}>{"Виділено: "}<span style={{color:"var(--np-red)"}}>{selectedIds.size}</span>{" (придатні до ТТН: "}{eligibleSelectedCount()}{")"}</div>
+      <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+        <button className="btn btn-np" style={{padding:"6px 14px",fontSize:12,fontWeight:700}} onClick={bulkCreateTTN} disabled={bulkRunning||eligibleSelectedCount()===0}>{bulkRunning?"Створюю...":"Створити ТТН масово"}</button>
+        <button className="btn btn-secondary" style={{padding:"6px 14px",fontSize:12}} onClick={clearSelection} disabled={bulkRunning}>{"Скасувати виділення"}</button>
+      </div>
+    </div>}
     {filter==="dupes"&&dupeCount>0&&<div style={{background:"#fef3c7",border:"1px solid #f59e0b",borderRadius:10,padding:"10px 14px",marginBottom:12,fontSize:12,color:"#78350f"}}>
       ⚠ Знайдено {dupeCount} можливих дублі ({new Set(Array.from(dupeMap.values()).map(v=>v.key)).size} груп). Показані замовлення, у яких той самий телефон або ім'я зустрічається більше одного разу протягом 7 днів. Перевірте їх перед відправкою ТТН.
     </div>}
     {sorted.length===0?<div className="empty-state"><p>Немає замовлень</p></div>:<>
     {/* Desktop table */}
     <div className="desktop-tbl card" style={{padding:0,overflowX:"auto"}}>
-      <table className="tbl"><thead><tr><th>Дата</th><th>Клієнт</th><th>Тел</th><th>Товари</th><th>Доставка</th><th>Сума</th><th>Передопл</th><th>ТТН</th><th>Статус</th><th></th></tr></thead><tbody>
-        {sorted.map(o=>{const dupe=dupeMap.get(o.id);const dupeOthers=dupe?dupe.groupIds.filter(x=>x!==o.id):[];return(<tr key={o.id} style={dupe?{background:"#fef3c7"}:null}>
+      <table className="tbl"><thead><tr><th style={{width:32,textAlign:"center"}}><input type="checkbox" title="Виділити всі без ТТН" checked={sorted.filter(o=>o.deliveryType==="np"&&!o.ttn).length>0&&sorted.filter(o=>o.deliveryType==="np"&&!o.ttn).every(o=>selectedIds.has(o.id))} onChange={toggleSelectAll} style={{cursor:"pointer"}}/></th><th>Дата</th><th>Клієнт</th><th>Тел</th><th>Товари</th><th>Доставка</th><th>Сума</th><th>Передопл</th><th>ТТН</th><th>Статус</th><th></th></tr></thead><tbody>
+        {sorted.map(o=>{const dupe=dupeMap.get(o.id);const dupeOthers=dupe?dupe.groupIds.filter(x=>x!==o.id):[];const canSel=o.deliveryType==="np"&&!o.ttn;return(<tr key={o.id} style={{...(dupe?{background:"#fef3c7"}:null),...(selectedIds.has(o.id)?{background:"#fce7f3"}:null)}}>
+          <td style={{textAlign:"center"}}>{canSel?<input type="checkbox" checked={selectedIds.has(o.id)} onChange={()=>toggleSelect(o.id)} style={{cursor:"pointer"}}/>:<span style={{fontSize:14,opacity:.3}}>{"·"}</span>}</td>
           <td style={{whiteSpace:"nowrap",fontSize:12}}>{new Date(o.date).toLocaleDateString("uk-UA")}</td>
           <td><div style={{fontWeight:600,display:"flex",alignItems:"center",gap:4}}>{o.client}{dupe&&<span title={`Можливий дубль — ще ${dupeOthers.length} замовл. від цього клієнта за останні 7 днів`} style={{background:"var(--red)",color:"#fff",fontSize:9,padding:"2px 6px",borderRadius:8,fontWeight:700,whiteSpace:"nowrap"}}>⚠ ДУБЛЬ ×{dupe.groupIds.length}</span>}</div>{o.comment&&<div style={{fontSize:10,color:"var(--text2)",maxWidth:160,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}} title={o.comment}>{o.comment}</div>}</td>
           <td style={{fontSize:12,color:"var(--text2)"}}>{o.phone||"—"}</td>
@@ -1686,10 +1786,10 @@ function OrdersListPage({orders,setOrders,products}){
     </div>
     {/* Mobile cards */}
     <div className="mob-orders-feed">
-      {sorted.map(o=>{const dupe=dupeMap.get(o.id);return(
-        <div key={o.id} className={`mob-order-card${dupe?' dupe-highlight':''}`} onClick={()=>openEdit(o)}>
+      {sorted.map(o=>{const dupe=dupeMap.get(o.id);const canSel=o.deliveryType==="np"&&!o.ttn;return(
+        <div key={o.id} className={`mob-order-card${dupe?' dupe-highlight':''}`} style={selectedIds.has(o.id)?{outline:"2px solid var(--np-red)",background:"#fce7f3"}:null} onClick={()=>openEdit(o)}>
           <div className="mob-oc-top">
-            <div className="mob-oc-name">{o.client||"Без імені"}{dupe&&<span style={{background:"var(--red)",color:"#fff",fontSize:9,padding:"1px 5px",borderRadius:6,fontWeight:700,marginLeft:6,verticalAlign:"middle"}}>ДУБЛЬ</span>}</div>
+            <div className="mob-oc-name" style={{display:"flex",alignItems:"center",gap:8}}>{canSel&&<input type="checkbox" checked={selectedIds.has(o.id)} onClick={e=>e.stopPropagation()} onChange={()=>toggleSelect(o.id)} style={{cursor:"pointer",width:18,height:18}}/>}{o.client||"Без імені"}{dupe&&<span style={{background:"var(--red)",color:"#fff",fontSize:9,padding:"1px 5px",borderRadius:6,fontWeight:700,verticalAlign:"middle"}}>ДУБЛЬ</span>}</div>
             <div className="mob-oc-badge"><span className={`badge ${STCLS[o.status]}`}>{STATUSES[o.status]}</span></div>
           </div>
           <div className="mob-oc-info">
@@ -1832,7 +1932,20 @@ function OrdersListPage({orders,setOrders,products}){
         <button className="btn btn-primary" style={{padding:"8px 20px",fontSize:13}} onClick={saveEdit}>Зберегти</button>
       </div>
     </Modal>}
-    {createTTNOrder&&<CreateTTNModal order={createTTNOrder} onClose={()=>setCreateTTNOrder(null)} onCreated={ttn=>{setOrders(orders.map(o=>o.id===createTTNOrder.id?{...o,ttn,status:"ttn"}:o));setCreateTTNOrder(null);}}/>}
+    {createTTNOrder&&<CreateTTNModal order={createTTNOrder} onClose={()=>setCreateTTNOrder(null)} onCreated={ttn=>{setOrders(orders.map(o=>o.id===createTTNOrder.id?{...o,ttn,status:"ttn"}:o));saveOrderField(createTTNOrder.id,{ttn,status:"ttn"});setCreateTTNOrder(null);}}/>}
+    {bulkResults&&<Modal title="Масове створення ТТН" onClose={()=>{if(!bulkRunning)setBulkResults(null);}} wide>
+      <div style={{marginBottom:10,fontSize:13,fontWeight:600}}>{"Прогрес: "}<span style={{color:"var(--np-red)"}}>{bulkResults.done.length}</span>{" / "+bulkResults.total}{bulkRunning?" ⟳":""}</div>
+      <div style={{maxHeight:400,overflowY:"auto",border:"1px solid var(--border)",borderRadius:8}}>
+        {bulkResults.done.map((r,i)=><div key={i} style={{padding:"8px 12px",borderBottom:"1px solid var(--border)",display:"flex",alignItems:"center",justifyContent:"space-between",gap:10,fontSize:12,background:r.ok?"var(--green-light)":"#fee2e2"}}>
+          <span style={{fontWeight:600}}>{r.client}</span>
+          {r.ok?<span style={{color:"var(--green)",fontWeight:700,fontFamily:"monospace"}}>{"✓ "+r.ttn}</span>:<span style={{color:"var(--red)",fontSize:11}}>{"✗ "+r.err}</span>}
+        </div>)}
+      </div>
+      <div style={{marginTop:12,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+        <div style={{fontSize:11,color:"var(--text2)"}}>{bulkRunning?"Обробка триває — не закривайте вікно":"Готово. Замовлення з успішними ТТН переведено в статус \"ТТН\"."}</div>
+        {!bulkRunning&&<button className="btn btn-primary" onClick={()=>setBulkResults(null)}>{"Закрити"}</button>}
+      </div>
+    </Modal>}
   </div>);
 }
 
