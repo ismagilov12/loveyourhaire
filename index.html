@@ -1477,6 +1477,8 @@ function NewOrderPage({orders,setOrders,products,setProducts,clients,setClients}
 function OrdersListPage({orders,setOrders,products}){
   const[filter,setFilter]=useState("all");
   const[search,setSearch]=useState("");
+  const[productFilter,setProductFilter]=useState("all");// "all" or product id
+  const[sortDir,setSortDir]=useState("desc");// "desc" (newest first) or "asc" (oldest first)
   const[ttnM,setTtnM]=useState(null);
   const[ttnV,setTtnV]=useState("");
   const[editO,setEditO]=useState(null);// editing order copy
@@ -1515,11 +1517,14 @@ function OrdersListPage({orders,setOrders,products}){
     });
   },[orders,search]);
   const dupeMap=useMemo(()=>findDuplicates(orders),[orders]);
-  const filtered=filter==="dupes"?searched.filter(o=>dupeMap.has(o.id)):(filter==="all"?searched:(filter==="ttn"?searched.filter(o=>o.deliveryType==="np"&&!hasTtn(o)&&o.status!=="shipped"&&o.status!=="delivered"&&o.status!=="paid"&&o.status!=="studio"):(filter==="toSend"?searched.filter(o=>hasTtn(o)&&o.status!=="shipped"&&o.status!=="delivered"):(filter==="new"?searched.filter(o=>o.status==="new"&&!hasTtn(o)):searched.filter(o=>o.status===filter)))));
-  // Sort: when showing dupes — group by duplicate key then by date desc; otherwise by date desc
+  // Apply product filter to searched results
+  const byProduct=productFilter==="all"?searched:searched.filter(o=>(o.items||[]).some(it=>String(it.productId)===String(productFilter)||it.name===productFilter));
+  const filtered=filter==="dupes"?byProduct.filter(o=>dupeMap.has(o.id)):(filter==="all"?byProduct:(filter==="ttn"?byProduct.filter(o=>o.deliveryType==="np"&&!hasTtn(o)&&o.status!=="shipped"&&o.status!=="delivered"&&o.status!=="paid"&&o.status!=="studio"):(filter==="toSend"?byProduct.filter(o=>hasTtn(o)&&o.status!=="shipped"&&o.status!=="delivered"):(filter==="new"?byProduct.filter(o=>o.status==="new"&&!hasTtn(o)):byProduct.filter(o=>o.status===filter)))));
+  // Sort: when showing dupes — group by duplicate key then by date desc; otherwise use sortDir
+  const dateSort=(a,b)=>{const d=new Date(b.date)-new Date(a.date);return sortDir==="asc"?-d:d;};
   const sorted=filter==="dupes"
-    ?[...filtered].sort((a,b)=>{const ka=dupeMap.get(a.id)?.key||"";const kb=dupeMap.get(b.id)?.key||"";if(ka!==kb)return ka.localeCompare(kb);return new Date(b.date)-new Date(a.date);})
-    :[...filtered].reverse();
+    ?[...filtered].sort((a,b)=>{const ka=dupeMap.get(a.id)?.key||"";const kb=dupeMap.get(b.id)?.key||"";if(ka!==kb)return ka.localeCompare(kb);return dateSort(a,b);})
+    :[...filtered].sort(dateSort);
   const np=searched.filter(o=>o.deliveryType==="np");
   const dupeCount=searched.filter(o=>dupeMap.has(o.id)).length;
   const hasTtn=o=>o.ttn&&String(o.ttn).trim().length>0;
@@ -1756,6 +1761,19 @@ function OrdersListPage({orders,setOrders,products}){
       <button className={`filter-pill${filter==="paid"?' active':''}`} onClick={()=>setFilter("paid")} style={{color:filter==="paid"?"var(--green)":""}}>Оплач. ({counts.paid})</button>
       <button className={`filter-pill${filter==="studio"?' active':''}`} onClick={()=>setFilter("studio")}>Студія ({counts.studio})</button>
       {dupeCount>0&&<button className={`filter-pill${filter==="dupes"?' active':''}`} onClick={()=>setFilter("dupes")} style={{color:filter==="dupes"?"#fff":"var(--red)",background:filter==="dupes"?"var(--red)":"",borderColor:"var(--red)",fontWeight:700}} title="Замовлення від одного клієнта в межах 7 днів">⚠ Дублі ({dupeCount})</button>}
+    </div>
+    <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12,flexWrap:"wrap"}}>
+      <div style={{display:"flex",alignItems:"center",gap:6}}>
+        <span style={{fontSize:11,color:"var(--text2)",fontWeight:600}}>{"Товар:"}</span>
+        <select value={productFilter} onChange={e=>setProductFilter(e.target.value)} style={{padding:"6px 10px",borderRadius:8,border:"1px solid var(--border)",fontSize:12,background:"#fff",cursor:"pointer",maxWidth:240}}>
+          <option value="all">{"Всі товари"}</option>
+          {products.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}
+        </select>
+        {productFilter!=="all"&&<button onClick={()=>setProductFilter("all")} style={{background:"none",border:"none",fontSize:14,cursor:"pointer",opacity:.6,padding:"2px 4px"}} title="Скинути фільтр товару">{"×"}</button>}
+      </div>
+      <button onClick={()=>setSortDir(d=>d==="desc"?"asc":"desc")} style={{padding:"6px 10px",borderRadius:8,border:"1px solid var(--border)",fontSize:12,background:"#fff",cursor:"pointer",fontWeight:600,display:"flex",alignItems:"center",gap:4}} title={sortDir==="desc"?"Новіші спочатку":"Старіші спочатку"}>
+        <span>{"Дата"}</span><span style={{fontSize:10}}>{sortDir==="desc"?"↓":"↑"}</span>
+      </button>
     </div>
     {selectedIds.size>0&&<div style={{background:"var(--np-light)",border:"1px solid var(--np-red)",borderRadius:10,padding:"10px 14px",marginBottom:12,display:"flex",alignItems:"center",justifyContent:"space-between",gap:10,flexWrap:"wrap"}}>
       <div style={{fontSize:13,fontWeight:600}}>{"Виділено: "}<span style={{color:"var(--np-red)"}}>{selectedIds.size}</span>{" (придатні до ТТН: "}{eligibleSelectedCount()}{")"}</div>
