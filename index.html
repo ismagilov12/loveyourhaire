@@ -1515,15 +1515,19 @@ function OrdersListPage({orders,setOrders,products}){
     });
   },[orders,search]);
   const dupeMap=useMemo(()=>findDuplicates(orders),[orders]);
-  const filtered=filter==="dupes"?searched.filter(o=>dupeMap.has(o.id)):(filter==="all"?searched:(filter==="ttn"?searched.filter(o=>o.deliveryType==="np"&&!o.ttn&&o.status!=="shipped"&&o.status!=="delivered"&&o.status!=="paid"&&o.status!=="studio"):searched.filter(o=>o.status===filter)));
+  const filtered=filter==="dupes"?searched.filter(o=>dupeMap.has(o.id)):(filter==="all"?searched:(filter==="ttn"?searched.filter(o=>o.deliveryType==="np"&&!hasTtn(o)&&o.status!=="shipped"&&o.status!=="delivered"&&o.status!=="paid"&&o.status!=="studio"):(filter==="toSend"?searched.filter(o=>hasTtn(o)&&o.status!=="shipped"&&o.status!=="delivered"):(filter==="new"?searched.filter(o=>o.status==="new"&&!hasTtn(o)):searched.filter(o=>o.status===filter)))));
   // Sort: when showing dupes — group by duplicate key then by date desc; otherwise by date desc
   const sorted=filter==="dupes"
     ?[...filtered].sort((a,b)=>{const ka=dupeMap.get(a.id)?.key||"";const kb=dupeMap.get(b.id)?.key||"";if(ka!==kb)return ka.localeCompare(kb);return new Date(b.date)-new Date(a.date);})
     :[...filtered].reverse();
   const np=searched.filter(o=>o.deliveryType==="np");
   const dupeCount=searched.filter(o=>dupeMap.has(o.id)).length;
-  const awaitingTtn=np.filter(o=>!o.ttn&&o.status!=="shipped"&&o.status!=="delivered"&&o.status!=="paid");
-  const counts={all:searched.length,new:np.filter(o=>o.status==="new").length,ttn:awaitingTtn.length,toSend:np.filter(o=>o.status==="toSend").length,shipped:np.filter(o=>o.status==="shipped").length,delivered:np.filter(o=>o.status==="delivered").length,studio:searched.filter(o=>o.status==="studio").length,paid:searched.filter(o=>o.status==="paid").length,dupes:dupeCount};
+  const hasTtn=o=>o.ttn&&String(o.ttn).trim().length>0;
+  // TTN funnel: NP orders without TTN and not in final states
+  const awaitingTtn=np.filter(o=>!hasTtn(o)&&o.status!=="shipped"&&o.status!=="delivered"&&o.status!=="paid"&&o.status!=="studio");
+  // На відправку funnel: orders with TTN, not yet shipped/delivered
+  const readyToShip=searched.filter(o=>hasTtn(o)&&o.status!=="shipped"&&o.status!=="delivered");
+  const counts={all:searched.length,new:np.filter(o=>o.status==="new"&&!hasTtn(o)).length,ttn:awaitingTtn.length,toSend:readyToShip.length,shipped:np.filter(o=>o.status==="shipped").length,delivered:np.filter(o=>o.status==="delivered").length,studio:searched.filter(o=>o.status==="studio").length,paid:searched.filter(o=>o.status==="paid").length,dupes:dupeCount};
   const openTtn=o=>{setTtnM(o);setTtnV(o.ttn||"");};
   const saveTtn=()=>{if(!ttnM)return;const t=ttnV.trim();setOrders(orders.map(o=>o.id===ttnM.id?{...o,ttn:t,status:t?"toSend":"new"}:o));saveOrderField(ttnM.id,{ttn:t,status:t?"toSend":"new"});setTtnM(null);};
   const openPrepay=o=>{setPrepayO(o);setPrepayV(String(o.prepayment||""));};
@@ -2588,30 +2592,6 @@ function App(){
   useEffect(()=>{
     if(user)doLoad();
   },[user]);
-
-  // ─── Self-heal: orders with TTN filled → status="toSend" (На відправку) unless already shipped/delivered/paid ───
-  const selfHealDone=useRef(false);
-  useEffect(()=>{
-    if(!synced||!orders.length||selfHealDone.current)return;
-    try{
-      const FINAL=new Set(["toSend","shipped","delivered","paid"]);
-      const broken=orders.filter(o=>o.ttn&&String(o.ttn).trim()&&!FINAL.has(o.status));
-      if(broken.length===0){selfHealDone.current=true;return;}
-      const ids=new Set(broken.map(o=>o.id));
-      setOrders(prev=>prev.map(o=>ids.has(o.id)?{...o,status:"toSend"}:o));
-      // Persist to DB only if supabase client is fully ready
-      if(supabase&&typeof supabase.from==="function"){
-        broken.forEach(o=>{
-          try{
-            const q=supabase.from("orders").update({status:"toSend"}).eq("id",o.id);
-            if(q&&typeof q.then==="function"){q.then(r=>{if(r&&r.error)console.error("self-heal DB err",r.error);}).catch(e=>console.error("self-heal DB throw",e));}
-          }catch(e){console.error("self-heal DB inner throw",e);}
-        });
-      }else{console.warn("self-heal: supabase client not ready, local-only migration");}
-      console.log("self-heal: moved "+broken.length+" orders with TTN to \"На відправку\"");
-      selfHealDone.current=true;
-    }catch(e){console.error("self-heal outer error",e);}
-  },[synced,orders]);
 
   // ─── React to supabase-ready event from background loader ───
   useEffect(()=>{
