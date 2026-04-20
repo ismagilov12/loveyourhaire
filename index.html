@@ -284,7 +284,7 @@ const INIT_PRODUCTS=[
 const CATEGORIES=["Все","Oversize футболки","Косметика для волосся"];
 const MONTHS=["Січень","Лютий","Березень","Квітень","Травень","Червень","Липень","Серпень","Вересень","Жовтень","Листопад","Грудень"];
 const DAYS=["Пн","Вт","Ср","Чт","Пт","Сб","Нд"];
-const STATUSES={new:"Новий",ttn:"ТТН",shipped:"Відправлено",delivered:"Доставлено",studio:"Студія",paid:"Оплачено"};
+const STATUSES={new:"Новий",ttn:"На відправку",shipped:"Відправлено",delivered:"Доставлено",studio:"Студія",paid:"Оплачено"};
 const STCLS={new:"status-new",ttn:"status-ttn",shipped:"status-shipped",delivered:"status-delivered",studio:"status-studio"};
 const EXPENSE_CATS=["Оренда студії","Податки","Закупівля товару","Зарплата","Реклама","Інше"];
 
@@ -922,7 +922,7 @@ function DashboardPage({orders,products,expenses,dateRange,setDateRange}){
       {/* Status funnel */}
       <div style={{background:"#fff",borderRadius:16,border:"1px solid var(--border)",padding:16}}>
         <div style={{fontSize:12,fontWeight:700,color:"var(--text2)",marginBottom:12,textTransform:"uppercase"}}>{"\С\т\а\т\у\с\и"}</div>
-        {[["new","#ff6b9d","\Н\о\в\і"],["ttn","#e17055","\Т\Т\Н"],["shipped","#6c5ce7","\В\і\д\п\р\а\в\л\е\н\о"],["delivered","#38b000","\Д\о\с\т\а\в\л\е\н\о"],["studio","#d4a054","\С\т\у\д\і\я"]].map(([k,color,label])=>(
+        {[["new","#ff6b9d","\Н\о\в\і"],["ttn","#e17055","На відправку"],["shipped","#6c5ce7","\В\і\д\п\р\а\в\л\е\н\о"],["delivered","#38b000","\Д\о\с\т\а\в\л\е\н\о"],["studio","#d4a054","\С\т\у\д\і\я"]].map(([k,color,label])=>(
           <div key={k} style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
             <div style={{width:10,height:10,borderRadius:"50%",background:color,flexShrink:0}}/>
             <span style={{fontSize:12,flex:1}}>{label}</span>
@@ -1744,7 +1744,7 @@ function OrdersListPage({orders,setOrders,products}){
     <div className="filter-pills" style={{marginBottom:16}}>
       <button className={`filter-pill${filter==="all"?' active':''}`} onClick={()=>setFilter("all")}>Всі ({counts.all})</button>
       <button className={`filter-pill${filter==="new"?' active':''}`} onClick={()=>setFilter("new")}>Нові ({counts.new})</button>
-      <button className={`filter-pill${filter==="ttn"?' active':''}`} onClick={()=>setFilter("ttn")}>ТТН ({counts.ttn})</button>
+      <button className={`filter-pill${filter==="ttn"?' active':''}`} onClick={()=>setFilter("ttn")}>На відправку ({counts.ttn})</button>
       <button className={`filter-pill${filter==="shipped"?' active':''}`} onClick={()=>setFilter("shipped")}>Відправ. ({counts.shipped})</button>
       <button className={`filter-pill${filter==="delivered"?' active':''}`} onClick={()=>setFilter("delivered")}>Достав. ({counts.delivered})</button>
       <button className={`filter-pill${filter==="paid"?' active':''}`} onClick={()=>setFilter("paid")} style={{color:filter==="paid"?"var(--green)":""}}>Оплач. ({counts.paid})</button>
@@ -2586,6 +2586,18 @@ function App(){
   useEffect(()=>{
     if(user)doLoad();
   },[user]);
+
+  // ─── Self-heal: any order with TTN but wrong status → move to "ttn" (На відправку) ───
+  useEffect(()=>{
+    if(!synced||!orders.length)return;
+    const OK=new Set(["ttn","shipped","delivered","paid"]);
+    const broken=orders.filter(o=>o.ttn&&String(o.ttn).trim()&&!OK.has(o.status));
+    if(broken.length===0)return;
+    const ids=new Set(broken.map(o=>o.id));
+    setOrders(prev=>prev.map(o=>ids.has(o.id)?{...o,status:"ttn"}:o));
+    if(supabase){broken.forEach(o=>{supabase.from("orders").update({status:"ttn"}).eq("id",o.id).then(({error})=>{if(error)console.error("self-heal DB err",error);});});}
+    console.log("self-heal: moved "+broken.length+" orders with TTN to 'На відправку'");
+  },[synced]);
 
   // ─── React to supabase-ready event from background loader ───
   useEffect(()=>{
