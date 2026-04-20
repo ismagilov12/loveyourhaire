@@ -1545,7 +1545,17 @@ function OrdersListPage({orders,setOrders,products}){
     setPrepayO(null);
   };
   // Direct save to Supabase for single-field updates
-  const saveOrderField=(id,fields)=>{if(supabase){supabase.from("orders").update(fields).eq("id",id).then(({error})=>{if(error)console.error("DB save err",error);});}};
+  const saveOrderField=(id,fields)=>{
+    // Immediately patch LS so the next page load has the latest values even if DB update fails
+    try{const arr=LS.get("orders",[]);const idx=arr.findIndex(o=>o.id===id);if(idx>=0){arr[idx]={...arr[idx],...fields};LS.set("orders",arr);}}catch(e){console.error("LS patch err",e);}
+    // Try DB update; if client not ready, mark pending so the next sync flushes it
+    if(supabase&&typeof supabase.from==="function"){
+      try{
+        const q=supabase.from("orders").update(fields).eq("id",id);
+        if(q&&typeof q.then==="function"){q.then(r=>{if(r&&r.error){console.error("DB save err",r.error);PendingSync.mark("orders");}}).catch(e=>{console.error("DB save throw",e);PendingSync.mark("orders");});}
+      }catch(e){console.error("DB save inner throw",e);PendingSync.mark("orders");}
+    }else{console.warn("saveOrderField: supabase not ready, pending");PendingSync.mark("orders");}
+  };
   // Bulk TTN creation — processes selected orders sequentially, resolves city/warehouse, creates TTN, saves ttn+status
   const bulkCreateTTN=async()=>{
     const savedSW=LS.get("np_sender_wh")||{};
@@ -2569,18 +2579,38 @@ function App(){
       }
       if(oData){
         const mapped=oData.map(mapOrderFromDB);
-        // Merge: keep local orders whose id isn't in DB (in case flush just failed)
+        // Merge:
+        //  - Local-only orders (id not in DB) → keep + retry push
+        //  - Orders in both: prefer local if local has TTN/toSend-status that DB lacks (save didn't persist)
         const cached=LS.get("orders",[]);
-        const dbIds=new Set(mapped.map(o=>o.id));
-        const localOnly=cached.filter(o=>!dbIds.has(o.id));
-        if(localOnly.length>0){
-          console.warn("Found "+localOnly.length+" local-only orders, merging and retrying sync");
-          const merged=[...mapped,...localOnly];
-          setOrders(merged);LS.set("orders",merged);
-          // Retry pushing local-only to DB
-          supabase.from("orders").upsert(localOnly.map(mapOrderToDB),{onConflict:"id"}).then(r=>{if(r.error)PendingSync.mark("orders");});
-        }else{
-          setOrders(mapped);LS.set("orders",mapped);
+        const dbById=new Map(mapped.map(o=>[o.id,o]));
+        const localOnly=cached.filter(o=>!dbById.has(o.id));
+        const conflicts=[];// orders where local wins over DB
+        const mergedWithConflictResolution=mapped.map(dbO=>{
+          const locO=cached.find(o=>o.id===dbO.id);
+          if(!locO)return dbO;
+          // If local has TTN but DB doesn't, OR local status is later than DB status → keep local
+          const localHasTtn=locO.ttn&&String(locO.ttn).trim().length>0;
+          const dbHasTtn=dbO.ttn&&String(dbO.ttn).trim().length>0;
+          const stagePref={new:0,studio:0,ttn:1,toSend:2,shipped:3,delivered:4,paid:5};
+          const locRank=stagePref[locO.status]||0;
+          const dbRank=stagePref[dbO.status]||0;
+          if((localHasTtn&&!dbHasTtn)||(locRank>dbRank)){
+            conflicts.push(locO);
+            return locO;
+          }
+          return dbO;
+        });
+        if(conflicts.length>0){
+          console.warn("Resolving "+conflicts.length+" local-over-DB conflicts (unpersisted TTN/status) — pushing to DB");
+        }
+        const finalList=localOnly.length>0?[...mergedWithConflictResolution,...localOnly]:mergedWithConflictResolution;
+        setOrders(finalList);LS.set("orders",finalList);
+        // Retry pushing any orders where local was preferred, plus local-only
+        const toFlush=[...conflicts,...localOnly];
+        if(toFlush.length>0&&supabase&&typeof supabase.from==="function"){
+          try{supabase.from("orders").upsert(toFlush.map(mapOrderToDB),{onConflict:"id"}).then(r=>{if(r&&r.error){console.error("DB reconcile err",r.error);PendingSync.mark("orders");}else{console.log("DB reconcile: flushed "+toFlush.length+" orders");}}).catch(e=>{console.error("DB reconcile throw",e);PendingSync.mark("orders");});}
+          catch(e){console.error("DB reconcile inner throw",e);PendingSync.mark("orders");}
         }
       }else{
         // oData is null — Supabase error; keep localStorage
