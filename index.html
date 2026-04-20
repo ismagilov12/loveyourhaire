@@ -284,8 +284,8 @@ const INIT_PRODUCTS=[
 const CATEGORIES=["Все","Oversize футболки","Косметика для волосся"];
 const MONTHS=["Січень","Лютий","Березень","Квітень","Травень","Червень","Липень","Серпень","Вересень","Жовтень","Листопад","Грудень"];
 const DAYS=["Пн","Вт","Ср","Чт","Пт","Сб","Нд"];
-const STATUSES={new:"Новий",ttn:"На відправку",shipped:"Відправлено",delivered:"Доставлено",studio:"Студія",paid:"Оплачено"};
-const STCLS={new:"status-new",ttn:"status-ttn",shipped:"status-shipped",delivered:"status-delivered",studio:"status-studio"};
+const STATUSES={new:"Новий",ttn:"ТТН",toSend:"На відправку",shipped:"Відправлено",delivered:"Доставлено",studio:"Студія",paid:"Оплачено"};
+const STCLS={new:"status-new",ttn:"status-ttn",toSend:"status-shipped",shipped:"status-shipped",delivered:"status-delivered",studio:"status-studio"};
 const EXPENSE_CATS=["Оренда студії","Податки","Закупівля товару","Зарплата","Реклама","Інше"];
 
 const fmt=n=>n.toLocaleString("uk-UA")+" ₴";
@@ -802,7 +802,7 @@ function DashboardPage({orders,products,expenses,dateRange,setDateRange}){
 
   // Status breakdown
   const statusCounts=useMemo(()=>{
-    const m={new:0,ttn:0,shipped:0,delivered:0,studio:0};
+    const m={new:0,ttn:0,toSend:0,shipped:0,delivered:0,studio:0};
     fOrders.forEach(o=>{if(m[o.status]!==undefined)m[o.status]++;});
     return m;
   },[fOrders]);
@@ -922,7 +922,7 @@ function DashboardPage({orders,products,expenses,dateRange,setDateRange}){
       {/* Status funnel */}
       <div style={{background:"#fff",borderRadius:16,border:"1px solid var(--border)",padding:16}}>
         <div style={{fontSize:12,fontWeight:700,color:"var(--text2)",marginBottom:12,textTransform:"uppercase"}}>{"\С\т\а\т\у\с\и"}</div>
-        {[["new","#ff6b9d","\Н\о\в\і"],["ttn","#e17055","На відправку"],["shipped","#6c5ce7","\В\і\д\п\р\а\в\л\е\н\о"],["delivered","#38b000","\Д\о\с\т\а\в\л\е\н\о"],["studio","#d4a054","\С\т\у\д\і\я"]].map(([k,color,label])=>(
+        {[["new","#ff6b9d","Новi"],["ttn","#e17055","ТТН"],["toSend","#b45309","На вiдправку"],["shipped","#6c5ce7","Вiдправлено"],["delivered","#38b000","Доставлено"],["studio","#d4a054","Студiя"]].map(([k,color,label])=>(
           <div key={k} style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
             <div style={{width:10,height:10,borderRadius:"50%",background:color,flexShrink:0}}/>
             <span style={{fontSize:12,flex:1}}>{label}</span>
@@ -1515,16 +1515,17 @@ function OrdersListPage({orders,setOrders,products}){
     });
   },[orders,search]);
   const dupeMap=useMemo(()=>findDuplicates(orders),[orders]);
-  const filtered=filter==="dupes"?searched.filter(o=>dupeMap.has(o.id)):(filter==="all"?searched:searched.filter(o=>o.status===filter));
+  const filtered=filter==="dupes"?searched.filter(o=>dupeMap.has(o.id)):(filter==="all"?searched:(filter==="ttn"?searched.filter(o=>o.deliveryType==="np"&&!o.ttn&&o.status!=="shipped"&&o.status!=="delivered"&&o.status!=="paid"&&o.status!=="studio"):searched.filter(o=>o.status===filter)));
   // Sort: when showing dupes — group by duplicate key then by date desc; otherwise by date desc
   const sorted=filter==="dupes"
     ?[...filtered].sort((a,b)=>{const ka=dupeMap.get(a.id)?.key||"";const kb=dupeMap.get(b.id)?.key||"";if(ka!==kb)return ka.localeCompare(kb);return new Date(b.date)-new Date(a.date);})
     :[...filtered].reverse();
   const np=searched.filter(o=>o.deliveryType==="np");
   const dupeCount=searched.filter(o=>dupeMap.has(o.id)).length;
-  const counts={all:searched.length,new:np.filter(o=>o.status==="new").length,ttn:np.filter(o=>o.status==="ttn").length,shipped:np.filter(o=>o.status==="shipped").length,delivered:np.filter(o=>o.status==="delivered").length,studio:searched.filter(o=>o.status==="studio").length,paid:searched.filter(o=>o.status==="paid").length,dupes:dupeCount};
+  const awaitingTtn=np.filter(o=>!o.ttn&&o.status!=="shipped"&&o.status!=="delivered"&&o.status!=="paid");
+  const counts={all:searched.length,new:np.filter(o=>o.status==="new").length,ttn:awaitingTtn.length,toSend:np.filter(o=>o.status==="toSend").length,shipped:np.filter(o=>o.status==="shipped").length,delivered:np.filter(o=>o.status==="delivered").length,studio:searched.filter(o=>o.status==="studio").length,paid:searched.filter(o=>o.status==="paid").length,dupes:dupeCount};
   const openTtn=o=>{setTtnM(o);setTtnV(o.ttn||"");};
-  const saveTtn=()=>{if(!ttnM)return;const t=ttnV.trim();setOrders(orders.map(o=>o.id===ttnM.id?{...o,ttn:t,status:t?"ttn":"new"}:o));saveOrderField(ttnM.id,{ttn:t,status:t?"ttn":"new"});setTtnM(null);};
+  const saveTtn=()=>{if(!ttnM)return;const t=ttnV.trim();setOrders(orders.map(o=>o.id===ttnM.id?{...o,ttn:t,status:t?"toSend":"new"}:o));saveOrderField(ttnM.id,{ttn:t,status:t?"toSend":"new"});setTtnM(null);};
   const openPrepay=o=>{setPrepayO(o);setPrepayV(String(o.prepayment||""));};
   const savePrepay=()=>{
     if(!prepayO)return;
@@ -1608,9 +1609,9 @@ function OrdersListPage({orders,setOrders,products}){
         const r=await NP.createTTN(params);
         if(!r.ok)throw new Error((r.errors||[]).join(", ")||"Помилка створення ТТН");
         item.ok=true;item.ttn=r.ttn;
-        updated=updated.map(x=>x.id===o.id?{...x,ttn:r.ttn,status:"ttn"}:x);
+        updated=updated.map(x=>x.id===o.id?{...x,ttn:r.ttn,status:"toSend"}:x);
         // Persist
-        saveOrderField(o.id,{ttn:r.ttn,status:"ttn"});
+        saveOrderField(o.id,{ttn:r.ttn,status:"toSend"});
       }catch(e){item.err=e.message||String(e);}
       results.push(item);
       setBulkResults({total:list.length,done:[...results]});
@@ -1728,7 +1729,7 @@ function OrdersListPage({orders,setOrders,products}){
       setTtnCreating(false);
       if(r.ok){
         setTtnResult(r);
-        const upd={...editO,ttn:r.ttn,status:"ttn"};
+        const upd={...editO,ttn:r.ttn,status:"toSend"};
         setEditO(upd);
         setOrders(orders.map(o=>o.id===editO.id?{...upd,items:editItems,total,totalCost:editItems.reduce((s,i)=>s+i.cost*i.qty,0)}:o));
       }else{setTtnErr((r.errors||[]).join(", ")||"Помилка створення");}
@@ -1744,7 +1745,8 @@ function OrdersListPage({orders,setOrders,products}){
     <div className="filter-pills" style={{marginBottom:16}}>
       <button className={`filter-pill${filter==="all"?' active':''}`} onClick={()=>setFilter("all")}>Всі ({counts.all})</button>
       <button className={`filter-pill${filter==="new"?' active':''}`} onClick={()=>setFilter("new")}>Нові ({counts.new})</button>
-      <button className={`filter-pill${filter==="ttn"?' active':''}`} onClick={()=>setFilter("ttn")}>На відправку ({counts.ttn})</button>
+      <button className={`filter-pill${filter==="ttn"?' active':''}`} onClick={()=>setFilter("ttn")}>ТТН ({counts.ttn})</button>
+      <button className={`filter-pill${filter==="toSend"?' active':''}`} onClick={()=>setFilter("toSend")}>На відправку ({counts.toSend})</button>
       <button className={`filter-pill${filter==="shipped"?' active':''}`} onClick={()=>setFilter("shipped")}>Відправ. ({counts.shipped})</button>
       <button className={`filter-pill${filter==="delivered"?' active':''}`} onClick={()=>setFilter("delivered")}>Достав. ({counts.delivered})</button>
       <button className={`filter-pill${filter==="paid"?' active':''}`} onClick={()=>setFilter("paid")} style={{color:filter==="paid"?"var(--green)":""}}>Оплач. ({counts.paid})</button>
@@ -1806,7 +1808,7 @@ function OrdersListPage({orders,setOrders,products}){
             <div className="mob-oc-actions" onClick={e=>e.stopPropagation()}>
               <button className="btn btn-gold" style={{padding:"5px 10px",fontSize:11}} onClick={()=>openPrepay(o)}>₴ Передопл</button>
               {o.deliveryType==="np"&&!o.ttn&&<button className="btn btn-np" style={{padding:"6px 12px",fontSize:11,fontWeight:700}} onClick={()=>setCreateTTNOrder(o)}>ТТН</button>}
-              {o.deliveryType==="np"&&o.ttn&&!o.ttn.startsWith("2")&&o.status==="ttn"&&<button className="btn btn-secondary" style={{padding:"5px 10px",fontSize:11}} onClick={()=>updSt(o.id,"shipped")}>Відпр</button>}
+              {o.deliveryType==="np"&&o.ttn&&o.status==="toSend"&&<button className="btn btn-secondary" style={{padding:"5px 10px",fontSize:11}} onClick={()=>updSt(o.id,"shipped")}>Відпр</button>}
               {o.status==="shipped"&&<button className="btn btn-secondary" style={{padding:"5px 10px",fontSize:11}} onClick={()=>updSt(o.id,"delivered")}>Дост</button>}
             </div>
           </div>
@@ -1932,7 +1934,7 @@ function OrdersListPage({orders,setOrders,products}){
         <button className="btn btn-primary" style={{padding:"8px 20px",fontSize:13}} onClick={saveEdit}>Зберегти</button>
       </div>
     </Modal>}
-    {createTTNOrder&&<CreateTTNModal order={createTTNOrder} onClose={()=>setCreateTTNOrder(null)} onCreated={ttn=>{setOrders(orders.map(o=>o.id===createTTNOrder.id?{...o,ttn,status:"ttn"}:o));saveOrderField(createTTNOrder.id,{ttn,status:"ttn"});setCreateTTNOrder(null);}}/>}
+    {createTTNOrder&&<CreateTTNModal order={createTTNOrder} onClose={()=>setCreateTTNOrder(null)} onCreated={ttn=>{setOrders(orders.map(o=>o.id===createTTNOrder.id?{...o,ttn,status:"toSend"}:o));saveOrderField(createTTNOrder.id,{ttn,status:"toSend"});setCreateTTNOrder(null);}}/>}
     {bulkResults&&<Modal title="Масове створення ТТН" onClose={()=>{if(!bulkRunning)setBulkResults(null);}} wide>
       <div style={{marginBottom:10,fontSize:13,fontWeight:600}}>{"Прогрес: "}<span style={{color:"var(--np-red)"}}>{bulkResults.done.length}</span>{" / "+bulkResults.total}{bulkRunning?" ⟳":""}</div>
       <div style={{maxHeight:400,overflowY:"auto",border:"1px solid var(--border)",borderRadius:8}}>
@@ -2587,16 +2589,16 @@ function App(){
     if(user)doLoad();
   },[user]);
 
-  // ─── Self-heal: any order with TTN but wrong status → move to "ttn" (На відправку) ───
+  // ─── Self-heal: orders with TTN filled → status="toSend" (На відправку) unless already shipped/delivered/paid ───
   useEffect(()=>{
     if(!synced||!orders.length)return;
-    const OK=new Set(["ttn","shipped","delivered","paid"]);
-    const broken=orders.filter(o=>o.ttn&&String(o.ttn).trim()&&!OK.has(o.status));
+    const FINAL=new Set(["toSend","shipped","delivered","paid"]);
+    const broken=orders.filter(o=>o.ttn&&String(o.ttn).trim()&&!FINAL.has(o.status));
     if(broken.length===0)return;
     const ids=new Set(broken.map(o=>o.id));
-    setOrders(prev=>prev.map(o=>ids.has(o.id)?{...o,status:"ttn"}:o));
-    if(supabase){broken.forEach(o=>{supabase.from("orders").update({status:"ttn"}).eq("id",o.id).then(({error})=>{if(error)console.error("self-heal DB err",error);});});}
-    console.log("self-heal: moved "+broken.length+" orders with TTN to 'На відправку'");
+    setOrders(prev=>prev.map(o=>ids.has(o.id)?{...o,status:"toSend"}:o));
+    if(supabase){broken.forEach(o=>{supabase.from("orders").update({status:"toSend"}).eq("id",o.id).then(({error})=>{if(error)console.error("self-heal DB err",error);});});}
+    console.log("self-heal: moved "+broken.length+" orders with TTN to 'На відправку' (toSend)");
   },[synced]);
 
   // ─── React to supabase-ready event from background loader ───
