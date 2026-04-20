@@ -1098,7 +1098,9 @@ function CreateTTNModal({order,onClose,onCreated}){
   const[resolving,setResolving]=useState(!!(order.city));
   const[resolveErr,setResolveErr]=useState("");
   const[weight,setWeight]=useState("0.5");
-  const prodDesc=order.items.map(i=>i.name+(i.qty>1?" x"+i.qty:"")).join(", ")+(order.comment?" | "+order.comment:"");
+  const prodOnly=(order.items||[]).map(i=>i.name+(i.qty>1?" x"+i.qty:"")).join(", ");
+  const hasComment=!!(order.comment&&String(order.comment).trim());
+  const prodDesc=prodOnly+(hasComment?" | "+order.comment:"");
   const[description,setDescription]=useState(prodDesc);
   const[cost,setCost]=useState(String(order.total));
   const[payerDel,setPayerDel]=useState("Recipient");
@@ -1187,6 +1189,8 @@ function CreateTTNModal({order,onClose,onCreated}){
         Recipient:recip.ref,ContactRecipient:recip.contactRef,RecipientsPhone:order.phone,
       };
       if(payType==="control"&&Number(controlAmount)>0){params.AfterpaymentOnGoodsCost=controlAmount;}
+      // Description and CargoDescription — both carry the "what's inside" text
+      params.CargoDescription=description;
       if(order.comment){params.AdditionalInformation=order.comment;}
       // OptionsSeat — required by NP API for postomats and some warehouse types
       params.OptionsSeat=[{volumetricVolume:"1",volumetricWidth:"10",volumetricLength:"20",volumetricHeight:"10",weight:String(weight||"0.5")}];
@@ -1237,7 +1241,11 @@ function CreateTTNModal({order,onClose,onCreated}){
         <div className="form-group" style={{marginBottom:0}}><label style={{fontSize:10,fontWeight:700,color:"var(--blue)"}}>{"Контроль ₴"}</label><input className="form-input" value={controlAmount} onChange={e=>setControlAmount(e.target.value)} style={{fontSize:12,borderColor:"var(--blue)"}}/></div>
         <div className="form-group" style={{marginBottom:0}}><label style={{fontSize:10,fontWeight:700,color:"var(--text2)"}}>{"Платник дост."}</label><select className="form-input" value={payerDel} onChange={e=>setPayerDel(e.target.value)} style={{fontSize:12}}><option value="Recipient">{"Отримувач"}</option><option value="Sender">{"Відправник"}</option></select></div>
       </div>
-      <div className="form-group" style={{marginBottom:12}}><label style={{fontSize:10,fontWeight:700,color:"var(--text2)"}}>{"Опис вмісту (в ТТН)"}</label><input className="form-input" value={description} onChange={e=>setDescription(e.target.value)} style={{fontSize:12}}/></div>
+      <div className="form-group" style={{marginBottom:6}}><label style={{fontSize:10,fontWeight:700,color:"var(--text2)"}}>{"Опис вмісту (в ТТН)"}</label><input className="form-input" value={description} onChange={e=>setDescription(e.target.value)} style={{fontSize:12}}/></div>
+      <div style={{fontSize:11,color:"var(--text2)",marginBottom:12,display:"flex",flexDirection:"column",gap:2}}>
+        {prodOnly&&<div><span style={{fontWeight:700}}>{"Товари: "}</span>{prodOnly}</div>}
+        {hasComment&&<div><span style={{fontWeight:700,color:"var(--np-red)"}}>{"Коментар: "}</span>{order.comment}</div>}
+      </div>
       <div style={{background:"var(--surface)",borderRadius:8,padding:"8px 12px",marginBottom:12,fontSize:11,color:"var(--text2)"}}>
         {order.items.map((it,i)=><div key={i}>{it.name}{it.qty>1?" x"+it.qty:""}{" — "}{it.price}{" ₴"}</div>)}
         <div style={{fontWeight:700,color:"var(--text1)",marginTop:4}}>{"Разом: "}{fmt(order.total)}{prepayAmt>0?" (передопл "+fmt(prepayAmt)+")":""}{payType==="control"?" | Контроль: "+controlAmount+" ₴":" | Повна передоплата"}</div>
@@ -1605,6 +1613,7 @@ function OrdersListPage({orders,setOrders,products}){
       if(payType==="control"&&cod>0){params.AfterpaymentOnGoodsCost=String(cod);}
       if(editO.comment){params.AdditionalInformation=editO.comment;}
       params.OptionsSeat=[{volumetricVolume:"1",volumetricWidth:"10",volumetricLength:"20",volumetricHeight:"10",weight:String(ttnWeight||"0.5")}];
+      params.CargoDescription=ttnDesc;
       // 6. Create TTN
       const r=await NP.createTTN(params);
       setTtnCreating(false);
