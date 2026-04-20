@@ -1517,6 +1517,7 @@ function OrdersListPage({orders,setOrders,products}){
     });
   },[orders,search]);
   const dupeMap=useMemo(()=>findDuplicates(orders),[orders]);
+  const hasTtn=o=>o.ttn&&String(o.ttn).trim().length>0;
   // Apply product filter to searched results
   const byProduct=productFilter==="all"?searched:searched.filter(o=>(o.items||[]).some(it=>String(it.productId)===String(productFilter)||it.name===productFilter));
   const filtered=filter==="dupes"?byProduct.filter(o=>dupeMap.has(o.id)):(filter==="all"?byProduct:(filter==="ttn"?byProduct.filter(o=>o.deliveryType==="np"&&!hasTtn(o)&&o.status!=="shipped"&&o.status!=="delivered"&&o.status!=="paid"&&o.status!=="studio"):(filter==="toSend"?byProduct.filter(o=>hasTtn(o)&&o.status!=="shipped"&&o.status!=="delivered"):(filter==="new"?byProduct.filter(o=>o.status==="new"&&!hasTtn(o)):byProduct.filter(o=>o.status===filter)))));
@@ -1527,7 +1528,6 @@ function OrdersListPage({orders,setOrders,products}){
     :[...filtered].sort(dateSort);
   const np=searched.filter(o=>o.deliveryType==="np");
   const dupeCount=searched.filter(o=>dupeMap.has(o.id)).length;
-  const hasTtn=o=>o.ttn&&String(o.ttn).trim().length>0;
   // TTN funnel: NP orders without TTN and not in final states
   const awaitingTtn=np.filter(o=>!hasTtn(o)&&o.status!=="shipped"&&o.status!=="delivered"&&o.status!=="paid"&&o.status!=="studio");
   // На відправку funnel: orders with TTN, not yet shipped/delivered
