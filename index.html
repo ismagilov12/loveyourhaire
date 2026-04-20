@@ -1189,9 +1189,12 @@ function CreateTTNModal({order,onClose,onCreated}){
         Recipient:recip.ref,ContactRecipient:recip.contactRef,RecipientsPhone:order.phone,
       };
       if(payType==="control"&&Number(controlAmount)>0){params.AfterpaymentOnGoodsCost=controlAmount;}
-      // Description and CargoDescription — both carry the "what's inside" text
-      params.CargoDescription=description;
-      if(order.comment){params.AdditionalInformation=order.comment;}
+      // CargoDescription expects a Ref from NP dictionary, not free text.
+      // Resolve Ref for "Одяг" (clothing category) — required so content description prints on sticker.
+      try{const cdRef=await NP.getCargoDescriptionRef("одяг");if(cdRef)params.CargoDescription=cdRef;}catch(e){}
+      // Content description goes into AdditionalInformation — this shows prominently on NP sticker
+      const addInfo=(description||"")+(order.comment&&!description.includes(order.comment)?" | "+order.comment:"");
+      if(addInfo.trim())params.AdditionalInformation=addInfo.trim().slice(0,200);
       // OptionsSeat — required by NP API for postomats and some warehouse types
       params.OptionsSeat=[{volumetricVolume:"1",volumetricWidth:"10",volumetricLength:"20",volumetricHeight:"10",weight:String(weight||"0.5")}];
       const r=await NP.createTTN(params);setCreating(false);
@@ -1611,9 +1614,11 @@ function OrdersListPage({orders,setOrders,products}){
         Recipient:recip.ref,ContactRecipient:recip.contactRef,RecipientsPhone:editO.phone,
       };
       if(payType==="control"&&cod>0){params.AfterpaymentOnGoodsCost=String(cod);}
-      if(editO.comment){params.AdditionalInformation=editO.comment;}
+      // CargoDescription expects a Ref — fetch "Одяг" category ref
+      try{const cdRef=await NP.getCargoDescriptionRef("одяг");if(cdRef)params.CargoDescription=cdRef;}catch(e){}
+      const addInfo2=(ttnDesc||"")+(editO.comment&&!String(ttnDesc).includes(editO.comment)?" | "+editO.comment:"");
+      if(addInfo2.trim())params.AdditionalInformation=addInfo2.trim().slice(0,200);
       params.OptionsSeat=[{volumetricVolume:"1",volumetricWidth:"10",volumetricLength:"20",volumetricHeight:"10",weight:String(ttnWeight||"0.5")}];
-      params.CargoDescription=ttnDesc;
       // 6. Create TTN
       const r=await NP.createTTN(params);
       setTtnCreating(false);
@@ -2116,6 +2121,26 @@ const NP={
     const r=await NP.call("InternetDocument","save",params);
     if(!r.success)return{ok:false,errors:r.errors};
     return{ok:true,ttn:r.data[0]?.IntDocNumber,ref:r.data[0]?.Ref,cost:r.data[0]?.CostOnSite,estimated:r.data[0]?.EstimatedDeliveryDate};
+  },
+  // Cache for CargoDescription ref lookup (НП категорія вантажу, напр. "Одяг")
+  _cargoRefCache:null,
+  async getCargoDescriptionRef(prefer){
+    // Returns the Ref for a category matching `prefer` (case-insensitive substring of Description),
+    // or the first "Одяг"/"Apparel" category, or the first in the list.
+    if(!NP._cargoRefCache){
+      try{
+        const r=await NP.call("Common","getCargoDescription",{});
+        NP._cargoRefCache=(r.success&&Array.isArray(r.data))?r.data:[];
+      }catch(e){NP._cargoRefCache=[];}
+    }
+    const list=NP._cargoRefCache||[];
+    if(!list.length)return "";
+    const q=(prefer||"").toLowerCase();
+    const match=q?list.find(x=>((x.Description||"").toLowerCase().includes(q))||((x.DescriptionRu||"").toLowerCase().includes(q))):null;
+    if(match&&match.Ref)return match.Ref;
+    const clothes=list.find(x=>/од[ея]г|apparel|cloth/i.test((x.Description||"")+" "+(x.DescriptionRu||"")));
+    if(clothes&&clothes.Ref)return clothes.Ref;
+    return list[0]?.Ref||"";
   },
   async getSenderInfo(){
     const r=await NP.call("Counterparty","getCounterparties",{CounterpartyProperty:"Sender",Page:"1"});
