@@ -1125,8 +1125,15 @@ function CreateTTNModal({order,onClose,onCreated}){
         try{
           const cities=await NP.searchCity(order.city);
           if(!cities||cities.length===0){setResolveErr("Місто \""+order.city+"\" не знайдено в НП");setResolving(false);return;}
-          const want=(order.city||"").trim().toLowerCase();
-          const c=cities.find(x=>((x.city||"").toLowerCase()===want))||cities.find(x=>((x.name||"").toLowerCase().startsWith(want)))||cities[0];
+          const want=NP._normCity(order.city);
+          // Priority: exact normalized match on city.city, then on main word of x.name, prefer "м." (city) type over settlements
+          const byExact=cities.filter(x=>NP._normCity(x.city||"")===want||NP._normCity(x.name||"")===want);
+          const byStart=cities.filter(x=>NP._normCity(x.city||"").startsWith(want)||NP._normCity(x.name||"").startsWith(want));
+          const bySub=cities.filter(x=>NP._normCity(x.city||"").includes(want));
+          const pool=(byExact.length?byExact:(byStart.length?byStart:(bySub.length?bySub:cities)));
+          // Prefer "м." (city) settlement type code "М", then "с./смт", then anything
+          const cityTyped=pool.find(x=>/\bм\./i.test(x.name||"")||(x.settlementType==="М"));
+          const c=cityTyped||pool[0];
           setRCityRef(c.ref);
           setRDeliveryCityRef(c.deliveryCityRef||c.ref);
           setRCity(c.city||c.name);
@@ -1568,11 +1575,16 @@ function OrdersListPage({orders,setOrders,products}){
     if(!editO.client||!editO.phone){setTtnErr("Не вказано ПІБ або телефон");return;}
     setTtnCreating(true);setTtnErr("");
     try{
-      // 1. Resolve city — prefer exact name match
+      // 1. Resolve city — smart match (handles RU spellings, prefixes, multiple matches)
       const cities=await NP.searchCity(editO.city);
       if(!cities.length){setTtnCreating(false);setTtnErr("Місто не знайдено в НП");return;}
-      const wantCity=(editO.city||"").trim().toLowerCase();
-      const city=cities.find(x=>((x.city||"").toLowerCase()===wantCity))||cities.find(x=>((x.name||"").toLowerCase().startsWith(wantCity)))||cities[0];
+      const wantCity=NP._normCity(editO.city);
+      const byEx=cities.filter(x=>NP._normCity(x.city||"")===wantCity||NP._normCity(x.name||"")===wantCity);
+      const byS=cities.filter(x=>NP._normCity(x.city||"").startsWith(wantCity)||NP._normCity(x.name||"").startsWith(wantCity));
+      const bySb=cities.filter(x=>NP._normCity(x.city||"").includes(wantCity));
+      const poolC=(byEx.length?byEx:(byS.length?byS:(bySb.length?bySb:cities)));
+      const cityTypedIn=poolC.find(x=>/\bм\./i.test(x.name||"")||(x.settlementType==="М"));
+      const city=cityTypedIn||poolC[0];
       // 2. Resolve warehouse — extract number from strings like "поштомат 6850"
       const branchStr=String(editO.npBranch);
       const numMatch=branchStr.match(/\d+/);
@@ -2081,11 +2093,44 @@ const NP={
       return j;
     }catch(e){console.error("NP fetch error:",e);return{success:false,data:[],errors:[e.message]};}
   },
+  // Russian/Ukrainian typos -> canonical Ukrainian form used by NP
+  _ruToUa:{"киев":"київ","харьков":"харків","одесса":"одеса","львов":"львів","днепр":"дніпро","запорожье":"запоріжжя","николаев":"миколаїв","винница":"вінниця","черкассы":"черкаси","чернигов":"чернігів","тернополь":"тернопіль","ровно":"рівне","кременчуг":"кременчук","хмельницкий":"хмельницький","луцк":"луцьк","кировоград":"кропивницький","черновцы":"чернівці","ивано-франковск":"івано-франківськ","белая церковь":"біла церква","никополь":"нікополь","бердянск":"бердянськ","краматорск":"краматорськ","мариуполь":"маріуполь","мелитополь":"мелітополь","измаил":"ізмаїл","александрия":"олександрія","ахтырка":"охтирка","славянск":"словянськ","луганск":"луганськ","донецк":"донецьк","сумы":"суми","полтава":"полтава","херсон":"херсон","житомир":"житомир","бровары":"бровари","сімферополь":"сімферополь","симферополь":"сімферополь","севастополь":"севастополь","горловка":"горлівка","макеевка":"макіївка","павлоград":"павлоград","алчевск":"алчевськ","северодонецк":"сєвєродонецьк","каменец-подольский":"кам\"янець-подільський","конотоп":"конотоп","умань":"умань","шостка":"шостка","ужгород":"ужгород","борисполь":"бориспіль","ирпень":"ірпінь","буча":"буча","вышгород":"вишгород","каменское":"кам\"янське","мукачево":"мукачево","стрый":"стрий","коломыя":"коломия"},
+  // Normalize user-entered city string for matching and search
+  _normCity(s){
+    if(!s)return"";
+    let r=String(s).toLowerCase()
+      .replace(/[\u2019\u02bc\u0060\u00b4]/g,"'")
+      .replace(/ё/g,"е")
+      .replace(/^\s*(м\.|с\.|смт\.?|пгт\.?|місто|село|пос\.|п\.)\s*/i,"")
+      .replace(/,.*$/,"")
+      .replace(/\s+(область|обл\.|район|р-н)[^,]*/i,"")
+      .replace(/\s+україна$/i,"")
+      .trim();
+    if(NP._ruToUa[r])r=NP._ruToUa[r];
+    return r;
+  },
+  async _callSearch(q){
+    if(!q||q.length<2)return[];
+    const r=await NP.call("Address","searchSettlements",{CityName:q,Limit:"20"});
+    if(!r.success||!r.data||!r.data[0])return[];
+    return(r.data[0].Addresses||[]).map(a=>({ref:a.Ref,deliveryCityRef:a.DeliveryCity||a.Ref,name:a.Present,city:a.MainDescription,area:a.Area,region:a.Region,settlementType:a.SettlementTypeCode||""}));
+  },
   async searchCity(q){
     if(!q||q.length<2)return[];
-    const r=await NP.call("Address","searchSettlements",{CityName:q,Limit:"15"});
-    if(!r.success||!r.data||!r.data[0])return[];
-    return(r.data[0].Addresses||[]).map(a=>({ref:a.Ref,deliveryCityRef:a.DeliveryCity||a.Ref,name:a.Present,city:a.MainDescription,area:a.Area,region:a.Region}));
+    // Try multiple variants: original, normalized (prefix/region stripped + RU->UA), just first word
+    const tried=new Set();
+    const variants=[q, NP._normCity(q)];
+    const firstWord=(NP._normCity(q)||q).split(/\s+/)[0];
+    if(firstWord&&firstWord.length>=2)variants.push(firstWord);
+    let best=[];
+    for(const v of variants){
+      const key=v.toLowerCase().trim();
+      if(!key||tried.has(key))continue;
+      tried.add(key);
+      const res=await NP._callSearch(v);
+      if(res.length){best=res;break;}
+    }
+    return best;
   },
   async getWarehouses(cityRef,q=""){
     if(!cityRef)return[];
