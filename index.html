@@ -1095,6 +1095,8 @@ function CreateTTNModal({order,onClose,onCreated}){
   const[rCity,setRCity]=useState(order.city||"");
   const[whRef,setWhRef]=useState("");
   const[whNum,setWhNum]=useState(order.npBranch||"");
+  const[resolving,setResolving]=useState(!!(order.city));
+  const[resolveErr,setResolveErr]=useState("");
   const[weight,setWeight]=useState("0.5");
   const prodDesc=order.items.map(i=>i.name+(i.qty>1?" x"+i.qty:"")).join(", ")+(order.comment?" | "+order.comment:"");
   const[description,setDescription]=useState(prodDesc);
@@ -1117,20 +1119,45 @@ function CreateTTNModal({order,onClose,onCreated}){
     }).catch(e=>{clearTimeout(timeout);setLoadErr("Помилка: "+e.message);setLoading(false);});
     // Auto-resolve receiver city + warehouse from order data
     if(order.city){
-      NP.searchCity(order.city).then(cities=>{
-        if(cities.length>0){
-          const c=cities[0];
+      (async()=>{
+        try{
+          const cities=await NP.searchCity(order.city);
+          if(!cities||cities.length===0){setResolveErr("Місто \""+order.city+"\" не знайдено в НП");setResolving(false);return;}
+          const want=(order.city||"").trim().toLowerCase();
+          const c=cities.find(x=>((x.city||"").toLowerCase()===want))||cities.find(x=>((x.name||"").toLowerCase().startsWith(want)))||cities[0];
           setRCityRef(c.ref);
           setRDeliveryCityRef(c.deliveryCityRef||c.ref);
           setRCity(c.city||c.name);
           if(order.npBranch){
-            NP.getWarehouses(c.ref,order.npBranch).then(whs=>{
-              const exact=whs.find(w=>w.num===order.npBranch)||whs[0];
-              if(exact){setWhNum(exact.num||exact.desc);setWhRef(exact.ref);}
-            });
+            const branchStr=String(order.npBranch);
+            const numMatch=branchStr.match(/\d+/);
+            const branchNum=numMatch?numMatch[0]:branchStr;
+            const isPoshtomat=/поштомат|почтомат|postomat/i.test(branchStr);
+            let whs=await NP.getWarehouses(c.ref,branchNum);
+            if(!whs||whs.length===0){whs=await NP.getWarehouses(c.ref,branchStr);}
+            if(!whs||whs.length===0){whs=await NP.getWarehouses(c.ref);}
+            if(!whs||whs.length===0){setResolveErr("У місті \""+(c.city||c.name)+"\" не знайдено відділень");setResolving(false);return;}
+            const isPostDesc=d=>/поштомат|postomat/i.test(d||"");
+            let exact=null;
+            if(isPoshtomat){
+              exact=whs.find(w=>w.num===branchNum&&isPostDesc(w.desc))
+                 ||whs.find(w=>isPostDesc(w.desc)&&(w.desc||"").includes(branchNum))
+                 ||whs.find(w=>w.num===branchNum);
+            }else{
+              exact=whs.find(w=>w.num===branchNum&&!isPostDesc(w.desc))
+                 ||whs.find(w=>w.num===branchNum);
+            }
+            if(!exact)exact=whs[0];
+            if(exact){
+              setWhNum(isPoshtomat?(exact.desc||exact.num||branchNum):(exact.num||exact.desc));
+              setWhRef(exact.ref);
+            }else{
+              setResolveErr("Не знайдено відділення №"+branchNum);
+            }
           }
-        }
-      });
+        }catch(e){setResolveErr("Помилка автопідбору: "+e.message);}
+        setResolving(false);
+      })();
     }
   },[]);
   useEffect(()=>{
@@ -1191,11 +1218,15 @@ function CreateTTNModal({order,onClose,onCreated}){
         {senderInfo&&<div style={{fontSize:10,color:"var(--text2)",marginTop:4}}>{"Контакт: "}{senderInfo.contact?.name}{" | "}{senderInfo.contact?.phone}</div>}
       </div>
       <div style={{marginBottom:12}}>
-        <div style={{fontSize:11,fontWeight:700,color:"var(--text2)",marginBottom:6}}>{"ОТРИМУВАЧ: "}<span style={{fontWeight:400,color:"var(--text1)"}}>{order.client}{order.phone?" | "+order.phone:""}</span></div>
+        <div style={{fontSize:11,fontWeight:700,color:"var(--text2)",marginBottom:6,display:"flex",alignItems:"center",gap:8}}>{"ОТРИМУВАЧ: "}<span style={{fontWeight:400,color:"var(--text1)"}}>{order.client}{order.phone?" | "+order.phone:""}</span>
+          {resolving&&<span style={{fontSize:10,color:"var(--np-red)",fontWeight:600}}>{"⟳ підбираю місто/відділення..."}</span>}
+          {!resolving&&rCityRef&&whRef&&<span style={{fontSize:10,color:"var(--green)",fontWeight:600}}>{"✓ авто-підібрано"}</span>}
+        </div>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
           <div><div style={{fontSize:10,fontWeight:700,color:"var(--text2)",marginBottom:2}}>{"Місто отримувача"}</div><NPCityPicker value={rCity} onChange={setRCity} onCityRef={setRCityRef} onDeliveryCityRef={setRDeliveryCityRef}/></div>
           <div><div style={{fontSize:10,fontWeight:700,color:"var(--text2)",marginBottom:2}}>{"Відділення"}</div><NPWarehousePicker cityRef={rCityRef} value={whNum} onChange={(n,d,r)=>{setWhNum(n);setWhRef(r);}}/></div>
         </div>
+        {resolveErr&&!resolving&&<div style={{fontSize:11,color:"var(--red)",marginTop:4}}>{resolveErr}{" — оберіть вручну"}</div>}
       </div>
       {prepayAmt>0&&<div style={{background:"var(--green-light)",borderRadius:8,padding:"6px 12px",marginBottom:8,fontSize:12,color:"var(--green)",fontWeight:600}}>{"Передоплата: "}{fmt(prepayAmt)}{"₴"}{" → До сплати: "}{fmt(codAmt)}{"₴"}</div>}
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:10,marginBottom:12}}>
@@ -1524,13 +1555,30 @@ function OrdersListPage({orders,setOrders,products}){
     if(!editO.client||!editO.phone){setTtnErr("Не вказано ПІБ або телефон");return;}
     setTtnCreating(true);setTtnErr("");
     try{
-      // 1. Resolve city
+      // 1. Resolve city — prefer exact name match
       const cities=await NP.searchCity(editO.city);
       if(!cities.length){setTtnCreating(false);setTtnErr("Місто не знайдено в НП");return;}
-      const city=cities[0];
-      // 2. Resolve warehouse
-      const whs=await NP.getWarehouses(city.ref,editO.npBranch);
-      const wh=whs.find(w=>w.num===editO.npBranch)||whs[0];
+      const wantCity=(editO.city||"").trim().toLowerCase();
+      const city=cities.find(x=>((x.city||"").toLowerCase()===wantCity))||cities.find(x=>((x.name||"").toLowerCase().startsWith(wantCity)))||cities[0];
+      // 2. Resolve warehouse — extract number from strings like "поштомат 6850"
+      const branchStr=String(editO.npBranch);
+      const numMatch=branchStr.match(/\d+/);
+      const branchNum=numMatch?numMatch[0]:branchStr;
+      const isPoshtomat=/поштомат|почтомат|postomat/i.test(branchStr);
+      let whs=await NP.getWarehouses(city.ref,branchNum);
+      if(!whs||whs.length===0){whs=await NP.getWarehouses(city.ref,branchStr);}
+      if(!whs||whs.length===0){whs=await NP.getWarehouses(city.ref);}
+      const isPostDesc=d=>/поштомат|postomat/i.test(d||"");
+      let wh=null;
+      if(isPoshtomat){
+        wh=whs.find(w=>w.num===branchNum&&isPostDesc(w.desc))
+         ||whs.find(w=>isPostDesc(w.desc)&&(w.desc||"").includes(branchNum))
+         ||whs.find(w=>w.num===branchNum);
+      }else{
+        wh=whs.find(w=>w.num===branchNum&&!isPostDesc(w.desc))
+         ||whs.find(w=>w.num===branchNum);
+      }
+      if(!wh)wh=whs[0];
       if(!wh){setTtnCreating(false);setTtnErr("Відділення не знайдено");return;}
       // 3. Create recipient
       const recip=await NP.createRecipient(editO.client,editO.phone,city.deliveryCityRef||city.ref);
