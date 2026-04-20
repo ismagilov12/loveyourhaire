@@ -1188,6 +1188,8 @@ function CreateTTNModal({order,onClose,onCreated}){
       };
       if(payType==="control"&&Number(controlAmount)>0){params.AfterpaymentOnGoodsCost=controlAmount;}
       if(order.comment){params.AdditionalInformation=order.comment;}
+      // OptionsSeat — required by NP API for postomats and some warehouse types
+      params.OptionsSeat=[{volumetricVolume:"1",volumetricWidth:"10",volumetricLength:"20",volumetricHeight:"10",weight:String(weight||"0.5")}];
       const r=await NP.createTTN(params);setCreating(false);
       if(r.ok){setResult(r);if(onCreated)onCreated(r.ttn);}
       else{setErr((r.errors||[]).join(", ")||"Помилка створення");}
@@ -1223,10 +1225,10 @@ function CreateTTNModal({order,onClose,onCreated}){
           {!resolving&&rCityRef&&whRef&&<span style={{fontSize:10,color:"var(--green)",fontWeight:600}}>{"✓ авто-підібрано"}</span>}
         </div>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-          <div><div style={{fontSize:10,fontWeight:700,color:"var(--text2)",marginBottom:2}}>{"Місто отримувача"}</div><NPCityPicker value={rCity} onChange={setRCity} onCityRef={setRCityRef} onDeliveryCityRef={setRDeliveryCityRef}/></div>
-          <div><div style={{fontSize:10,fontWeight:700,color:"var(--text2)",marginBottom:2}}>{"Відділення"}</div><NPWarehousePicker cityRef={rCityRef} value={whNum} onChange={(n,d,r)=>{setWhNum(n);setWhRef(r);}}/></div>
+          <div><div style={{fontSize:10,fontWeight:700,color:"var(--text2)",marginBottom:2}}>{"Місто отримувача"}</div><NPCityPicker value={rCity} onChange={v=>{setRCity(v);setResolveErr("");}} onCityRef={r=>{setRCityRef(r);setResolveErr("");}} onDeliveryCityRef={setRDeliveryCityRef}/></div>
+          <div><div style={{fontSize:10,fontWeight:700,color:"var(--text2)",marginBottom:2}}>{"Відділення"}</div><NPWarehousePicker cityRef={rCityRef} value={whNum} onChange={(n,d,r)=>{setWhNum(n);setWhRef(r);setResolveErr("");}}/></div>
         </div>
-        {resolveErr&&!resolving&&<div style={{fontSize:11,color:"var(--red)",marginTop:4}}>{resolveErr}{" — оберіть вручну"}</div>}
+        {resolveErr&&!resolving&&!whRef&&<div style={{fontSize:11,color:"var(--red)",marginTop:4}}>{resolveErr}{" — оберіть вручну"}</div>}
       </div>
       {prepayAmt>0&&<div style={{background:"var(--green-light)",borderRadius:8,padding:"6px 12px",marginBottom:8,fontSize:12,color:"var(--green)",fontWeight:600}}>{"Передоплата: "}{fmt(prepayAmt)}{"₴"}{" → До сплати: "}{fmt(codAmt)}{"₴"}</div>}
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:10,marginBottom:12}}>
@@ -1602,6 +1604,7 @@ function OrdersListPage({orders,setOrders,products}){
       };
       if(payType==="control"&&cod>0){params.AfterpaymentOnGoodsCost=String(cod);}
       if(editO.comment){params.AdditionalInformation=editO.comment;}
+      params.OptionsSeat=[{volumetricVolume:"1",volumetricWidth:"10",volumetricLength:"20",volumetricHeight:"10",weight:String(ttnWeight||"0.5")}];
       // 6. Create TTN
       const r=await NP.createTTN(params);
       setTtnCreating(false);
@@ -2072,10 +2075,17 @@ const NP={
   },
   async getWarehouses(cityRef,q=""){
     if(!cityRef)return[];
-    const props={SettlementRef:cityRef,Limit:"50"};
-    if(q)props.FindByString=q;
-    const r=await NP.call("Address","getWarehouses",props);
-    return(r.success?r.data:[]).map(w=>({ref:w.Ref,num:w.Number,desc:w.Description,shortAddr:w.ShortAddress,type:w.TypeOfWarehouse,cityDesc:w.CityDescription}));
+    const base={Limit:"50"};
+    if(q)base.FindByString=q;
+    // try SettlementRef first (works for most cases)
+    let r=await NP.call("Address","getWarehouses",{...base,SettlementRef:cityRef});
+    let arr=r.success&&Array.isArray(r.data)?r.data:[];
+    // fallback: try CityRef (needed for postomats in some cases)
+    if(!arr.length){
+      r=await NP.call("Address","getWarehouses",{...base,CityRef:cityRef});
+      arr=r.success&&Array.isArray(r.data)?r.data:[];
+    }
+    return arr.map(w=>({ref:w.Ref,num:w.Number,desc:w.Description,shortAddr:w.ShortAddress,type:w.TypeOfWarehouse,cityDesc:w.CityDescription}));
   },
   async trackTTN(ttn){
     if(!ttn)return null;
