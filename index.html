@@ -165,6 +165,9 @@ textarea.form-input{resize:vertical;min-height:60px;line-height:1.5}
 .status-shipped{background:var(--np-light);color:var(--np-red)}
 .status-delivered{background:var(--green-light);color:var(--green)}
 .status-studio{background:var(--pink-light);color:var(--pink)}
+.status-atpost{background:#fef3cd;color:#856404}
+.status-received{background:var(--green-light);color:var(--green)}
+.status-refused{background:var(--red-light);color:var(--red)}
 
 .modal-overlay{position:fixed;inset:0;background:rgba(45,27,27,.5);display:flex;align-items:center;justify-content:center;z-index:100;padding:16px}
 .modal{background:var(--surface);border-radius:14px;padding:20px;width:100%;max-width:520px;max-height:85vh;overflow-y:auto;box-shadow:0 20px 60px rgba(45,27,27,.2)}
@@ -284,8 +287,11 @@ const INIT_PRODUCTS=[
 const CATEGORIES=["Все","Oversize футболки","Косметика для волосся"];
 const MONTHS=["Січень","Лютий","Березень","Квітень","Травень","Червень","Липень","Серпень","Вересень","Жовтень","Листопад","Грудень"];
 const DAYS=["Пн","Вт","Ср","Чт","Пт","Сб","Нд"];
-const STATUSES={new:"Новий",ttn:"ТТН",toSend:"На відправку",shipped:"Відправлено",delivered:"Доставлено",studio:"Студія",paid:"Оплачено"};
-const STCLS={new:"status-new",ttn:"status-ttn",toSend:"status-shipped",shipped:"status-shipped",delivered:"status-delivered",studio:"status-studio"};
+const STATUSES={new:"Новий",ttn:"ТТН",toSend:"На відправку",shipped:"Відправлено",atPost:"На пошті",received:"Отримано",refused:"Відмова",delivered:"Доставлено",studio:"Студія",paid:"Оплачено"};
+const STCLS={new:"status-new",ttn:"status-ttn",toSend:"status-shipped",shipped:"status-shipped",atPost:"status-atpost",received:"status-received",refused:"status-refused",delivered:"status-delivered",studio:"status-studio"};
+// Rule: Nova Poshta TTN status code -> internal order status (auto-applied when TTN tracked).
+// 4=В дорозi, 5=На складi мiста, 6=В мiстi, 7=На вiддiленнi, 8=Видано, 9/100=Отримано, 10/11/102/103=Повернення/Вiдмова
+const TTN_TO_ORDER_STATUS={"4":"shipped","5":"shipped","6":"shipped","7":"atPost","8":"received","9":"received","100":"received","10":"refused","11":"refused","102":"refused","103":"refused"};
 const EXPENSE_CATS=["Оренда студії","Податки","Закупівля товару","Зарплата","Реклама","Інше"];
 
 const fmt=n=>n.toLocaleString("uk-UA")+" ₴";
@@ -1059,10 +1065,22 @@ function NPWarehousePicker({cityRef,value,onChange}){
 const TTN_STATUS_MAP={"1":"Нова","2":"Видалена","3":"Немає даних","4":"В дорозі","5":"На складі міста","6":"В місті","7":"На відділенні","8":"Видано","9":"Отримано","10":"Повернення","11":"Повернено","100":"Отримано","102":"Відмова","103":"Повернення","104":"Зміна адреси"};
 const TTN_STATUS_CLS={"4":"badge-blue","5":"badge-blue","6":"badge-blue","7":"badge-amber","9":"badge-green","100":"badge-green","8":"badge-green","102":"badge-red","103":"badge-red","10":"badge-amber","11":"badge-red"};
 
-function TTNStatus({ttn}){
+function TTNStatus({ttn,orderId,orderStatus,onAutoStatus}){
   const[info,setInfo]=useState(null);
   const[loading,setLoading]=useState(false);
-  const track=async()=>{if(!ttn)return;setLoading(true);const r=await NP.trackTTN(ttn);setInfo(r);setLoading(false);};
+  const track=async()=>{
+    if(!ttn)return;
+    setLoading(true);
+    const r=await NP.trackTTN(ttn);
+    setInfo(r);
+    setLoading(false);
+    // Rule: map NP code -> order status. Skip if order in manual-terminal state (paid/studio).
+    if(r&&r.statusCode&&onAutoStatus&&orderId!=null){
+      const mapped=TTN_TO_ORDER_STATUS[String(r.statusCode)];
+      const locked=orderStatus==="paid"||orderStatus==="studio";
+      if(mapped&&!locked&&mapped!==orderStatus)onAutoStatus(orderId,mapped);
+    }
+  };
   useEffect(()=>{if(ttn&&ttn.length>=10)track();},[ttn]);
   if(!ttn)return null;
   if(loading)return <span style={{fontSize:10,color:"var(--text2)"}}>Завантаження...</span>;
@@ -1541,7 +1559,7 @@ function OrdersListPage({orders,setOrders,products}){
   const awaitingTtn=np.filter(o=>!hasTtn(o)&&o.status!=="shipped"&&o.status!=="delivered"&&o.status!=="paid"&&o.status!=="studio");
   // На відправку funnel: orders with TTN, not yet shipped/delivered
   const readyToShip=searched.filter(o=>hasTtn(o)&&o.status!=="shipped"&&o.status!=="delivered");
-  const counts={all:searched.length,new:np.filter(o=>o.status==="new"&&!hasTtn(o)).length,ttn:awaitingTtn.length,toSend:readyToShip.length,shipped:np.filter(o=>o.status==="shipped").length,delivered:np.filter(o=>o.status==="delivered").length,studio:searched.filter(o=>o.status==="studio").length,paid:searched.filter(o=>o.status==="paid").length,dupes:dupeCount};
+  const counts={all:searched.length,new:np.filter(o=>o.status==="new"&&!hasTtn(o)).length,ttn:awaitingTtn.length,toSend:readyToShip.length,shipped:np.filter(o=>o.status==="shipped").length,atPost:np.filter(o=>o.status==="atPost").length,received:np.filter(o=>o.status==="received").length,refused:np.filter(o=>o.status==="refused").length,delivered:np.filter(o=>o.status==="delivered").length,studio:searched.filter(o=>o.status==="studio").length,paid:searched.filter(o=>o.status==="paid").length,dupes:dupeCount};
   const openTtn=o=>{setTtnM(o);setTtnV(o.ttn||"");};
   const saveTtn=()=>{if(!ttnM)return;const t=ttnV.trim();setOrders(orders.map(o=>o.id===ttnM.id?{...o,ttn:t,status:t?"toSend":"new"}:o));saveOrderField(ttnM.id,{ttn:t,status:t?"toSend":"new"});setTtnM(null);};
   const openPrepay=o=>{setPrepayO(o);setPrepayV(String(o.prepayment||""));};
@@ -1777,6 +1795,9 @@ function OrdersListPage({orders,setOrders,products}){
       <button className={`filter-pill${filter==="ttn"?' active':''}`} onClick={()=>setFilter("ttn")}>ТТН ({counts.ttn})</button>
       <button className={`filter-pill${filter==="toSend"?' active':''}`} onClick={()=>setFilter("toSend")}>На відправку ({counts.toSend})</button>
       <button className={`filter-pill${filter==="shipped"?' active':''}`} onClick={()=>setFilter("shipped")}>Відправ. ({counts.shipped})</button>
+      <button className={`filter-pill${filter==="atPost"?' active':''}`} onClick={()=>setFilter("atPost")} style={{color:filter==="atPost"?"#856404":""}}>На пошті ({counts.atPost})</button>
+      <button className={`filter-pill${filter==="received"?' active':''}`} onClick={()=>setFilter("received")} style={{color:filter==="received"?"var(--green)":""}}>Отримано ({counts.received})</button>
+      <button className={`filter-pill${filter==="refused"?' active':''}`} onClick={()=>setFilter("refused")} style={{color:filter==="refused"?"var(--red)":""}}>Відмова ({counts.refused})</button>
       <button className={`filter-pill${filter==="delivered"?' active':''}`} onClick={()=>setFilter("delivered")}>Достав. ({counts.delivered})</button>
       <button className={`filter-pill${filter==="paid"?' active':''}`} onClick={()=>setFilter("paid")} style={{color:filter==="paid"?"var(--green)":""}}>Оплач. ({counts.paid})</button>
       <button className={`filter-pill${filter==="studio"?' active':''}`} onClick={()=>setFilter("studio")}>Студія ({counts.studio})</button>
@@ -1818,7 +1839,7 @@ function OrdersListPage({orders,setOrders,products}){
           <td style={{fontSize:11}}>{o.deliveryType==="np"?`${o.city}${o.npBranch?` №${o.npBranch}`:""}`:<span style={{color:"var(--pink2)"}}>Студія</span>}</td>
           <td style={{fontWeight:700}}>{fmt(o.total)}</td>
           <td><input type="number" min="0" defaultValue={o.prepayment||""} placeholder="0" onBlur={e=>inlinePrepay(o.id,e.target.value)} onKeyDown={e=>{if(e.key==="Enter")e.target.blur();}} style={{width:70,padding:"4px 6px",borderRadius:6,border:"1px solid var(--border)",fontSize:12,textAlign:"right",background:o.prepayment>=o.total&&o.total>0?"var(--green-light)":"#fff"}}/>{o.prepayment>0&&o.prepayment<o.total&&<div style={{fontSize:9,color:"var(--gold)",marginTop:2}}>{"зал "}{fmt(o.total-(o.prepayment||0))}</div>}{o.prepayment>=o.total&&o.total>0&&<div style={{fontSize:9,color:"var(--green)",fontWeight:700,marginTop:2}}>ОПЛАЧ</div>}</td>
-          <td>{o.ttn?<div><span className="ttn-value" onClick={()=>{navigator.clipboard.writeText(o.ttn).catch(()=>{})}} title="Копіювати">{o.ttn}</span><TTNStatus ttn={o.ttn}/></div>:o.deliveryType==="np"?<span style={{fontSize:11,color:"var(--text2)"}}>{"—"}</span>:"—"}</td>
+          <td>{o.ttn?<div><span className="ttn-value" onClick={()=>{navigator.clipboard.writeText(o.ttn).catch(()=>{})}} title="Копіювати">{o.ttn}</span><TTNStatus ttn={o.ttn} orderId={o.id} orderStatus={o.status} onAutoStatus={(id,st)=>updSt(id,st)}/></div>:o.deliveryType==="np"?<span style={{fontSize:11,color:"var(--text2)"}}>{"—"}</span>:"—"}</td>
           <td><select value={o.status} onChange={e=>updSt(o.id,e.target.value)} style={{padding:"4px 6px",borderRadius:6,border:"1px solid var(--border)",fontSize:11,fontWeight:600,cursor:"pointer",background:"#fff"}}>{Object.entries(STATUSES).map(([k,v])=><option key={k} value={k}>{v}</option>)}</select></td>
           <td><div style={{display:"flex",gap:3,flexWrap:"wrap"}}>
             {o.deliveryType==="np"&&!o.ttn&&<button className="btn btn-np btn-xs" onClick={()=>setCreateTTNOrder(o)} title="Створити ТТН через НП">{I.send}</button>}
@@ -1843,7 +1864,7 @@ function OrdersListPage({orders,setOrders,products}){
             {o.deliveryType==="np"&&<span className="badge badge-blue" style={{fontSize:9}}>Контр</span>}
           </div>
           <div className="mob-oc-items">{o.items.map(i=>`${i.name} ×${i.qty}`).join(", ")}</div>
-          {o.ttn&&<div style={{fontSize:11,marginBottom:6,display:"flex",alignItems:"center",gap:6}}><span className="ttn-value" onClick={e=>{e.stopPropagation();navigator.clipboard.writeText(o.ttn).catch(()=>{})}}>{o.ttn}</span><TTNStatus ttn={o.ttn}/></div>}
+          {o.ttn&&<div style={{fontSize:11,marginBottom:6,display:"flex",alignItems:"center",gap:6}}><span className="ttn-value" onClick={e=>{e.stopPropagation();navigator.clipboard.writeText(o.ttn).catch(()=>{})}}>{o.ttn}</span><TTNStatus ttn={o.ttn} orderId={o.id} orderStatus={o.status} onAutoStatus={(id,st)=>updSt(id,st)}/></div>}
           {o.comment&&<div style={{fontSize:11,color:"var(--text2)",marginBottom:6,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{o.comment}</div>}
           <div className="mob-oc-bottom">
             <div><span className="mob-oc-total">{fmt(o.total)}</span>{o.prepayment>0&&<span style={{fontSize:10,color:"var(--green)",marginLeft:6}}>передопл {fmt(o.prepayment)}</span>}{o.prepayment>0&&o.prepayment<o.total&&<span style={{fontSize:10,color:"var(--gold)",marginLeft:4}}>зал {fmt(o.total-(o.prepayment||0))}</span>}{o.prepayment>=o.total&&<span style={{fontSize:10,color:"var(--green)",marginLeft:4,fontWeight:700}}>ОПЛАЧ</span>}</div>
