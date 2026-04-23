@@ -1558,8 +1558,8 @@ function OrdersListPage({orders,setOrders,products}){
   const dupeCount=searched.filter(o=>dupeMap.has(o.id)).length;
   // TTN funnel: NP orders without TTN and not in final states
   const awaitingTtn=np.filter(o=>!hasTtn(o)&&o.status!=="shipped"&&o.status!=="delivered"&&o.status!=="paid"&&o.status!=="studio");
-  // На відправку funnel: orders with TTN, not yet shipped/delivered
-  const readyToShip=searched.filter(o=>hasTtn(o)&&o.status!=="shipped"&&o.status!=="delivered");
+  // На відправку funnel: orders with TTN still in draft (pre-dispatch states only)
+  const readyToShip=searched.filter(o=>hasTtn(o)&&(o.status==="new"||o.status==="ttn"||o.status==="toSend"));
   const counts={all:searched.length,new:np.filter(o=>o.status==="new"&&!hasTtn(o)).length,ttn:awaitingTtn.length,toSend:readyToShip.length,shipped:np.filter(o=>o.status==="shipped").length,atPost:np.filter(o=>o.status==="atPost").length,received:np.filter(o=>o.status==="received").length,refused:np.filter(o=>o.status==="refused").length,delivered:np.filter(o=>o.status==="delivered").length,studio:searched.filter(o=>o.status==="studio").length,paid:searched.filter(o=>o.status==="paid").length,dupes:dupeCount};
   const openTtn=o=>{setTtnM(o);setTtnV(o.ttn||"");};
   const saveTtn=()=>{if(!ttnM)return;const t=ttnV.trim();setOrders(orders.map(o=>o.id===ttnM.id?{...o,ttn:t,status:t?"toSend":"new"}:o));saveOrderField(ttnM.id,{ttn:t,status:t?"toSend":"new"});setTtnM(null);};
@@ -2436,16 +2436,20 @@ const NP={
     return{ref:sender.Ref,contact:contact?{ref:contact.Ref,name:contact.Description,phone:contact.Phones}:null,address:addr?{ref:addr.Ref,desc:addr.Description,cityRef:addr.CityRef}:null};
   },
   async createRecipient(fullName,phone,cityRef){
-    // Split name into parts
-    const parts=fullName.trim().split(/\s+/);
-    const lastName=parts[0]||fullName;
+    // NP allows only Cyrillic letters, space, hyphen, apostrophe in name fields.
+    // Sanitize and take at most 3 tokens — extra tokens (product names, numbers) are ignored.
+    const sanitize=s=>(s||"").replace(/[^\u0400-\u04FF\s\-'\u2019]/g," ").replace(/\s+/g," ").trim();
+    const parts=sanitize(fullName).split(/\s+/).filter(Boolean);
+    const lastName=parts[0]||"Клієнт";
     const firstName=parts[1]||".";
-    const middleName=parts.slice(2).join(" ")||"";
+    const middleName=parts[2]||"";
     // Save recipient counterparty
-    const r=await NP.call("Counterparty","save",{
-      FirstName:firstName,LastName:lastName,MiddleName:middleName,
+    const payload={
+      FirstName:firstName,LastName:lastName,
       Phone:phone,CounterpartyType:"PrivatePerson",CounterpartyProperty:"Recipient",CityRef:cityRef
-    });
+    };
+    if(middleName)payload.MiddleName=middleName;
+    const r=await NP.call("Counterparty","save",payload);
     if(!r.success||!r.data||!r.data[0])return{ok:false,errors:r.errors||["Не вдалося створити отримувача"]};
     const cp=r.data[0];
     // Get contact person ref
