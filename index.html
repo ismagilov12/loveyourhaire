@@ -1200,8 +1200,11 @@ function CreateTTNModal({order,onClose,onCreated}){
       // Resolve Ref for "Одяг" (clothing category) — required so content description prints on sticker.
       try{const cdRef=await NP.getCargoDescriptionRef("одяг");if(cdRef)params.CargoDescription=cdRef;}catch(e){}
       // Content description goes into AdditionalInformation — this shows prominently on NP sticker
-      const addInfo=(description||"")+(order.comment&&!description.includes(order.comment)?" | "+order.comment:"");
-      if(addInfo.trim())params.AdditionalInformation=addInfo.trim().slice(0,200);
+      // NP API hard-limit for AdditionalInformation is 99 characters; anything longer triggers
+      // "AdditionalInformation length is incorrect". User-edited `description` is authoritative —
+      // don't auto-append order.comment (that would undo any shortening the user just did).
+      const addInfo=(description||"").trim();
+      if(addInfo)params.AdditionalInformation=addInfo.slice(0,99);
       // OptionsSeat — required by NP API for postomats and some warehouse types
       params.OptionsSeat=[{volumetricVolume:"1",volumetricWidth:"10",volumetricLength:"20",volumetricHeight:"10",weight:String(weight||"0.5")}];
       const r=await NP.createTTN(params);setCreating(false);
@@ -1251,7 +1254,13 @@ function CreateTTNModal({order,onClose,onCreated}){
         <div className="form-group" style={{marginBottom:0}}><label style={{fontSize:10,fontWeight:700,color:"var(--blue)"}}>{"Контроль ₴"}</label><input className="form-input" value={controlAmount} onChange={e=>setControlAmount(e.target.value)} style={{fontSize:12,borderColor:"var(--blue)"}}/></div>
         <div className="form-group" style={{marginBottom:0}}><label style={{fontSize:10,fontWeight:700,color:"var(--text2)"}}>{"Платник дост."}</label><select className="form-input" value={payerDel} onChange={e=>setPayerDel(e.target.value)} style={{fontSize:12}}><option value="Recipient">{"Отримувач"}</option><option value="Sender">{"Відправник"}</option></select></div>
       </div>
-      <div className="form-group" style={{marginBottom:6}}><label style={{fontSize:10,fontWeight:700,color:"var(--text2)"}}>{"Опис вмісту (в ТТН)"}</label><input className="form-input" value={description} onChange={e=>setDescription(e.target.value)} style={{fontSize:12}}/></div>
+      <div className="form-group" style={{marginBottom:6}}>
+        <label style={{fontSize:10,fontWeight:700,color:"var(--text2)",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+          <span>{"Опис вмісту (в ТТН) — макс 99 символів"}</span>
+          <span style={{color:description.length>99?"var(--red)":"var(--text2)",fontWeight:700}}>{description.length}{"/99"}</span>
+        </label>
+        <input className="form-input" value={description} onChange={e=>setDescription(e.target.value)} style={{fontSize:12,borderColor:description.length>99?"var(--red)":undefined}}/>
+      </div>
       <div style={{fontSize:11,color:"var(--text2)",marginBottom:12,display:"flex",flexDirection:"column",gap:2}}>
         {prodOnly&&<div><span style={{fontWeight:700}}>{"Товари: "}</span>{prodOnly}</div>}
         {hasComment&&<div><span style={{fontWeight:700,color:"var(--np-red)"}}>{"Коментар: "}</span>{order.comment}</div>}
@@ -1624,7 +1633,7 @@ function OrdersListPage({orders,setOrders,products}){
         };
         if(payType==="control"&&cod>0)params.AfterpaymentOnGoodsCost=String(cod);
         if(cargoRef)params.CargoDescription=cargoRef;
-        if(addInfo.trim())params.AdditionalInformation=addInfo.trim().slice(0,200);
+        if(addInfo.trim())params.AdditionalInformation=addInfo.trim().slice(0,99);
         const r=await NP.createTTN(params);
         if(!r.ok)throw new Error((r.errors||[]).join(", ")||"Помилка створення ТТН");
         item.ok=true;item.ttn=r.ttn;
@@ -1740,8 +1749,9 @@ function OrdersListPage({orders,setOrders,products}){
       if(payType==="control"&&cod>0){params.AfterpaymentOnGoodsCost=String(cod);}
       // CargoDescription expects a Ref — fetch "Одяг" category ref
       try{const cdRef=await NP.getCargoDescriptionRef("одяг");if(cdRef)params.CargoDescription=cdRef;}catch(e){}
-      const addInfo2=(ttnDesc||"")+(editO.comment&&!String(ttnDesc).includes(editO.comment)?" | "+editO.comment:"");
-      if(addInfo2.trim())params.AdditionalInformation=addInfo2.trim().slice(0,200);
+      // User-edited ttnDesc is authoritative — don't auto-append comment (breaks manual shortening)
+      const addInfo2=(ttnDesc||"").trim();
+      if(addInfo2)params.AdditionalInformation=addInfo2.slice(0,99);
       params.OptionsSeat=[{volumetricVolume:"1",volumetricWidth:"10",volumetricLength:"20",volumetricHeight:"10",weight:String(ttnWeight||"0.5")}];
       // 6. Create TTN
       const r=await NP.createTTN(params);
@@ -1954,7 +1964,13 @@ function OrdersListPage({orders,setOrders,products}){
         {ttnSettings&&<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:10}}>
           <div className="form-group" style={{marginBottom:0}}><label className="form-label" style={{fontSize:10}}>{"Платник доставки"}</label><select className="form-input" value={ttnPayerDel} onChange={e=>setTtnPayerDel(e.target.value)} style={{fontSize:12}}><option value="Recipient">Отримувач</option><option value="Sender">Відправник</option></select></div>
           <div className="form-group" style={{marginBottom:0}}><label className="form-label" style={{fontSize:10}}>{"Вага (кг)"}</label><input className="form-input" value={ttnWeight} onChange={e=>setTtnWeight(e.target.value)} style={{fontSize:12}}/></div>
-          <div className="form-group" style={{marginBottom:0,gridColumn:"1/-1"}}><label className="form-label" style={{fontSize:10}}>{"Опис вмісту"}</label><input className="form-input" value={ttnDesc} onChange={e=>setTtnDesc(e.target.value)} style={{fontSize:12}}/></div>
+          <div className="form-group" style={{marginBottom:0,gridColumn:"1/-1"}}>
+            <label className="form-label" style={{fontSize:10,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+              <span>{"Опис вмісту — макс 99 символів"}</span>
+              <span style={{color:ttnDesc.length>99?"var(--red)":"var(--text2)",fontWeight:700}}>{ttnDesc.length}{"/99"}</span>
+            </label>
+            <input className="form-input" value={ttnDesc} onChange={e=>setTtnDesc(e.target.value)} style={{fontSize:12,borderColor:ttnDesc.length>99?"var(--red)":undefined}}/>
+          </div>
         </div>}
         {ttnErr&&<div style={{color:"var(--red)",fontSize:12,fontWeight:600,marginBottom:8}}>{ttnErr}</div>}
         {ttnSenderLoading&&<div style={{fontSize:11,color:"var(--text2)",marginBottom:6}}>{"Завантаження відправника..."}</div>}
