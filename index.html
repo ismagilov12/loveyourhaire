@@ -1503,6 +1503,7 @@ function NewOrderPage({orders,setOrders,products,setProducts,clients,setClients}
 // ─── ORDERS LIST ───
 function OrdersListPage({orders,setOrders,products}){
   const[filter,setFilter]=useState("all");
+  const[ttnSync,setTtnSync]=useState(null); // {running, done, total, updated} or null
   const[search,setSearch]=useState("");
   const[productFilter,setProductFilter]=useState("all");// "all" or product id
   const[sortDir,setSortDir]=useState("desc");// "desc" (newest first) or "asc" (oldest first)
@@ -1673,6 +1674,39 @@ function OrdersListPage({orders,setOrders,products}){
   const clearSelection=()=>setSelectedIds(new Set());
   const eligibleSelectedCount=()=>{let n=0;for(const o of orders){if(selectedIds.has(o.id)&&o.deliveryType==="np"&&!o.ttn&&o.city&&o.npBranch&&o.client&&o.phone)n++;}return n;};
   const updSt=(id,st)=>{setOrders(orders.map(o=>o.id===id?{...o,status:st}:o));saveOrderField(id,{status:st});};
+  const doSyncTTN=async()=>{
+    // Collect TTNs from orders that are not in manual-terminal states
+    const locked=new Set(["paid","studio","delivered"]);
+    const list=orders.filter(o=>o.ttn&&!locked.has(o.status)).map(o=>({id:o.id,ttn:String(o.ttn).trim(),status:o.status}));
+    if(!list.length){setTtnSync({running:false,total:0,done:0,updated:0,msg:"Немає ТТН для оновлення"});setTimeout(()=>setTtnSync(null),3000);return;}
+    setTtnSync({running:true,total:list.length,done:0,updated:0});
+    let updated=0;
+    // Batches of 100 (NP API max per request)
+    const byTtn=new Map();list.forEach(x=>byTtn.set(x.ttn,x));
+    const allTtns=[...byTtn.keys()];
+    const results=[];
+    for(let i=0;i<allTtns.length;i+=100){
+      const chunk=allTtns.slice(i,i+100);
+      try{const rs=await NP.trackTTNs(chunk);results.push(...rs);}catch(e){console.warn("trackTTNs batch failed",e);}
+      setTtnSync(s=>s?{...s,done:Math.min(i+chunk.length,allTtns.length)}:s);
+    }
+    // Apply rule: update order status if mapping exists and different
+    let nextOrders=orders;
+    for(const r of results){
+      const mapped=TTN_TO_ORDER_STATUS[String(r.statusCode)];
+      if(!mapped)continue;
+      const o=byTtn.get(r.ttn);
+      if(!o)continue;
+      if(locked.has(o.status))continue;
+      if(o.status===mapped)continue;
+      nextOrders=nextOrders.map(x=>x.id===o.id?{...x,status:mapped}:x);
+      try{saveOrderField(o.id,{status:mapped});}catch(e){}
+      updated++;
+    }
+    if(updated>0)setOrders(nextOrders);
+    setTtnSync({running:false,total:list.length,done:list.length,updated});
+    setTimeout(()=>setTtnSync(null),5000);
+  };
   const inlinePrepay=(id,val)=>{const pp=Number(val)||0;setOrders(orders.map(o=>{if(o.id!==id)return o;const cod=Math.max(0,o.total-pp);return{...o,prepayment:pp,codAmount:cod};}));saveOrderField(id,{prepayment:pp,cod_amount:Math.max(0,(orders.find(o=>o.id===id)?.total||0)-pp)});};
   const openEdit=o=>{setEditO({...o});setEditItems(o.items.map(i=>({...i})));setAddProdId("");setAddProdQty(1);setAddProdPrice("");};
   const addEditItem=()=>{
@@ -1802,6 +1836,9 @@ function OrdersListPage({orders,setOrders,products}){
       <button className={`filter-pill${filter==="paid"?' active':''}`} onClick={()=>setFilter("paid")} style={{color:filter==="paid"?"var(--green)":""}}>Оплач. ({counts.paid})</button>
       <button className={`filter-pill${filter==="studio"?' active':''}`} onClick={()=>setFilter("studio")}>Студія ({counts.studio})</button>
       {dupeCount>0&&<button className={`filter-pill${filter==="dupes"?' active':''}`} onClick={()=>setFilter("dupes")} style={{color:filter==="dupes"?"#fff":"var(--red)",background:filter==="dupes"?"var(--red)":"",borderColor:"var(--red)",fontWeight:700}} title="Замовлення від одного клієнта в межах 7 днів">⚠ Дублі ({dupeCount})</button>}
+      <button className="filter-pill" onClick={doSyncTTN} disabled={!!(ttnSync&&ttnSync.running)} style={{color:"var(--np-red)",borderColor:"var(--np-red)",fontWeight:700}} title="Запитати статуси ТТН у Нової Пошти і застосувати правило воронки">
+        {ttnSync&&ttnSync.running?`⟳ ${ttnSync.done}/${ttnSync.total}`:(ttnSync&&!ttnSync.running?`✓ оновлено ${ttnSync.updated}`:"⟳ Оновити ТТН")}
+      </button>
     </div>
     <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12,flexWrap:"wrap"}}>
       <div style={{display:"flex",alignItems:"center",gap:6}}>
@@ -2336,6 +2373,21 @@ const NP={
     if(!r.success||!r.data||!r.data[0])return null;
     const d=r.data[0];
     return{status:d.Status,statusCode:d.StatusCode,city:d.CitySender+" → "+d.CityRecipient,weight:d.DocumentWeight,cost:d.DocumentCost,deliveryCost:d.CostOnSite,scheduledDate:d.ScheduledDeliveryDate,actualDate:d.ActualDeliveryDate,warehouseRecipient:d.WarehouseRecipient,redeliverySum:d.RedeliverySum};
+  },
+  // Bulk track up to 100 TTNs per call. Returns [{ttn, statusCode, status}, ...] (successful rows only).
+  async trackTTNs(ttns){
+    const out=[];
+    const list=(ttns||[]).filter(Boolean);
+    for(let i=0;i<list.length;i+=100){
+      const chunk=list.slice(i,i+100);
+      const r=await NP.call("TrackingDocument","getStatusDocuments",{Documents:chunk.map(t=>({DocumentNumber:t}))});
+      if(r&&r.success&&Array.isArray(r.data)){
+        for(const d of r.data){
+          if(d&&d.Number)out.push({ttn:String(d.Number),statusCode:String(d.StatusCode||""),status:d.Status||"",scheduledDate:d.ScheduledDeliveryDate||"",redeliverySum:d.RedeliverySum||0});
+        }
+      }
+    }
+    return out;
   },
   async calcDeliveryCost(citySenderRef,cityRecipientRef,weight,cost,seatsAmount=1){
     const r=await NP.call("InternetDocument","getDocumentPrice",{
