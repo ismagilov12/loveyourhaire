@@ -1065,7 +1065,7 @@ function NPWarehousePicker({cityRef,value,onChange}){
 const TTN_STATUS_MAP={"1":"Нова","2":"Видалена","3":"Немає даних","4":"В дорозі","5":"На складі міста","6":"В місті","7":"На відділенні","8":"Видано","9":"Отримано","10":"Повернення","11":"Повернено","100":"Отримано","102":"Відмова","103":"Повернення","104":"Зміна адреси"};
 const TTN_STATUS_CLS={"4":"badge-blue","5":"badge-blue","6":"badge-blue","7":"badge-amber","9":"badge-green","100":"badge-green","8":"badge-green","102":"badge-red","103":"badge-red","10":"badge-amber","11":"badge-red"};
 
-function TTNStatus({ttn,orderId,orderStatus,onAutoStatus}){
+function TTNStatus({ttn,orderId,orderStatus,onAutoStatus,onStatusCode}){
   const[info,setInfo]=useState(null);
   const[loading,setLoading]=useState(false);
   const track=async()=>{
@@ -1074,6 +1074,8 @@ function TTNStatus({ttn,orderId,orderStatus,onAutoStatus}){
     const r=await NP.trackTTN(ttn);
     setInfo(r);
     setLoading(false);
+    // Report raw NP status code back to parent for precise filtering (e.g. "На відправку" = draft only)
+    if(r&&r.statusCode&&onStatusCode&&orderId!=null)onStatusCode(orderId,String(r.statusCode));
     // Rule: map NP code -> order status. Skip if order in manual-terminal state (paid/studio).
     if(r&&r.statusCode&&onAutoStatus&&orderId!=null){
       const mapped=TTN_TO_ORDER_STATUS[String(r.statusCode)];
@@ -1558,8 +1560,13 @@ function OrdersListPage({orders,setOrders,products}){
   const dupeCount=searched.filter(o=>dupeMap.has(o.id)).length;
   // TTN funnel: NP orders without TTN and not in final states
   const awaitingTtn=np.filter(o=>!hasTtn(o)&&o.status!=="shipped"&&o.status!=="delivered"&&o.status!=="paid"&&o.status!=="studio");
-  // На відправку funnel: orders with TTN still in draft (pre-dispatch states only)
-  const readyToShip=searched.filter(o=>hasTtn(o)&&(o.status==="new"||o.status==="ttn"||o.status==="toSend"));
+  // На відправку funnel: only TTN drafts in NP (StatusCode "1" == Нова).
+  // If NP code is already known, require exactly "1". Otherwise fall back to internal status while code is being fetched.
+  const readyToShip=searched.filter(o=>{
+    if(!hasTtn(o))return false;
+    if(o.npStatusCode)return o.npStatusCode==="1";
+    return o.status==="new"||o.status==="ttn"||o.status==="toSend";
+  });
   const counts={all:searched.length,new:np.filter(o=>o.status==="new"&&!hasTtn(o)).length,ttn:awaitingTtn.length,toSend:readyToShip.length,shipped:np.filter(o=>o.status==="shipped").length,atPost:np.filter(o=>o.status==="atPost").length,received:np.filter(o=>o.status==="received").length,refused:np.filter(o=>o.status==="refused").length,delivered:np.filter(o=>o.status==="delivered").length,studio:searched.filter(o=>o.status==="studio").length,paid:searched.filter(o=>o.status==="paid").length,dupes:dupeCount};
   const openTtn=o=>{setTtnM(o);setTtnV(o.ttn||"");};
   const saveTtn=()=>{if(!ttnM)return;const t=ttnV.trim();setOrders(orders.map(o=>o.id===ttnM.id?{...o,ttn:t,status:t?"toSend":"new"}:o));saveOrderField(ttnM.id,{ttn:t,status:t?"toSend":"new"});setTtnM(null);};
@@ -1674,6 +1681,8 @@ function OrdersListPage({orders,setOrders,products}){
   const clearSelection=()=>setSelectedIds(new Set());
   const eligibleSelectedCount=()=>{let n=0;for(const o of orders){if(selectedIds.has(o.id)&&o.deliveryType==="np"&&!o.ttn&&o.city&&o.npBranch&&o.client&&o.phone)n++;}return n;};
   const updSt=(id,st)=>{setOrders(orders.map(o=>o.id===id?{...o,status:st}:o));saveOrderField(id,{status:st});};
+  // In-memory only — stores raw NP tracking code per order (no DB column needed)
+  const updNpCode=(id,code)=>{setOrders(prev=>prev.map(o=>o.id===id?{...o,npStatusCode:code}:o));};
   const doSyncTTN=async()=>{
     // Collect TTNs from orders that are not in manual-terminal states
     const locked=new Set(["paid","studio","delivered"]);
@@ -1691,19 +1700,22 @@ function OrdersListPage({orders,setOrders,products}){
       setTtnSync(s=>s?{...s,done:Math.min(i+chunk.length,allTtns.length)}:s);
     }
     // Apply rule: update order status if mapping exists and different
+    // Also always stash the raw NP statusCode on the order (in-memory) so filters (e.g. "На відправку") are strict.
     let nextOrders=orders;
     for(const r of results){
-      const mapped=TTN_TO_ORDER_STATUS[String(r.statusCode)];
-      if(!mapped)continue;
       const o=byTtn.get(r.ttn);
       if(!o)continue;
+      const code=String(r.statusCode||"");
+      const mapped=TTN_TO_ORDER_STATUS[code];
+      nextOrders=nextOrders.map(x=>x.id===o.id?{...x,npStatusCode:code}:x);
+      if(!mapped)continue;
       if(locked.has(o.status))continue;
       if(o.status===mapped)continue;
       nextOrders=nextOrders.map(x=>x.id===o.id?{...x,status:mapped}:x);
       try{saveOrderField(o.id,{status:mapped});}catch(e){}
       updated++;
     }
-    if(updated>0)setOrders(nextOrders);
+    setOrders(nextOrders);
     setTtnSync({running:false,total:list.length,done:list.length,updated});
     setTimeout(()=>setTtnSync(null),5000);
   };
@@ -1876,7 +1888,7 @@ function OrdersListPage({orders,setOrders,products}){
           <td style={{fontSize:11}}>{o.deliveryType==="np"?`${o.city}${o.npBranch?` №${o.npBranch}`:""}`:<span style={{color:"var(--pink2)"}}>Студія</span>}</td>
           <td style={{fontWeight:700}}>{fmt(o.total)}</td>
           <td><input type="number" min="0" defaultValue={o.prepayment||""} placeholder="0" onBlur={e=>inlinePrepay(o.id,e.target.value)} onKeyDown={e=>{if(e.key==="Enter")e.target.blur();}} style={{width:70,padding:"4px 6px",borderRadius:6,border:"1px solid var(--border)",fontSize:12,textAlign:"right",background:o.prepayment>=o.total&&o.total>0?"var(--green-light)":"#fff"}}/>{o.prepayment>0&&o.prepayment<o.total&&<div style={{fontSize:9,color:"var(--gold)",marginTop:2}}>{"зал "}{fmt(o.total-(o.prepayment||0))}</div>}{o.prepayment>=o.total&&o.total>0&&<div style={{fontSize:9,color:"var(--green)",fontWeight:700,marginTop:2}}>ОПЛАЧ</div>}</td>
-          <td>{o.ttn?<div><span className="ttn-value" onClick={()=>{navigator.clipboard.writeText(o.ttn).catch(()=>{})}} title="Копіювати">{o.ttn}</span><TTNStatus ttn={o.ttn} orderId={o.id} orderStatus={o.status} onAutoStatus={(id,st)=>updSt(id,st)}/></div>:o.deliveryType==="np"?<span style={{fontSize:11,color:"var(--text2)"}}>{"—"}</span>:"—"}</td>
+          <td>{o.ttn?<div><span className="ttn-value" onClick={()=>{navigator.clipboard.writeText(o.ttn).catch(()=>{})}} title="Копіювати">{o.ttn}</span><TTNStatus ttn={o.ttn} orderId={o.id} orderStatus={o.status} onAutoStatus={(id,st)=>updSt(id,st)} onStatusCode={(id,code)=>updNpCode(id,code)}/></div>:o.deliveryType==="np"?<span style={{fontSize:11,color:"var(--text2)"}}>{"—"}</span>:"—"}</td>
           <td><select value={o.status} onChange={e=>updSt(o.id,e.target.value)} style={{padding:"4px 6px",borderRadius:6,border:"1px solid var(--border)",fontSize:11,fontWeight:600,cursor:"pointer",background:"#fff"}}>{Object.entries(STATUSES).map(([k,v])=><option key={k} value={k}>{v}</option>)}</select></td>
           <td><div style={{display:"flex",gap:3,flexWrap:"wrap"}}>
             {o.deliveryType==="np"&&!o.ttn&&<button className="btn btn-np btn-xs" onClick={()=>setCreateTTNOrder(o)} title="Створити ТТН через НП">{I.send}</button>}
@@ -1901,7 +1913,7 @@ function OrdersListPage({orders,setOrders,products}){
             {o.deliveryType==="np"&&<span className="badge badge-blue" style={{fontSize:9}}>Контр</span>}
           </div>
           <div className="mob-oc-items">{o.items.map(i=>`${i.name} ×${i.qty}`).join(", ")}</div>
-          {o.ttn&&<div style={{fontSize:11,marginBottom:6,display:"flex",alignItems:"center",gap:6}}><span className="ttn-value" onClick={e=>{e.stopPropagation();navigator.clipboard.writeText(o.ttn).catch(()=>{})}}>{o.ttn}</span><TTNStatus ttn={o.ttn} orderId={o.id} orderStatus={o.status} onAutoStatus={(id,st)=>updSt(id,st)}/></div>}
+          {o.ttn&&<div style={{fontSize:11,marginBottom:6,display:"flex",alignItems:"center",gap:6}}><span className="ttn-value" onClick={e=>{e.stopPropagation();navigator.clipboard.writeText(o.ttn).catch(()=>{})}}>{o.ttn}</span><TTNStatus ttn={o.ttn} orderId={o.id} orderStatus={o.status} onAutoStatus={(id,st)=>updSt(id,st)} onStatusCode={(id,code)=>updNpCode(id,code)}/></div>}
           {o.comment&&<div style={{fontSize:11,color:"var(--text2)",marginBottom:6,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{o.comment}</div>}
           <div className="mob-oc-bottom">
             <div><span className="mob-oc-total">{fmt(o.total)}</span>{o.prepayment>0&&<span style={{fontSize:10,color:"var(--green)",marginLeft:6}}>передопл {fmt(o.prepayment)}</span>}{o.prepayment>0&&o.prepayment<o.total&&<span style={{fontSize:10,color:"var(--gold)",marginLeft:4}}>зал {fmt(o.total-(o.prepayment||0))}</span>}{o.prepayment>=o.total&&<span style={{fontSize:10,color:"var(--green)",marginLeft:4,fontWeight:700}}>ОПЛАЧ</span>}</div>
