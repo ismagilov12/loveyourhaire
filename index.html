@@ -346,73 +346,162 @@ function findDupeFor(orders,phone,name,dateMs){
 }
 
 // ─── Smart parser ───
-function parseClient(text){
-  let name="",phone="",city="",branch="",payment="control";
-  const full=text.trim();
-
-  // Known Ukrainian cities (UA + RU variants) for smart detection
-  const CITIES=["київ","киев","kyiv","харків","харьков","одеса","одесса","дніпро","днепр","львів","львов","запоріжжя","запорожье","миколаїв","николаев","маріуполь","мариуполь","вінниця","винница","херсон","полтава","чернігів","чернигов","черкаси","черкассы","суми","сумы","житомир","рівне","ровно","кропивницький","кировоград","тернопіль","тернополь","івано-франківськ","ивано-франковск","луцьк","луцк","ужгород","хмельницький","хмельницкий","чернівці","черновцы","біла церква","кременчук","кременчуг","бровари","бровары","краматорськ","краматорск","мелітополь","мелитополь","нікополь","никополь","бердянськ","бердянск","павлоград","кам'янське","олександрія","конотоп","умань","шостка","ізмаїл","измаил","новомосковськ","новомосковск","коростень","ніжин","нежин","прилуки"];
-
-  // 1. Extract phone (9-10 digits starting with 0, or +380...)
-  const phMatch=full.match(/(\+?3?8?)(0\d{8,9})/);
-  if(phMatch){phone="+38"+phMatch[2];}
-
-  // 2. Extract payment — always control
-  payment="control";
-
-  // 3. Extract branch number near NP keywords
-  const npExplicit=full.match(/(?:нп|нова\s*пошта|відділення|отделение|склад|відд)[^\d]*(\d{1,4})/i);
-  if(npExplicit) branch=npExplicit[1];
-
-  // 4. Remove phone from text for further parsing
-  let rest=full.replace(/\+?3?8?0\d{8,9}/g,"").replace(/(?:контроль\s*оплати|наложка|контроль|передоплат\w*|cod)/gi,"").trim();
-
-  // 5. Try to find city from known list (must be at word boundary)
-  const restLow=rest.toLowerCase();
-  let foundCity="";
-  for(const c of CITIES){
-    // Use regex with word boundary to avoid matching inside names
-    const cityRe=new RegExp("(?:^|[\\s,/|])("+ c.replace(/[.*+?^${}()|[\]\\]/g,'\\$&') +")","i");
-    const cm2=restLow.match(cityRe);
-    if(cm2){
-      const idx=restLow.indexOf(cm2[1],cm2.index);
-      foundCity=rest.substr(idx,c.length);
-      // Check if number follows city (like "одеса 04" or "одеса04" or "харьков 22")
-      const afterCity=rest.substring(idx+c.length).trim();
-      const brAfter=afterCity.match(/^(\d{1,4})\s*(?:від|отд|відділення|отделение)?/i);
-      if(brAfter&&!branch) branch=brAfter[1];
-      // Remove city + branch from rest
-      const endIdx=idx+c.length+(brAfter?(rest.substring(idx+c.length).indexOf(brAfter[0])+brAfter[0].length):0);
-      rest=(rest.substring(0,idx)+rest.substring(endIdx)).replace(/\s+/g," ").trim();
-      city=foundCity.charAt(0).toUpperCase()+foundCity.slice(1);
-      break;
+// ─── Parser helpers (top-level so parseClient + parseBulkOrders share them) ───
+const ALIASES_V2={
+  'еминем':'eminem','эминем':'eminem','эмигем':'eminem','єминем':'eminem','еміне':'eminem','эмине':'eminem','eminem':'eminem',
+  'памела':'pamela','памел':'pamela','pamela':'pamela',
+  'брітні':'britney','бритни':'britney','бритні':'britney','брітн':'britney','бритн':'britney','britney':'britney',
+  'краш':'crush','crush':'crush',
+  'чувак':'beavis','бівіс':'beavis','бивис':'beavis','батхед':'beavis','beavis':'beavis',
+  'ліндсі':'lindsay','линдси':'lindsay','лохан':'lindsay','lindsay':'lindsay','lohan':'lindsay',
+  'снуп':'snoop','снуп дог':'snoop','snoop':'snoop',
+  'продіджі':'prodigy','продиджи':'prodigy','prodigy':'prodigy',
+  'плейбой':'playboy','playboy':'playboy',
+  'love is':'love is','лав из':'love is','лав іс':'love is',
+  'мастурбац':'masturbation','masturbat':'masturbation',
+  'пам томм':'pam & tommy','памтомм':'pam & tommy','pam tommy':'pam & tommy','pam & tommy':'pam & tommy',
+  'why britney':'why britney shaped','побрит':'why britney shaped',
+  'soft rebel':'soft rebel','софт ребел':'soft rebel',
+  'giant pussy':'giant pussy','джаянт':'giant pussy',
+  'паста':'текстуруюча паста','текстур':'текстуруюча паста',
+  'спрей':'beach spray','біч':'beach spray','beach':'beach spray',
+  'кондиціонер':'hydration conditioner','кондиционер':'hydration conditioner','conditioner':'hydration conditioner',
+  'шампунь глиб':'deep clean','діп клін':'deep clean','deep clean':'deep clean',
+  'шампунь щод':'everyday shampoo','everyday shampoo':'everyday shampoo','щоденн':'everyday shampoo',
+  'крем гель':'curly cream gel','кьорлі':'curly cream gel','curly':'curly cream gel',
+  'spray':'beach spray','shampoo':'shampoo','gel':'curly cream gel'
+};
+function buildProdIndexV2(products){
+  return (products||[]).map(function(p){
+    var kws=[];var qm=p.name.match(/["“«](.*?)["”»]/);
+    if(qm){kws.push(qm[1].toLowerCase());qm[1].toLowerCase().split(/[\s&]+/).forEach(function(w){if(w.length>2)kws.push(w);});}
+    var cl=p.name.replace(/^футболка\s*/i,"").replace(/["“”«»—]/g,"").trim().toLowerCase();
+    if(cl.length>2)kws.push(cl);
+    kws.push(p.name.toLowerCase());
+    return{product:p,kws:kws.filter(function(v,i,a){return a.indexOf(v)===i;})};
+  });
+}
+const QTY_WORDS_V2={'одна':1,'одну':1,'один':1,'одне':1,'два':2,'дві':2,'двi':2,'три':3,'чотири':4,'четыре':4};
+function findProdsV2(text,products){
+  var prodIndex=buildProdIndexV2(products);
+  function matchAlias(t){
+    t=t.toLowerCase();
+    for(var alias in ALIASES_V2){
+      if(t.indexOf(alias)!==-1){
+        var canon=ALIASES_V2[alias];
+        for(var k=0;k<prodIndex.length;k++){var pi=prodIndex[k];if(pi.kws.some(function(kw){return kw.indexOf(canon)!==-1;})||pi.product.name.toLowerCase().indexOf(canon)!==-1)return pi.product;}
+      }
     }
+    return null;
   }
+  var low=(text||'').toLowerCase().trim();
+  var segments=low.split(/[\n,]+|\s+(?:и|і|\+|та)\s+/).map(function(s){return s.trim();}).filter(Boolean);
+  var found=[];
+  for(var si=0;si<segments.length;si++){
+    var seg=segments[si];var qty=1;var cleanSeg=seg;
+    for(var qw in QTY_WORDS_V2){var qre=new RegExp('(?:^|\\s)'+qw+'(?:\\s|$)','i');if(qre.test(cleanSeg)){qty=QTY_WORDS_V2[qw];cleanSeg=cleanSeg.replace(qre,' ').trim();break;}}
+    var nM=cleanSeg.match(/^(\d+)\s+(.+)$/);if(nM&&Number(nM[1])<=20){qty=Number(nM[1]);cleanSeg=nM[2];}
+    var xM=cleanSeg.match(/^(.+?)\s*[xх](\d+)$/i);if(xM&&Number(xM[2])<=20){qty=Number(xM[2]);cleanSeg=xM[1].trim();}
+    var matched=false;
+    for(var ki=0;ki<prodIndex.length;ki++){var pi=prodIndex[ki];if(pi.kws.some(function(kw){return cleanSeg.indexOf(kw)!==-1;})&&!found.find(function(f){return f.productId===pi.product.id;})){found.push({productId:pi.product.id,name:pi.product.name,price:Number(pi.product.price),cost:Number(pi.product.cost||0),qty:qty,type:pi.product.type||"product"});matched=true;break;}}
+    if(!matched){var pa=matchAlias(cleanSeg);if(pa&&!found.find(function(f){return f.productId===pa.id;})){found.push({productId:pa.id,name:pa.name,price:Number(pa.price),cost:Number(pa.cost||0),qty:qty,type:pa.type||"product"});}}
+  }
+  for(var alias in ALIASES_V2){if(low.indexOf(alias)!==-1){var pa=matchAlias(alias);if(pa&&!found.find(function(f){return f.productId===pa.id;})){found.push({productId:pa.id,name:pa.name,price:Number(pa.price),cost:Number(pa.cost||0),qty:1,type:pa.type||"product"});}}}
+  return found;
+}
+function parsePayV2(text){
+  var low=(text||'').toLowerCase();
+  if(/полн(?:ая|а|ой)\s*(?:оплат|предоплат)?|повн(?:а|ої|истю)\s*(?:оплат|передоплат)?/i.test(low))return{type:'full',amount:0};
+  if(/бартер/i.test(low))return{type:'barter',amount:0};
+  var m=low.match(/(?:перед\s*оплат|передоплат|предоплат|предолат|предопо|передплат)[а-яіїєґё]*[ \t]*[—\-:]?[ \t]*(\d+)/i);
+  if(m)return{type:'prepaid',amount:Number(m[1])};
+  m=low.match(/(\d+)[ \t]*(?:грн?|гр|₴)?[ \t]*(?:перед\s*оплат|передоплат|предоплат|предолат|предопо|передплат)/i);
+  if(m)return{type:'prepaid',amount:Number(m[1])};
+  m=low.match(/(\d+)?\s*(?:оплач|опалч)/);
+  if(m){var amt=0;if(m[1])amt=Number(m[1]);else{var a2=low.match(/оплач\w*\s*(\d+)/);if(a2)amt=Number(a2[1]);}return{type:'paid',amount:amt};}
+  return null;
+}
+function parseDiscountV2(text){
+  var low=(text||'').toLowerCase();
+  var m=low.match(/(?:скидк|знижк|зніжк|discount)[а-яіїєґа]*\s*[—\-:]?\s*(\d+)\s*(%)?/i);
+  if(m)return{amount:Number(m[1]),percent:!!m[2]};
+  m=low.match(/(\d+)\s*(?:грн?|₴)?\s*(?:скидк|знижк)/i);
+  if(m)return{amount:Number(m[1]),percent:false};
+  return null;
+}
+function extractPhoneV2(text){
+  var m=(text||'').match(/(\+?3?8?)\s*(0[\s\.\-]?\d[\s\.\-]?\d[\s\.\-]?\d[\s\.\-]?\d[\s\.\-]?\d[\s\.\-]?\d[\s\.\-]?\d[\s\.\-]?\d[\s\.\-]?\d?)/);
+  if(m){var d=m[2].replace(/[\s\.\-]/g,'');if(d.length>=9)return{phone:'+38'+d,full:m[0]};}
+  m=(text||'').match(/(\+\d{1,3}\d{7,12})/);
+  if(m)return{phone:m[1],full:m[0]};
+  return null;
+}
+const KNOWN_CITIES_V2=["київ","киев","kyiv","харків","харьков","одеса","одесса","дніпро","днепр","львів","львов","запоріжжя","запорожье","миколаїв","николаев","маріуполь","мариуполь","вінниця","винница","херсон","полтава","чернігів","чернигов","черкаси","черкассы","суми","сумы","житомир","рівне","ровно","кропивницький","кировоград","тернопіль","тернополь","івано-франківськ","ивано-франковск","луцьк","луцк","ужгород","хмельницький","хмельницкий","чернівці","черновцы","біла церква","кременчук","кременчуг","бровари","бровары","краматорськ","краматорск","мелітополь","мелитополь","нікополь","никополь","бердянськ","бердянск","павлоград","кам'янське","олександрія","конотоп","умань","шостка","ізмаїл","измаил","новомосковськ","новомосковск","коростень","ніжин","нежин","прилуки","фастів","ірпінь","буча","обухів","васильків","бориспіль","вишневе"];
 
-  // 6. If no city found from known list, try pattern: word + small number (1-4 digits)
-  if(!city&&!branch){
-    const lines=rest.split(/\n/).map(l=>l.trim()).filter(Boolean);
-    for(let i=0;i<lines.length;i++){
-      const cm=lines[i].match(/^([A-Za-zА-ЯІЇЄҐа-яіїєґ\s\-'`]+?)\s+(\d{1,4})\s*(?:від|отд|відділення|отделение)?$/i);
-      if(cm){city=cm[1].trim();branch=cm[2];lines.splice(i,1);rest=lines.join("\n");break;}
+// ─── parseClient v2 (line-by-line classification) ───
+function parseClient(text,products){
+  products=products||[];
+  var EMPTY={name:"",phone:"",city:"",npBranch:"",npType:"branch",payment:"control",prepayment:0,discount:0,discountPercent:false,products:[],paymentType:null};
+  var full=(text||'').trim();
+  if(!full)return EMPTY;
+  function uBoundary(token){var esc=token.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');return new RegExp('(^|[^a-zA-Zа-яіїєґА-ЯІЇЄҐёЁ])'+esc+'(?=[^a-zA-Zа-яіїєґА-ЯІЇЄҐёЁ]|$)','gi');}
+  var phone="",ph=extractPhoneV2(full);if(ph)phone=ph.phone;
+  var products_found=findProdsV2(full,products);
+  var prepayment=0,discount=0,discountPercent=false,payment="control",paymentType=null;
+  var payR=parsePayV2(full);
+  if(payR){if(payR.type==='full'){prepayment=0;paymentType='full';}else if(payR.type==='barter'){payment='barter';paymentType='barter';}else if(payR.type==='prepaid'){prepayment=payR.amount;paymentType='prepaid';}else if(payR.type==='paid'){prepayment=payR.amount;paymentType='paid';}}
+  var disc=parseDiscountV2(full);if(disc){discount=disc.amount;discountPercent=disc.percent;}
+  var rawLines=full.split(/\n/).map(function(l){return l.trim();}).filter(Boolean);
+  var classified=[];
+  var prodKwSet=[];
+  for(var i=0;i<products_found.length;i++){var pname=products_found[i].name;var qm=pname.match(/["“«](.*?)["”»]/);if(qm){prodKwSet.push(qm[1].toLowerCase());qm[1].toLowerCase().split(/[\s&]+/).forEach(function(w){if(w.length>2)prodKwSet.push(w);});}else prodKwSet.push(pname.toLowerCase());}
+  for(var alias in ALIASES_V2){var canon=ALIASES_V2[alias];if(products_found.some(function(p){return p.name.toLowerCase().indexOf(canon)!==-1;}))prodKwSet.push(alias);}
+  function isProductLine(low){for(var k=0;k<prodKwSet.length;k++){if(low.indexOf(prodKwSet[k])!==-1)return true;}return false;}
+  function isPaymentLine(low){return /перед\s*оплат|передоплат|предоплат|предолат|передплат|оплач|опалч|повн[а-яії]+\s*оплат|полн[а-яії]+\s*оплат|бартер/i.test(low);}
+  function isDiscountLine(low){return /скидк|знижк|зніжк|discount/i.test(low);}
+  for(var li=0;li<rawLines.length;li++){
+    var line=rawLines[li];var low=line.toLowerCase();var tag='text',meta={};
+    var phResult=extractPhoneV2(line);
+    if(phResult){tag='phone';}
+    else if(/(?:поштомат|почтомат|поштамт)\s*№?\s*\d{3,6}/i.test(line)){
+      var pm=line.match(/(?:поштомат|почтомат|поштамт)\s*№?\s*(\d{3,6})/i);
+      tag='postomat';meta.branch=pm[1];
+      var bIdx=line.toLowerCase().indexOf(pm[0].toLowerCase());
+      var cityCand=line.substring(0,bIdx).replace(/[,]/g,'').trim();
+      if(cityCand)meta.cityCand=cityCand;
     }
+    else if(/(?:^|\s)(?:нп|нова[яї]?\s*пошт[аи]?|відділення|віддiлення|відд\.?|отделение|відд|отд\.?)\s*(?:нової\s*пошти\s*)?№?\s*(?:номер\s*)?№?\s*\d{1,4}/i.test(line)){
+      var bm=line.match(/(?:^|\s)((?:нп|нова[яї]?\s*пошт[аи]?|відділення|віддiлення|відд\.?|отделение|відд|отд\.?)\s*(?:нової\s*пошти\s*)?№?\s*(?:номер\s*)?№?\s*(\d{1,4}))/i);
+      tag='branch';meta.branch=bm[2];meta.fullMatch=bm[1];
+      var bIdx2=line.toLowerCase().indexOf(bm[1].toLowerCase());
+      var cityCand2=line.substring(0,bIdx2).replace(/[,]/g,'').trim();
+      if(cityCand2)meta.cityCand=cityCand2;
+    }
+    else if(/^([A-Za-zА-ЯІЇЄҐа-яіїєґ\s\-'`’]{3,})\s+(\d{1,5})\s*$/.test(line)){
+      var cbm=line.match(/^([A-Za-zА-ЯІЇЄҐа-яіїєґ\s\-'`’]{3,})\s+(\d{1,5})\s*$/);
+      tag='citybranch';meta.city=cbm[1].trim();meta.branch=cbm[2];
+      meta.npType=(cbm[2].length>=3?'postomat':'branch');
+    }
+    else if(/^№\s*\d{1,5}$/.test(line)){tag='branch';meta.branch=line.replace(/[№\s]/g,'');}
+    else if(isPaymentLine(low)){tag='payment';}
+    else if(isDiscountLine(low)){tag='discount';}
+    else if(isProductLine(low)){tag='product';}
+    else{tag='text';}
+    classified.push({line:line,low:low,tag:tag,meta:meta,idx:li});
   }
-
-  // 7. If branch still not found, look for standalone small number (1-4 digits, not phone)
-  if(!branch){
-    const brMatch=rest.match(/(?:^|\s)(\d{1,4})(?:\s|$)/);
-    if(brMatch){branch=brMatch[1];rest=rest.replace(brMatch[0]," ").trim();}
-  }
-
-  // 8. Whatever text remains — clean up and use as name
-  rest=rest.replace(/\s+/g," ").replace(/[,\/\|]+/g," ").trim();
-  // Remove NP keywords from name
-  rest=rest.replace(/(?:нп|нова\s*пошта|відділення|отделение|склад|відд)\s*/gi,"").trim();
-  // Remove stray numbers that are branch-like
-  if(branch) rest=rest.replace(new RegExp("\\b"+branch+"\\b"),"").trim();
-  name=rest;
-
-  return{name,phone,city,npBranch:branch,payment};
+  var city="",branch="",npType="branch",branchLineIdx=-1;
+  for(var ci=0;ci<classified.length;ci++){var e=classified[ci];if(e.tag==='postomat'){branch=e.meta.branch;npType='postomat';branchLineIdx=e.idx;break;}if(e.tag==='branch'){branch=e.meta.branch;npType='branch';branchLineIdx=e.idx;break;}if(e.tag==='citybranch'){city=e.meta.city;branch=e.meta.branch;npType=e.meta.npType;branchLineIdx=e.idx;break;}}
+  if(!city && branchLineIdx>=0){var bce=classified[branchLineIdx];if(bce.meta.cityCand)city=bce.meta.cityCand;}
+  if(!city && branchLineIdx>0){for(var pi=branchLineIdx-1;pi>=0;pi--){var pe=classified[pi];if(pe.tag==='text' && /^[A-Za-zА-ЯІЇЄҐа-яіїєґ\s\-'`’.,]+$/.test(pe.line)){var wcount=pe.line.split(/\s+/).filter(Boolean).length;if(wcount<=3){city=pe.line.replace(/[,]/g,'').trim();classified[pi].tag='city';break;}}}}
+  if(!city){var lowFull=full.toLowerCase();for(var ki=0;ki<KNOWN_CITIES_V2.length;ki++){var kc=KNOWN_CITIES_V2[ki];var cre=new RegExp('(?:^|[\\s,/|\\n])('+kc.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')(?=[\\s,/|\\n]|$)','i');var cm=lowFull.match(cre);if(cm){var idx=lowFull.indexOf(cm[1],cm.index);city=full.substr(idx,kc.length);city=city.charAt(0).toUpperCase()+city.slice(1);break;}}}
+  city=city.replace(/^(?:м\.?\s*|місто\s+|село\s+|с\.\s*|смт\.?\s*|пгт\.?\s*|селище\s+)/i,'').trim();
+  if(city){city=city.split(/\s+/).map(function(w){return w?w.charAt(0).toUpperCase()+w.slice(1).toLowerCase():w;}).join(' ');}
+  var nameCandidates=[];
+  for(var ni=0;ni<classified.length;ni++){var ne=classified[ni];if(ne.tag!=='text')continue;var clean=ne.line.replace(/№/g,' ').replace(uBoundary('номер'),' ').replace(/\d+/g,' ').replace(/[,\/\|]+/g,' ').replace(/\s+/g,' ').trim();if(!clean)continue;if(clean===city)continue;nameCandidates.push(clean);}
+  var name='';
+  var bestName=nameCandidates.find(function(l){var ws=l.split(/\s+/).filter(Boolean);if(ws.length<2||ws.length>5)return false;return ws.every(function(w){return /^[А-ЯІЇЄҐA-Z][а-яіїєґa-z'`\-’]{1,}$/.test(w);});});
+  if(bestName)name=bestName;else if(nameCandidates.length){name=nameCandidates.sort(function(a,b){return b.length-a.length;})[0];}
+  return{name:name,phone:phone,city:city,npBranch:branch,npType:npType,payment:payment,prepayment:prepayment,paymentType:paymentType,discount:discount,discountPercent:discountPercent,products:products_found};
 }
 
 // --- Bulk Order Parser v2 ---
@@ -1319,9 +1408,50 @@ function NewOrderPage({orders,setOrders,products,setProducts,clients,setClients}
   const[codManual,setCodManual]=useState(false);
   const[cityRef,setCityRef]=useState("");
   const[whRef,setWhRef]=useState("");
+  const[npResolving,setNpResolving]=useState(false);
+  const[npResolved,setNpResolved]=useState(null);
+  const[autoAddedIds,setAutoAddedIds]=useState(new Set());
+  const[autoFilledPrepay,setAutoFilledPrepay]=useState(false);
+  const[creatingTTN,setCreatingTTN]=useState(false);
+  const[ttnResult,setTtnResult]=useState(null);
   const endRef=useRef(null);
   useEffect(()=>{endRef.current?.scrollIntoView({behavior:"smooth"});},[orders,items]);
-  useEffect(()=>{if(raw.trim()){setParsed(parseClient(raw));setParsedOpen(true);}else{setParsed({name:"",phone:"",city:"",npBranch:"",payment:"control"});}},[raw]);
+  useEffect(()=>{if(raw.trim()){setParsed(parseClient(raw,products));setParsedOpen(true);}else{setParsed({name:"",phone:"",city:"",npBranch:"",payment:"control",prepayment:0,products:[],npType:"branch"});setNpResolved(null);setAutoAddedIds(new Set());setAutoFilledPrepay(false);}},[raw,products]);
+  // Auto-add detected products (only once per parse — track which ids we auto-added so user can remove without us re-adding)
+  useEffect(()=>{
+    if(!parsed.products||!parsed.products.length)return;
+    const newIds=new Set(autoAddedIds);
+    let added=false;
+    const newItems=[...items];
+    for(const p of parsed.products){
+      if(newIds.has(p.productId))continue;
+      if(newItems.find(i=>i.productId===p.productId))continue;
+      newItems.push({...p});newIds.add(p.productId);added=true;
+    }
+    if(added){setItems(newItems);setAutoAddedIds(newIds);setParsedOpen(false);setInputOpen(false);}
+  },[parsed.products]);
+  // Auto-fill prepayment (only first time, only if user hasn't typed in prepay)
+  useEffect(()=>{
+    if(parsed.prepayment&&parsed.prepayment>0&&!autoFilledPrepay&&prepay===""){
+      setPrepay(String(parsed.prepayment));setAutoFilledPrepay(true);setCodManual(false);
+    }
+  },[parsed.prepayment]);
+  // Debounced NP resolution: when city or branch changes, resolve to refs
+  useEffect(()=>{
+    if(deliv!=="np"){setNpResolved(null);return;}
+    if(!parsed.city){setNpResolved(null);return;}
+    setNpResolving(true);
+    const t=setTimeout(async()=>{
+      try{
+        const r=await resolveNP({city:parsed.city,npBranch:parsed.npBranch,npType:parsed.npType||"branch"});
+        setNpResolved(r);
+        if(r.cityRef)setCityRef(r.cityRef);
+        if(r.warehouseRef)setWhRef(r.warehouseRef);
+      }catch(e){setNpResolved({npResolveErr:e.message});}
+      finally{setNpResolving(false);}
+    },600);
+    return()=>clearTimeout(t);
+  },[parsed.city,parsed.npBranch,parsed.npType,deliv]);
   useEffect(()=>{if(codManual===false){const t=items.reduce((s,i)=>s+i.price*i.qty,0);const p=prepay!==""?Number(prepay):0;const d=discount!==""?Number(discount):0;const cod=Math.max(0,t-p-d);setCodAmount(t>0?String(cod):"");}},[items,prepay,discount,codManual]);
 
   const addItem=()=>{
@@ -1334,9 +1464,13 @@ function NewOrderPage({orders,setOrders,products,setProducts,clients,setClients}
     setSelProd("");setQty(1);setAddPrice("");setParsedOpen(false);setInputOpen(false);
   };
   const rmItem=pid=>setItems(items.filter(i=>i.productId!==pid));
-  const submit=()=>{
+  const submit=async(makeTTN)=>{
     const cn=parsed.name.trim();if(!cn||!items.length){alert("Ім'я + товар");return;}
-    // Duplicate check — same phone or name within 7 days
+    if(makeTTN){
+      if(deliv!=="np"){alert("ТТН можна створити лише для НП");return;}
+      if(!npResolved||!npResolved.warehouseRef){alert("Спочатку дочекайся розпізнавання адреси НП");return;}
+      if(!parsed.phone){alert("Для ТТН потрібен телефон");return;}
+    }
     const dupes=findDupeFor(orders,parsed.phone,cn,Date.now());
     if(dupes.length>0){
       const recent=dupes.sort((a,b)=>new Date(b.date)-new Date(a.date)).slice(0,3);
@@ -1345,17 +1479,26 @@ function NewOrderPage({orders,setOrders,products,setProducts,clients,setClients}
     }
     const total=items.reduce((s,i)=>s+i.price*i.qty,0);
     const totalCost=items.reduce((s,i)=>s+i.cost*i.qty,0);
-    const order={id:Date.now(),client:cn,phone:parsed.phone,city:deliv==="np"?parsed.city:"",npBranch:deliv==="np"?parsed.npBranch:"",payment:deliv==="np"?parsed.payment:"cash",deliveryType:deliv,items:[...items],total,totalCost,date:new Date().toISOString(),status:(prepay!==""&&Number(prepay)>=total)?"paid":(deliv==="np"?"new":"studio"),ttn:"",codAmount:codAmount!==""?Number(codAmount):null,prepayment:prepay!==""?Number(prepay):null,discount:discount!==""?Number(discount):null,comment:comment};
+    let ttn="";
+    if(makeTTN){
+      setCreatingTTN(true);setTtnResult(null);
+      const r=await createTTNFromOrder({name:cn,phone:parsed.phone,cityRef:npResolved.cityRef,deliveryCityRef:npResolved.deliveryCityRef,warehouseRef:npResolved.warehouseRef,npType:parsed.npType||"branch",products:items,prepayment:prepay!==""?Number(prepay):0,total});
+      setCreatingTTN(false);setTtnResult(r);
+      if(!r.ok){return;}
+      ttn=r.ttn||"";
+    }
+    const order={id:Date.now(),client:cn,phone:parsed.phone,city:deliv==="np"?parsed.city:"",npBranch:deliv==="np"?parsed.npBranch:"",payment:deliv==="np"?parsed.payment:"cash",deliveryType:deliv,items:[...items],total,totalCost,date:new Date().toISOString(),status:ttn?"toSend":((prepay!==""&&Number(prepay)>=total)?"paid":(deliv==="np"?"new":"studio")),ttn:ttn,codAmount:codAmount!==""?Number(codAmount):null,prepayment:prepay!==""?Number(prepay):null,discount:discount!==""?Number(discount):null,comment:comment};
     setProducts(products.map(p=>{const it=items.find(i=>i.productId===p.id);return it&&p.type==="product"?{...p,stock:p.stock-it.qty}:p;}));
     setOrders([...orders,order]);
-    // Upsert client
     const cPhone=parsed.phone||cn;
     const existC=clients.find(c=>c.phone&&c.phone===parsed.phone);
     if(existC){setClients(clients.map(c=>c.id===existC.id?{...c,name:cn,city:deliv==="np"?parsed.city:c.city,npBranch:deliv==="np"?parsed.npBranch:c.npBranch}:c));}
     else{setClients([...clients,{id:Date.now(),name:cn,phone:parsed.phone,city:deliv==="np"?parsed.city:"",npBranch:deliv==="np"?parsed.npBranch:"",created:new Date().toISOString()}]);}
     setRaw("");setItems([]);setEditP(false);setParsedOpen(true);setInputOpen(true);setDeliv("np");
-    setParsed({name:"",phone:"",city:"",npBranch:"",payment:"control"});setCodAmount("");setPrepay("");setDiscount("");setComment("");setCodManual(false);setProdCat("Все");
-    const nb=document.createElement("div");nb.textContent="\u2705 Замовлення додано!";Object.assign(nb.style,{position:"fixed",top:"20px",left:"50%",transform:"translateX(-50%)",background:"#22c55e",color:"#fff",padding:"12px 24px",borderRadius:"12px",fontSize:"15px",fontWeight:"600",zIndex:"9999",boxShadow:"0 4px 20px rgba(0,0,0,.25)"});document.body.appendChild(nb);setTimeout(()=>nb.remove(),2000);
+    setParsed({name:"",phone:"",city:"",npBranch:"",payment:"control",prepayment:0,products:[],npType:"branch"});setCodAmount("");setPrepay("");setDiscount("");setComment("");setCodManual(false);setProdCat("Все");
+    setNpResolved(null);setAutoAddedIds(new Set());setAutoFilledPrepay(false);
+    if(!makeTTN)setTtnResult(null);
+    const nb=document.createElement("div");nb.textContent=ttn?("✅ Замовлення + ТТН "+ttn):"✅ Замовлення додано!";Object.assign(nb.style,{position:"fixed",top:"20px",left:"50%",transform:"translateX(-50%)",background:"#22c55e",color:"#fff",padding:"12px 24px",borderRadius:"12px",fontSize:"15px",fontWeight:"600",zIndex:"9999",boxShadow:"0 4px 20px rgba(0,0,0,.25)"});document.body.appendChild(nb);setTimeout(()=>nb.remove(),3500);
   };
   const curTotal=items.reduce((s,i)=>s+i.price*i.qty,0);
   const curProfit=items.reduce((s,i)=>s+(i.price-i.cost)*i.qty,0);
@@ -1395,6 +1538,9 @@ function NewOrderPage({orders,setOrders,products,setProducts,clients,setClients}
           {parsed.phone&&<span style={{color:"var(--text2)"}}>{parsed.phone}</span>}
           {deliv==="np"&&parsed.city&&<span style={{color:"var(--text2)"}}>{parsed.city}{parsed.npBranch?` №${parsed.npBranch}`:""}</span>}
           {deliv==="np"&&<span className="badge badge-blue" style={{fontSize:9}}>Контр</span>}
+          {deliv==="np"&&npResolving&&<span style={{fontSize:10,color:"var(--text2)"}}>{"⏳"}</span>}
+          {deliv==="np"&&npResolved&&npResolved.warehouseRef&&<span className="badge badge-green" style={{fontSize:9}}>{"✓ ТТН"}</span>}
+          {deliv==="np"&&npResolved&&npResolved.npResolveErr&&<span style={{fontSize:10,color:"var(--red)"}}>{"⚠"}</span>}
           {items.length>0&&<span style={{color:"var(--text2)"}}>| {items.length} товар(ів): {fmt(curTotal)}</span>}
         </span>
         <button className="btn btn-secondary btn-xs" onClick={e=>{e.stopPropagation();setInputOpen(true);}}>Змінити</button>
@@ -1414,6 +1560,9 @@ function NewOrderPage({orders,setOrders,products,setProducts,clients,setClients}
               {parsed.phone&&<span style={{color:"var(--text2)"}}>{parsed.phone}</span>}
               {deliv==="np"&&parsed.city&&<span style={{color:"var(--text2)"}}>{parsed.city}{parsed.npBranch?` №${parsed.npBranch}`:""}</span>}
               {deliv==="np"&&<span className="badge badge-blue" style={{fontSize:9}}>Контр</span>}
+              {deliv==="np"&&npResolving&&<span style={{fontSize:10,color:"var(--text2)"}}>{"⏳ НП..."}</span>}
+              {deliv==="np"&&npResolved&&npResolved.warehouseRef&&<span className="badge badge-green" style={{fontSize:9}}>{"✓ НП"}</span>}
+              {deliv==="np"&&npResolved&&npResolved.npResolveErr&&<span style={{fontSize:10,color:"var(--red)"}}>{"⚠ "+npResolved.npResolveErr}</span>}
             </span>
             <button className="btn btn-secondary btn-xs">Розгорнути</button>
           </div>:
@@ -1425,8 +1574,10 @@ function NewOrderPage({orders,setOrders,products,setProducts,clients,setClients}
             {!editP?<>
               <div className="parsed-row"><span className="parsed-label">Ім'я:</span><span>{parsed.name||"—"}</span></div>
               <div className="parsed-row"><span className="parsed-label">Тел:</span><span>{parsed.phone||"—"}</span></div>
-              {deliv==="np"&&<><div className="parsed-row"><span className="parsed-label">Місто:</span><span>{parsed.city||"—"}</span></div>
-              <div className="parsed-row"><span className="parsed-label">Відділ:</span><span>{parsed.npBranch?`№${parsed.npBranch}`:"—"}</span></div></>}
+              {deliv==="np"&&<><div className="parsed-row"><span className="parsed-label">Місто:</span><span>{parsed.city||"—"}{npResolved&&npResolved.cityCanonical&&npResolved.cityCanonical!==parsed.city?<span style={{fontSize:10,color:"var(--text2)",marginLeft:4}}>{"→ "+npResolved.cityCanonical}</span>:null}</span></div>
+              <div className="parsed-row"><span className="parsed-label">{parsed.npType==="postomat"?"Поштомат":"Відділ"}:</span><span>{parsed.npBranch?`№${parsed.npBranch}`:"—"}{npResolved&&npResolved.warehouseDesc?<span style={{fontSize:10,color:"var(--green)",marginLeft:4}}>{"✓ "+npResolved.warehouseDesc.substring(0,40)}</span>:null}{npResolved&&npResolved.npResolveErr&&parsed.npBranch?<span style={{fontSize:10,color:"var(--red)",marginLeft:4}}>{"⚠ "+npResolved.npResolveErr}</span>:null}</span></div></>}
+              {parsed.products&&parsed.products.length>0&&<div className="parsed-row"><span className="parsed-label">Товари:</span><span>{parsed.products.map(function(p,i){return(p.qty>1?p.qty+"× ":"")+p.name.replace(/^Футболка\s*/,"").replace(/["“”«»]/g,"");}).join(", ")}<span style={{fontSize:10,color:"var(--green)",marginLeft:4}}>{"(авто-додано)"}</span></span></div>}
+              {parsed.prepayment>0&&<div className="parsed-row"><span className="parsed-label">Передопл:</span><span>{parsed.prepayment+"₴"}<span style={{fontSize:10,color:"var(--green)",marginLeft:4}}>{"(авто-заповнено)"}</span></span></div>}
             </>:
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6,marginTop:6}}>
               <div className="form-group" style={{marginBottom:0}}><label className="form-label">Ім'я</label><input className="form-input" value={parsed.name} onChange={e=>setParsed({...parsed,name:e.target.value})}/></div>
@@ -1495,8 +1646,12 @@ function NewOrderPage({orders,setOrders,products,setProducts,clients,setClients}
           ))}
         </div>}
       </div>
-      <div style={{display:"flex",gap:8,alignItems:"center"}}>
-        <button className="btn btn-primary" onClick={submit} disabled={!items.length||!parsed.name.trim()} style={{flex:1,height:40,fontSize:14}}>{I.send}{" Оформити"}</button>
+      {ttnResult&&<div style={{padding:10,marginBottom:8,borderRadius:10,background:ttnResult.ok?"#dcfce7":"#fee2e2",border:"1px solid "+(ttnResult.ok?"#86efac":"#fca5a5"),fontSize:13}}>
+        {ttnResult.ok?<><strong style={{color:"#166534"}}>{"✓ ТТН створено: "}</strong><span style={{fontFamily:"ui-monospace,monospace",fontSize:15,fontWeight:700,color:"#166534"}}>{ttnResult.ttn}</span>{ttnResult.cost&&<span style={{marginLeft:8,fontSize:11,color:"#166534"}}>{"• доставка "+ttnResult.cost+"₴"}</span>}</>:<><strong style={{color:"#991b1b"}}>{"✗ ТТН: "}</strong><span style={{color:"#991b1b",fontSize:11}}>{ttnResult.error}</span></>}
+      </div>}
+      <div style={{display:"flex",gap:6,alignItems:"center"}}>
+        <button className="btn btn-primary" onClick={()=>submit(false)} disabled={!items.length||!parsed.name.trim()||creatingTTN} style={{flex:1,height:40,fontSize:14}}>{I.send}{" Оформити"}</button>
+        {deliv==="np"&&<button className="btn" onClick={()=>submit(true)} disabled={!items.length||!parsed.name.trim()||creatingTTN||!(npResolved&&npResolved.warehouseRef)} style={{flex:1,height:40,fontSize:13,background:(npResolved&&npResolved.warehouseRef)?"#22c55e":"#9ca3af",color:"#fff",border:0,borderRadius:10,fontWeight:700,cursor:(npResolved&&npResolved.warehouseRef)?"pointer":"not-allowed"}}>{creatingTTN?"⏳ ТТН...":"📦 Оформити + ТТН"}</button>}
       </div>
     </div>
   </div>);
@@ -2473,6 +2628,72 @@ const NP={
     return{ok:true,ref:cp.Ref,contactRef};
   }
 };
+
+
+// ─── NP resolution + TTN helpers (async, used by parser-driven flows) ───
+function pickNPCity(cities,query){
+  if(!cities||!cities.length)return null;
+  var want=NP._normCity(query);
+  var exact=cities.find(function(c){return NP._normCity(c.city||'')===want||NP._normCity(c.name||'')===want;});
+  if(exact)return exact;
+  var starts=cities.find(function(c){return NP._normCity(c.city||'').startsWith(want)||NP._normCity(c.name||'').startsWith(want);});
+  if(starts)return starts;
+  return cities[0];
+}
+function pickNPWarehouse(whs,branchNum){
+  if(!whs||!whs.length)return null;
+  var exact=whs.find(function(w){return String(w.num)===String(branchNum);});
+  if(exact)return exact;
+  var sub=whs.find(function(w){return String(w.num).indexOf(String(branchNum))!==-1||String(w.desc||'').indexOf('№'+branchNum)!==-1;});
+  return sub||null;
+}
+async function resolveNP(parsed){
+  var base={cityRef:'',deliveryCityRef:'',warehouseRef:'',cityCanonical:'',warehouseDesc:'',cityCandidates:0,whCandidates:0,npResolveErr:''};
+  if(!parsed||!parsed.city)return Object.assign({},parsed||{},base,{npResolveErr:'no city'});
+  try{
+    var cities=await NP.searchCity(parsed.city);
+    if(!cities.length)return Object.assign({},parsed,base,{npResolveErr:'city not found'});
+    var city=pickNPCity(cities,parsed.city);
+    var warehouseRef='',warehouseDesc='',whCandidates=0;
+    if(parsed.npBranch){
+      var whs=await NP.getWarehouses(city.ref,parsed.npBranch);
+      if(!whs.length)whs=await NP.getWarehouses(city.ref);
+      whCandidates=whs.length;
+      var wh=pickNPWarehouse(whs,parsed.npBranch);
+      if(wh){warehouseRef=wh.ref;warehouseDesc=wh.desc;}
+    }
+    return Object.assign({},parsed,{cityRef:city.ref,deliveryCityRef:city.deliveryCityRef,cityCanonical:city.name||city.city,warehouseRef:warehouseRef,warehouseDesc:warehouseDesc,cityCandidates:cities.length,whCandidates:whCandidates,npResolveErr:warehouseRef?'':(parsed.npBranch?'branch №'+parsed.npBranch+' not found':'no branch')});
+  }catch(e){return Object.assign({},parsed,base,{npResolveErr:'NP error: '+e.message});}
+}
+async function createTTNFromOrder(orderLike){
+  // orderLike: {name, phone, cityRef, deliveryCityRef, warehouseRef, npType, products[], prepayment, total?}
+  if(!orderLike.cityRef||!orderLike.warehouseRef)return{ok:false,error:'немає cityRef або warehouseRef'};
+  if(!orderLike.phone||!orderLike.name)return{ok:false,error:'немає імені або телефону'};
+  var sender=await NP.getSenderInfo();
+  if(!sender||!sender.ref||!sender.contact||!sender.address)return{ok:false,error:'не вдалося отримати дані відправника НП'};
+  var cargoRef='';try{cargoRef=await NP.getCargoDescriptionRef('одяг');}catch(e){}
+  var total=Number(orderLike.total)||(orderLike.products||[]).reduce(function(s,p){return s+(Number(p.price)||0)*(Number(p.qty)||0);},0)||300;
+  var cod=Math.max(0,total-(Number(orderLike.prepayment)||0));
+  var recip=await NP.createRecipient(orderLike.name,orderLike.phone,orderLike.deliveryCityRef||orderLike.cityRef);
+  if(!recip.ok)return{ok:false,error:'recipient: '+JSON.stringify(recip.errors)};
+  var svc=(orderLike.npType==='postomat')?'WarehousePostomat':'WarehouseWarehouse';
+  var params={
+    PayerType:'Recipient',PaymentMethod:'Cash',
+    DateTime:new Date().toLocaleDateString('uk-UA',{day:'2-digit',month:'2-digit',year:'numeric'}),
+    CargoType:'Parcel',Weight:'0.5',ServiceType:svc,SeatsAmount:'1',
+    Description:'Одяг',Cost:String(total),
+    CitySender:sender.address.cityRef,Sender:sender.ref,
+    SenderAddress:sender.address.ref,ContactSender:sender.contact.ref,SendersPhone:sender.contact.phone,
+    CityRecipient:orderLike.deliveryCityRef||orderLike.cityRef,
+    Recipient:recip.ref,RecipientAddress:orderLike.warehouseRef,
+    ContactRecipient:recip.contactRef,RecipientsPhone:orderLike.phone,
+  };
+  if(cargoRef)params.CargoDescription=cargoRef;
+  if(cod>0)params.BackwardDeliveryData=[{PayerType:'Recipient',CargoType:'Money',RedeliveryString:String(cod)}];
+  var r=await NP.createTTN(params);
+  if(!r.ok)return{ok:false,error:JSON.stringify(r.errors)};
+  return{ok:true,ttn:r.ttn,cost:r.cost,estimated:r.estimated};
+}
 
 // ─── LOGIN ───
 const USERS_FALLBACK=[
