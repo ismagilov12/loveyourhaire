@@ -348,20 +348,20 @@ function findDupeFor(orders,phone,name,dateMs){
 // ─── Smart parser ───
 // ─── Parser helpers (top-level so parseClient + parseBulkOrders share them) ───
 const ALIASES_V2={
-  'еминем':'eminem','эминем':'eminem','эмигем':'eminem','єминем':'eminem','еміне':'eminem','эмине':'eminem','eminem':'eminem',
-  'памела':'pamela','памел':'pamela','pamela':'pamela',
-  'брітні':'britney','бритни':'britney','бритні':'britney','брітн':'britney','бритн':'britney','britney':'britney',
-  'краш':'crush','crush':'crush',
+  'эмин':'eminem','эмін':'eminem','еминем':'eminem','эмигем':'eminem','ємин':'eminem','еміне':'eminem','еминему':'eminem','эминому':'eminem','eminem':'eminem',
+  'памел':'pamela','pamela':'pamela',
+  'бритн':'britney','брітн':'britney','britney':'britney',
+  'краш':'crush','crush':'crush','крэш':'crush',
   'чувак':'beavis','бівіс':'beavis','бивис':'beavis','батхед':'beavis','beavis':'beavis',
   'ліндсі':'lindsay','линдси':'lindsay','лохан':'lindsay','lindsay':'lindsay','lohan':'lindsay',
-  'снуп':'snoop','снуп дог':'snoop','snoop':'snoop',
-  'продіджі':'prodigy','продиджи':'prodigy','prodigy':'prodigy',
-  'плейбой':'playboy','playboy':'playboy',
+  'снуп':'snoop','snoop':'snoop',
+  'продідж':'prodigy','продиджи':'prodigy','prodigy':'prodigy',
+  'плейбо':'playboy','плэйбо':'playboy','playboy':'playboy',
   'love is':'love is','лав из':'love is','лав іс':'love is',
   'мастурбац':'masturbation','masturbat':'masturbation',
   'пам томм':'pam & tommy','памтомм':'pam & tommy','pam tommy':'pam & tommy','pam & tommy':'pam & tommy',
   'why britney':'why britney shaped','побрит':'why britney shaped',
-  'soft rebel':'soft rebel','софт ребел':'soft rebel',
+  'soft rebel':'soft rebel','софт ребел':'soft rebel','рібел':'soft rebel','ребел':'soft rebel',
   'giant pussy':'giant pussy','джаянт':'giant pussy',
   'паста':'текстуруюча паста','текстур':'текстуруюча паста',
   'спрей':'beach spray','біч':'beach spray','beach':'beach spray',
@@ -489,18 +489,30 @@ function parseClient(text,products){
     else{tag='text';}
     classified.push({line:line,low:low,tag:tag,meta:meta,idx:li});
   }
-  var city="",branch="",npType="branch",branchLineIdx=-1;
+  var city="",branch="",npType="branch",branchLineIdx=-1,phoneLineIdx=-1;
   for(var ci=0;ci<classified.length;ci++){var e=classified[ci];if(e.tag==='postomat'){branch=e.meta.branch;npType='postomat';branchLineIdx=e.idx;break;}if(e.tag==='branch'){branch=e.meta.branch;npType='branch';branchLineIdx=e.idx;break;}if(e.tag==='citybranch'){city=e.meta.city;branch=e.meta.branch;npType=e.meta.npType;branchLineIdx=e.idx;break;}}
+  for(var ci2=0;ci2<classified.length;ci2++){if(classified[ci2].tag==='phone'){phoneLineIdx=ci2;break;}}
+  function cleanText(line){return line.replace(/№/g,' ').replace(uBoundary('номер'),' ').replace(/\d+/g,' ').replace(/[,\/\|]+/g,' ').replace(/\s+/g,' ').trim();}
+  function isNameShape(line){var clean=cleanText(line);var ws=clean.split(/\s+/).filter(Boolean);if(ws.length<2||ws.length>5)return false;return ws.every(function(w){return /^[А-ЯІЇЄҐA-Z][а-яіїєґa-z'`\-’]{1,}$/.test(w);});}
+  var SURNAME_RE=/(?:енко|юк|чук|ський|цький|ська|цька|ова|ева|іна|ина|евич|ович|ук|ак|як|ин|ов|ев|ій|ний|ник|ишин|чин)$/i;
+  function hasSurnameWord(line){var clean=cleanText(line);var ws=clean.split(/\s+/).filter(Boolean);return ws.some(function(w){return w.length>=4 && SURNAME_RE.test(w);});}
+  var SETTLE_RE=/(?:івка|инка|енька|щина|щагівка|польщ|поль|град|горск|город|сько|ське|цьке|цька|ська|городок|кут|роща)$/i;
+  function hasSettleSuffix(line){var clean=cleanText(line);var ws=clean.split(/\s+/).filter(Boolean);return ws.some(function(w){return w.length>=4 && SETTLE_RE.test(w);});}
   if(!city && branchLineIdx>=0){var bce=classified[branchLineIdx];if(bce.meta.cityCand)city=bce.meta.cityCand;}
-  if(!city && branchLineIdx>0){for(var pi=branchLineIdx-1;pi>=0;pi--){var pe=classified[pi];if(pe.tag==='text' && /^[A-Za-zА-ЯІЇЄҐа-яіїєґ\s\-'`’.,]+$/.test(pe.line)){var wcount=pe.line.split(/\s+/).filter(Boolean).length;if(wcount<=3){city=pe.line.replace(/[,]/g,'').trim();classified[pi].tag='city';break;}}}}
-  if(!city){var lowFull=full.toLowerCase();for(var ki=0;ki<KNOWN_CITIES_V2.length;ki++){var kc=KNOWN_CITIES_V2[ki];var cre=new RegExp('(?:^|[\\s,/|\\n])('+kc.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')(?=[\\s,/|\\n]|$)','i');var cm=lowFull.match(cre);if(cm){var idx=lowFull.indexOf(cm[1],cm.index);city=full.substr(idx,kc.length);city=city.charAt(0).toUpperCase()+city.slice(1);break;}}}
+  if(!city && branchLineIdx>0){for(var pi=branchLineIdx-1;pi>=0;pi--){var pe=classified[pi];if(pe.tag==='text' && /^[A-Za-zА-ЯІЇЄҐа-яіїєґ\s\-'`’.,]+$/.test(pe.line)){var wcount=pe.line.split(/\s+/).filter(Boolean).length;if(wcount<=3 && !hasSurnameWord(pe.line)){city=pe.line.replace(/[,]/g,'').trim();classified[pi].tag='city';break;}}}}
+  if(!city){var lowFull=full.toLowerCase();for(var ki=0;ki<KNOWN_CITIES_V2.length;ki++){var kc=KNOWN_CITIES_V2[ki];var cre=new RegExp('(?:^|[\\s,/|\\n])('+kc.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')(?=[\\s,/|\\n]|$)','i');var cm=lowFull.match(cre);if(cm){var idx=lowFull.indexOf(cm[1],cm.index);city=full.substr(idx,kc.length);city=city.charAt(0).toUpperCase()+city.slice(1);for(var ci3=0;ci3<classified.length;ci3++){if(classified[ci3].line.toLowerCase().indexOf(kc)!==-1){classified[ci3].tag='city';break;}}break;}}}
+  if(!city){for(var ssi=0;ssi<classified.length;ssi++){var sse=classified[ssi];if(sse.tag!=='text')continue;if(hasSettleSuffix(sse.line) && !hasSurnameWord(sse.line)){city=sse.line.replace(/[,]/g,'').trim();classified[ssi].tag='city';break;}}}
   city=city.replace(/^(?:м\.?\s*|місто\s+|село\s+|с\.\s*|смт\.?\s*|пгт\.?\s*|селище\s+)/i,'').trim();
   if(city){city=city.split(/\s+/).map(function(w){return w?w.charAt(0).toUpperCase()+w.slice(1).toLowerCase():w;}).join(' ');}
-  var nameCandidates=[];
-  for(var ni=0;ni<classified.length;ni++){var ne=classified[ni];if(ne.tag!=='text')continue;var clean=ne.line.replace(/№/g,' ').replace(uBoundary('номер'),' ').replace(/\d+/g,' ').replace(/[,\/\|]+/g,' ').replace(/\s+/g,' ').trim();if(!clean)continue;if(clean===city)continue;nameCandidates.push(clean);}
-  var name='';
-  var bestName=nameCandidates.find(function(l){var ws=l.split(/\s+/).filter(Boolean);if(ws.length<2||ws.length>5)return false;return ws.every(function(w){return /^[А-ЯІЇЄҐA-Z][а-яіїєґa-z'`\-’]{1,}$/.test(w);});});
-  if(bestName)name=bestName;else if(nameCandidates.length){name=nameCandidates.sort(function(a,b){return b.length-a.length;})[0];}
+  var name='';var nameCandidates=[];
+  for(var ni=0;ni<classified.length;ni++){var ne=classified[ni];if(ne.tag!=='text')continue;var clean=cleanText(ne.line);if(!clean||clean===city)continue;nameCandidates.push({clean:clean,idx:ne.idx,line:ne.line});}
+  if(phoneLineIdx>=0){var beforePhone=nameCandidates.find(function(nc){return nc.idx===phoneLineIdx-1 && isNameShape(nc.line);});if(beforePhone)name=beforePhone.clean;}
+  if(!name){var bySurname=nameCandidates.find(function(nc){return hasSurnameWord(nc.line);});if(bySurname)name=bySurname.clean;}
+  if(!name){var byShape=nameCandidates.find(function(nc){return isNameShape(nc.line) && !hasSettleSuffix(nc.line);});if(byShape)name=byShape.clean;}
+  if(!name){var anyShape=nameCandidates.find(function(nc){return isNameShape(nc.line);});if(anyShape)name=anyShape.clean;}
+  if(!name && nameCandidates.length){name=nameCandidates.sort(function(a,b){return b.clean.length-a.clean.length;})[0].clean;}
+  if(!city){var leftover=nameCandidates.find(function(nc){return nc.clean!==name;});if(leftover){city=leftover.clean;}}
+  if(city){city=city.split(/\s+/).map(function(w){return w?w.charAt(0).toUpperCase()+w.slice(1).toLowerCase():w;}).join(' ');}
   return{name:name,phone:phone,city:city,npBranch:branch,npType:npType,payment:payment,prepayment:prepayment,paymentType:paymentType,discount:discount,discountPercent:discountPercent,products:products_found};
 }
 
