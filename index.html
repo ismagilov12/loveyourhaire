@@ -283,8 +283,22 @@ const INIT_PRODUCTS=[
   {id:19,name:"Hydration Conditioner",sku:"COS-HC",category:"Косметика для волосся",cost:380,price:1200,stock:30,type:"product",photo:""},
   {id:20,name:"Everyday Shampoo",sku:"COS-ES",category:"Косметика для волосся",cost:300,price:950,stock:30,type:"product",photo:""},
   {id:21,name:"Curly Cream Gel",sku:"COS-CG",category:"Косметика для волосся",cost:320,price:1000,stock:30,type:"product",photo:""},
+  // — Пояси для футболок —
+  {id:291807744282,name:"Пояс LEO black",sku:"BLT-LEOB",category:"Пояси",cost:0,price:1500,stock:0,type:"product",photo:""},
+  {id:569279241162,name:"Пояс LEO red",sku:"BLT-LEOR",category:"Пояси",cost:0,price:1500,stock:0,type:"product",photo:""},
+  {id:937697761442,name:"Пояс Red сітка",sku:"BLT-MESHR",category:"Пояси",cost:0,price:1500,stock:0,type:"product",photo:""},
+  {id:421116006442,name:"Пояс Black сітка",sku:"BLT-MESHB",category:"Пояси",cost:0,price:1500,stock:0,type:"product",photo:""},
+  // — Showgirl / Intimate looks —
+  {id:320588202872,name:"Showgirl leopard/black straps",sku:"SG-LEOB",category:"Showgirl",cost:0,price:2000,stock:0,type:"product",photo:""},
+  {id:525043908772,name:"Showgirl leopard/red straps",sku:"SG-LEOR",category:"Showgirl",cost:0,price:2000,stock:0,type:"product",photo:""},
+  {id:737789668352,name:"Showgirl cow/pink straps",sku:"SG-COW",category:"Showgirl",cost:0,price:2000,stock:0,type:"product",photo:""},
+  // — Neck Pieces —
+  {id:247714302362,name:"Neck Pieces",sku:"NCK-001",category:"Neck Pieces",cost:0,price:490,stock:0,type:"product",photo:""},
+  // — Micro Bikinis —
+  {id:397556579912,name:"Tension",sku:"BIK-TEN",category:"Bikinis",cost:0,price:1800,stock:0,type:"product",photo:""},
+  {id:577681468562,name:"Soft bunny",sku:"BIK-SBN",category:"Bikinis",cost:0,price:2500,stock:0,type:"product",photo:""},
 ];
-const CATEGORIES=["Все","Oversize футболки","Косметика для волосся"];
+const CATEGORIES=["Все","Oversize футболки","Косметика для волосся","Пояси","Showgirl","Bikinis","Neck Pieces"];
 const MONTHS=["Січень","Лютий","Березень","Квітень","Травень","Червень","Липень","Серпень","Вересень","Жовтень","Листопад","Грудень"];
 const DAYS=["Пн","Вт","Ср","Чт","Пт","Сб","Нд"];
 const STATUSES={new:"Новий",ttn:"ТТН",toSend:"На відправку",shipped:"Відправлено",atPost:"На пошті",received:"Отримано",refused:"Відмова",delivered:"Доставлено",studio:"Студія",paid:"Оплачено"};
@@ -369,7 +383,25 @@ const ALIASES_V2={
   'шампунь глиб':'deep clean','діп клін':'deep clean','deep clean':'deep clean',
   'шампунь щод':'everyday shampoo','everyday shampoo':'everyday shampoo','щоденн':'everyday shampoo',
   'крем гель':'curly cream gel','кьорлі':'curly cream gel','curly':'curly cream gel',
-  'spray':'beach spray','shampoo':'shampoo','gel':'curly cream gel'
+  'spray':'beach spray','shampoo':'shampoo','gel':'curly cream gel',
+  // — Пояси —
+  'пояс лео черн':'пояс leo black','пояс лео блек':'пояс leo black','пояс leo black':'пояс leo black','пояс leo чорн':'пояс leo black',
+  'пояс лео красн':'пояс leo red','пояс лео черв':'пояс leo red','пояс leo red':'пояс leo red',
+  'пояс red':'пояс red сітка','пояс ред сетк':'пояс red сітка','пояс ред сітк':'пояс red сітка','пояс red сітка':'пояс red сітка','пояс червона сітк':'пояс red сітка',
+  'пояс black сітк':'пояс black сітка','пояс блек сетк':'пояс black сітка','пояс блек сітк':'пояс black сітка','пояс чорн сітк':'пояс black сітка',
+  // — Showgirl —
+  'шоугерл лео черн':'showgirl leopard/black','шоугерл лео блек':'showgirl leopard/black','showgirl leopard/black':'showgirl leopard/black','showgirl leopard black':'showgirl leopard/black','шоугерл leopard black':'showgirl leopard/black',
+  'шоугерл лео красн':'showgirl leopard/red','шоугерл лео червон':'showgirl leopard/red','showgirl leopard/red':'showgirl leopard/red','showgirl leopard red':'showgirl leopard/red',
+  'шоугерл коров':'showgirl cow/pink','шоугерл cow':'showgirl cow/pink','showgirl cow':'showgirl cow/pink','showgirl cow/pink':'showgirl cow/pink','шоугерл рожев':'showgirl cow/pink',
+  'showgirl':'showgirl','шоугерл':'showgirl',
+  // — Neck Pieces —
+  'неклес':'neck pieces','нек піс':'neck pieces','шийн':'neck pieces','чокер':'neck pieces','чокеры':'neck pieces','neck':'neck pieces','neck pieces':'neck pieces','neck piece':'neck pieces',
+  // — Bikinis —
+  'тенш':'tension','tension':'tension','теншн':'tension','напруг':'tension',
+  'soft bunny':'soft bunny','софт банні':'soft bunny','софт банни':'soft bunny','зайчик':'soft bunny','банни':'soft bunny','банні':'soft bunny',
+  'мікробікіні':'bikini','микробикини':'bikini','бікіні':'bikini','бикини':'bikini','bikini':'bikini',
+  // generic — поясы
+  'пояс':'пояс','ремінь':'пояс','ремень':'пояс'
 };
 function buildProdIndexV2(products){
   return (products||[]).map(function(p){
@@ -378,6 +410,8 @@ function buildProdIndexV2(products){
     var cl=p.name.replace(/^футболка\s*/i,"").replace(/["“”«»—]/g,"").trim().toLowerCase();
     if(cl.length>2)kws.push(cl);
     kws.push(p.name.toLowerCase());
+    // Per-word kws for non-quoted product names (e.g. "Пояс LEO black", "Showgirl cow/pink straps")
+    cl.split(/[\s/]+/).forEach(function(w){if(w.length>=3&&w!=="футболка"&&w!=="straps"&&w!=="пояс")kws.push(w);});
     return{product:p,kws:kws.filter(function(v,i,a){return a.indexOf(v)===i;})};
   });
 }
