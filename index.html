@@ -1717,7 +1717,11 @@ function OrdersListPage({orders,setOrders,products}){
   const hasTtn=o=>o.ttn&&String(o.ttn).trim().length>0;
   // Apply product filter to searched results
   const byProduct=productFilter==="all"?searched:searched.filter(o=>(o.items||[]).some(it=>String(it.productId)===String(productFilter)||it.name===productFilter));
-  const filtered=filter==="dupes"?byProduct.filter(o=>dupeMap.has(o.id)):(filter==="all"?byProduct:(filter==="ttn"?byProduct.filter(o=>o.deliveryType==="np"&&!hasTtn(o)&&o.status!=="shipped"&&o.status!=="delivered"&&o.status!=="paid"&&o.status!=="studio"):(filter==="toSend"?byProduct.filter(o=>hasTtn(o)&&o.status!=="shipped"&&o.status!=="delivered"):(filter==="new"?byProduct.filter(o=>o.status==="new"&&!hasTtn(o)):byProduct.filter(o=>o.status===filter)))));
+  // Filters MUST match counter logic below — same predicates
+  const isAwaitingTtn=o=>o.deliveryType==="np"&&!hasTtn(o)&&o.status!=="shipped"&&o.status!=="delivered"&&o.status!=="paid"&&o.status!=="studio";
+  const isReadyToShip=o=>{if(!hasTtn(o))return false;if(o.npStatusCode)return o.npStatusCode==="1";return o.status==="new"||o.status==="ttn"||o.status==="toSend";};
+  const isNew=o=>o.deliveryType==="np"&&o.status==="new"&&!hasTtn(o);
+  const filtered=filter==="dupes"?byProduct.filter(o=>dupeMap.has(o.id)):(filter==="all"?byProduct:(filter==="ttn"?byProduct.filter(isAwaitingTtn):(filter==="toSend"?byProduct.filter(isReadyToShip):(filter==="new"?byProduct.filter(isNew):byProduct.filter(o=>o.status===filter)))));
   // Sort: when showing dupes — group by duplicate key then by date desc; otherwise use sortDir
   const dateSort=(a,b)=>{const d=new Date(b.date)-new Date(a.date);return sortDir==="asc"?-d:d;};
   const sorted=filter==="dupes"
@@ -1725,16 +1729,10 @@ function OrdersListPage({orders,setOrders,products}){
     :[...filtered].sort(dateSort);
   const np=searched.filter(o=>o.deliveryType==="np");
   const dupeCount=searched.filter(o=>dupeMap.has(o.id)).length;
-  // TTN funnel: NP orders without TTN and not in final states
-  const awaitingTtn=np.filter(o=>!hasTtn(o)&&o.status!=="shipped"&&o.status!=="delivered"&&o.status!=="paid"&&o.status!=="studio");
-  // На відправку funnel: only TTN drafts in NP (StatusCode "1" == Нова).
-  // If NP code is already known, require exactly "1". Otherwise fall back to internal status while code is being fetched.
-  const readyToShip=searched.filter(o=>{
-    if(!hasTtn(o))return false;
-    if(o.npStatusCode)return o.npStatusCode==="1";
-    return o.status==="new"||o.status==="ttn"||o.status==="toSend";
-  });
-  const counts={all:searched.length,new:np.filter(o=>o.status==="new"&&!hasTtn(o)).length,ttn:awaitingTtn.length,toSend:readyToShip.length,shipped:np.filter(o=>o.status==="shipped").length,atPost:np.filter(o=>o.status==="atPost").length,received:np.filter(o=>o.status==="received").length,refused:np.filter(o=>o.status==="refused").length,delivered:np.filter(o=>o.status==="delivered").length,studio:searched.filter(o=>o.status==="studio").length,paid:searched.filter(o=>o.status==="paid").length,dupes:dupeCount};
+  // Funnels — predicates declared above (isAwaitingTtn, isReadyToShip, isNew). Counts use same predicates.
+  const awaitingTtn=searched.filter(isAwaitingTtn);
+  const readyToShip=searched.filter(isReadyToShip);
+  const counts={all:searched.length,new:searched.filter(isNew).length,ttn:awaitingTtn.length,toSend:readyToShip.length,shipped:searched.filter(o=>o.status==="shipped").length,atPost:searched.filter(o=>o.status==="atPost").length,received:searched.filter(o=>o.status==="received").length,refused:searched.filter(o=>o.status==="refused").length,delivered:searched.filter(o=>o.status==="delivered").length,studio:searched.filter(o=>o.status==="studio").length,paid:searched.filter(o=>o.status==="paid").length,dupes:dupeCount};
   const openTtn=o=>{setTtnM(o);setTtnV(o.ttn||"");};
   const saveTtn=()=>{if(!ttnM)return;const t=ttnV.trim();setOrders(orders.map(o=>o.id===ttnM.id?{...o,ttn:t,status:t?"toSend":"new"}:o));saveOrderField(ttnM.id,{ttn:t,status:t?"toSend":"new"});setTtnM(null);};
   const openPrepay=o=>{setPrepayO(o);setPrepayV(String(o.prepayment||""));};
@@ -2005,7 +2003,7 @@ function OrdersListPage({orders,setOrders,products}){
     <div className="filter-pills" style={{marginBottom:16}}>
       <button className={`filter-pill${filter==="all"?' active':''}`} onClick={()=>setFilter("all")}>Всі ({counts.all})</button>
       <button className={`filter-pill${filter==="new"?' active':''}`} onClick={()=>setFilter("new")}>Нові ({counts.new})</button>
-      <button className={`filter-pill${filter==="ttn"?' active':''}`} onClick={()=>setFilter("ttn")}>ТТН ({counts.ttn})</button>
+      <button className={`filter-pill${filter==="ttn"?' active':''}`} onClick={()=>setFilter("ttn")} title="НП-замовлення без ТТН (потрібно створити)">Потрібна ТТН ({counts.ttn})</button>
       <button className={`filter-pill${filter==="toSend"?' active':''}`} onClick={()=>setFilter("toSend")}>На відправку ({counts.toSend})</button>
       <button className={`filter-pill${filter==="shipped"?' active':''}`} onClick={()=>setFilter("shipped")}>Відправ. ({counts.shipped})</button>
       <button className={`filter-pill${filter==="atPost"?' active':''}`} onClick={()=>setFilter("atPost")} style={{color:filter==="atPost"?"#856404":""}}>На пошті ({counts.atPost})</button>
@@ -2677,12 +2675,31 @@ async function resolveNP(parsed){
     return Object.assign({},parsed,{cityRef:city.ref,deliveryCityRef:city.deliveryCityRef,cityCanonical:city.name||city.city,warehouseRef:warehouseRef,warehouseDesc:warehouseDesc,cityCandidates:cities.length,whCandidates:whCandidates,npResolveErr:warehouseRef?'':(parsed.npBranch?'branch №'+parsed.npBranch+' not found':'no branch')});
   }catch(e){return Object.assign({},parsed,base,{npResolveErr:'NP error: '+e.message});}
 }
+// Hardcoded sender: Харків, відділення 131. Resolves via NP API once, caches in LS.
+async function ensureKharkivSender(force){
+  var cached=LS.get('np_sender_wh');
+  if(!force&&cached&&cached.cityRef&&cached.whRef&&/харк/i.test(cached.city||'')&&String(cached.whDesc||'').indexOf('131')!==-1)return cached;
+  try{
+    var cities=await NP.searchCity('Харків');
+    if(!cities.length)return cached||null;
+    var city=cities.find(function(c){return /^харк/i.test(c.name||c.city||'');})||cities[0];
+    var whs=await NP.getWarehouses(city.ref,'131');
+    if(!whs.length)whs=await NP.getWarehouses(city.ref);
+    var wh=whs.find(function(w){return String(w.num)==='131';})||null;
+    if(!wh)return cached||null;
+    var sw={city:city.name||city.city,cityRef:city.ref,whDesc:wh.desc,whRef:wh.ref};
+    LS.set('np_sender_wh',sw);
+    return sw;
+  }catch(e){console.error('ensureKharkivSender failed',e);return cached||null;}
+}
+
 async function createTTNFromOrder(orderLike){
   // orderLike: {name, phone, cityRef, deliveryCityRef, warehouseRef, npType, products[], prepayment, total?}
   if(!orderLike.cityRef||!orderLike.warehouseRef)return{ok:false,error:'немає cityRef або warehouseRef'};
   if(!orderLike.phone||!orderLike.name)return{ok:false,error:'немає імені або телефону'};
   var sender=await NP.getSenderInfo();
   if(!sender||!sender.ref||!sender.contact||!sender.address)return{ok:false,error:'не вдалося отримати дані відправника НП'};
+  var sw=await ensureKharkivSender(false);
   var cargoRef='';try{cargoRef=await NP.getCargoDescriptionRef('одяг');}catch(e){}
   var total=Number(orderLike.total)||(orderLike.products||[]).reduce(function(s,p){return s+(Number(p.price)||0)*(Number(p.qty)||0);},0)||300;
   var cod=Math.max(0,total-(Number(orderLike.prepayment)||0));
@@ -2694,8 +2711,8 @@ async function createTTNFromOrder(orderLike){
     DateTime:new Date().toLocaleDateString('uk-UA',{day:'2-digit',month:'2-digit',year:'numeric'}),
     CargoType:'Parcel',Weight:'0.5',ServiceType:svc,SeatsAmount:'1',
     Description:'Одяг',Cost:String(total),
-    CitySender:sender.address.cityRef,Sender:sender.ref,
-    SenderAddress:sender.address.ref,ContactSender:sender.contact.ref,SendersPhone:sender.contact.phone,
+    CitySender:(sw&&sw.cityRef)||sender.address.cityRef,Sender:sender.ref,
+    SenderAddress:(sw&&sw.whRef)||sender.address.ref,ContactSender:sender.contact.ref,SendersPhone:sender.contact.phone,
     CityRecipient:orderLike.deliveryCityRef||orderLike.cityRef,
     Recipient:recip.ref,RecipientAddress:orderLike.warehouseRef,
     ContactRecipient:recip.contactRef,RecipientsPhone:orderLike.phone,
@@ -3111,6 +3128,7 @@ function bootApp(){
     },500);
   }
 }
+if(typeof ensureKharkivSender==="function"){try{ensureKharkivSender(true);}catch(e){}}
 bootApp();
 // v19 — pin SDK to 2.33.0 + defensive realtime setup
 </script>
