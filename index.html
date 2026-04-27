@@ -1659,9 +1659,9 @@ function NewOrderPage({orders,setOrders,products,setProducts,clients,setClients}
       <div ref={prodDropRef} style={{position:"relative",marginBottom:8}}>
         <div onClick={()=>setProdDropOpen(!prodDropOpen)} style={{padding:"10px 12px",borderRadius:10,border:"1px solid var(--border)",background:"var(--surface)",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"space-between",fontSize:14}}>
           <span style={{color:"var(--text2)"}}>{"Обрати товар..."}</span>
-          <span style={{fontSize:10,transform:prodDropOpen?"rotate(180deg)":"",transition:"transform .2s"}}>{"▼"}</span>
+          <span style={{fontSize:10,transform:prodDropOpen?"rotate(180deg)":"",transition:"transform .2s"}}>{"▲"}</span>
         </div>
-        {prodDropOpen&&<div style={{position:"absolute",top:"100%",left:0,right:0,zIndex:50,background:"var(--surface)",border:"1px solid var(--border)",borderRadius:10,marginTop:4,maxHeight:300,overflowY:"auto",boxShadow:"0 8px 24px rgba(0,0,0,.15)"}}>
+        {prodDropOpen&&<div style={{position:"absolute",bottom:"100%",left:0,right:0,zIndex:50,background:"var(--surface)",border:"1px solid var(--border)",borderRadius:10,marginBottom:4,maxHeight:300,overflowY:"auto",boxShadow:"0 -8px 24px rgba(0,0,0,.15)"}}>
           {CATEGORIES.filter(c=>c!=="Все").map(cat=>(
             <div key={cat}>
               <div style={{padding:"8px 12px",fontSize:11,fontWeight:700,color:"var(--text2)",background:"var(--bg)",borderBottom:"1px solid var(--border)",position:"sticky",top:0,zIndex:1}}>{cat}</div>
