@@ -291,7 +291,7 @@ const STATUSES={new:"Новий",ttn:"ТТН",toSend:"На відправку",s
 const STCLS={new:"status-new",ttn:"status-ttn",toSend:"status-shipped",shipped:"status-shipped",atPost:"status-atpost",received:"status-received",refused:"status-refused",delivered:"status-delivered",studio:"status-studio"};
 // Rule: Nova Poshta TTN status code -> internal order status (auto-applied when TTN tracked).
 // 4=В дорозi, 5=На складi мiста, 6=В мiстi, 7=На вiддiленнi, 8=Видано, 9/100=Отримано, 10/11/102/103=Повернення/Вiдмова
-const TTN_TO_ORDER_STATUS={"4":"shipped","5":"shipped","6":"shipped","7":"atPost","8":"received","9":"received","100":"received","10":"refused","11":"refused","102":"refused","103":"refused"};
+const TTN_TO_ORDER_STATUS={"2":"new","4":"shipped","5":"shipped","6":"shipped","7":"atPost","8":"received","9":"received","100":"received","10":"refused","11":"refused","102":"refused","103":"refused"};
 const EXPENSE_CATS=["Оренда студії","Податки","Закупівля товару","Зарплата","Реклама","Інше"];
 
 const fmt=n=>n.toLocaleString("uk-UA")+" ₴";
@@ -1719,7 +1719,7 @@ function OrdersListPage({orders,setOrders,products}){
   const byProduct=productFilter==="all"?searched:searched.filter(o=>(o.items||[]).some(it=>String(it.productId)===String(productFilter)||it.name===productFilter));
   // Filters MUST match counter logic below — same predicates
   const isAwaitingTtn=o=>o.deliveryType==="np"&&!hasTtn(o)&&o.status!=="shipped"&&o.status!=="delivered"&&o.status!=="paid"&&o.status!=="studio";
-  const isReadyToShip=o=>{if(!hasTtn(o))return false;if(o.npStatusCode)return o.npStatusCode==="1";return o.status==="new"||o.status==="ttn"||o.status==="toSend";};
+  const isReadyToShip=o=>{if(!hasTtn(o))return false;if(o.npStatusCode)return o.npStatusCode==="1";return o.status==="toSend";};
   const isNew=o=>o.deliveryType==="np"&&o.status==="new"&&!hasTtn(o);
   const filtered=filter==="dupes"?byProduct.filter(o=>dupeMap.has(o.id)):(filter==="all"?byProduct:(filter==="ttn"?byProduct.filter(isAwaitingTtn):(filter==="toSend"?byProduct.filter(isReadyToShip):(filter==="new"?byProduct.filter(isNew):byProduct.filter(o=>o.status===filter)))));
   // Sort: when showing dupes — group by duplicate key then by date desc; otherwise use sortDir
@@ -1847,7 +1847,7 @@ function OrdersListPage({orders,setOrders,products}){
   const eligibleSelectedCount=()=>{let n=0;for(const o of orders){if(selectedIds.has(o.id)&&o.deliveryType==="np"&&!o.ttn&&o.city&&o.npBranch&&o.client&&o.phone)n++;}return n;};
   const updSt=(id,st)=>{setOrders(orders.map(o=>o.id===id?{...o,status:st}:o));saveOrderField(id,{status:st});};
   // In-memory only — stores raw NP tracking code per order (no DB column needed)
-  const updNpCode=(id,code)=>{setOrders(prev=>prev.map(o=>o.id===id?{...o,npStatusCode:code}:o));};
+  const updNpCode=(id,code)=>{setOrders(prev=>prev.map(o=>o.id===id?{...o,npStatusCode:code}:o));if(code)saveOrderField(id,{np_status_code:code});};
   const doSyncTTN=async()=>{
     // Collect TTNs from orders that are not in manual-terminal states
     const locked=new Set(["paid","studio","delivered"]);
@@ -1872,10 +1872,13 @@ function OrdersListPage({orders,setOrders,products}){
       if(!o)continue;
       const code=String(r.statusCode||"");
       const mapped=TTN_TO_ORDER_STATUS[code];
-      nextOrders=nextOrders.map(x=>x.id===o.id?{...x,npStatusCode:code}:x);
+      nextOrders=nextOrders.map(x=>x.id===o.id?{...x,npStatusCode:code,npStatusText:r.status||""}:x);
+      if(code)try{saveOrderField(o.id,{np_status_code:code,np_status_text:r.status||""});}catch(e){}
       if(!mapped)continue;
       if(locked.has(o.status))continue;
       if(o.status===mapped)continue;
+      // Special: code 2 (Видалена) → also clear TTN and bring back to Нові
+      if(code==="2"){nextOrders=nextOrders.map(x=>x.id===o.id?{...x,status:"new",ttn:""}:x);try{saveOrderField(o.id,{status:"new",ttn:""});}catch(e){}updated++;continue;}
       nextOrders=nextOrders.map(x=>x.id===o.id?{...x,status:mapped}:x);
       try{saveOrderField(o.id,{status:mapped});}catch(e){}
       updated++;
@@ -2451,8 +2454,8 @@ if(!initSupabase()){
 }
 
 // Helper: map DB row (snake_case) → app object (camelCase) for orders
-const mapOrderFromDB=r=>({id:r.id,client:r.client,phone:r.phone,city:r.city,npBranch:r.np_branch,payment:r.payment,deliveryType:r.delivery_type,items:r.items,total:Number(r.total),totalCost:Number(r.total_cost),date:r.date,status:r.status,ttn:r.ttn,codAmount:r.cod_amount!=null?Number(r.cod_amount):null,prepayment:r.prepayment!=null?Number(r.prepayment):null,comment:r.comment||""});
-const mapOrderToDB=o=>({id:o.id,client:o.client,phone:o.phone||"",city:o.city||"",np_branch:o.npBranch||"",payment:o.payment||"control",delivery_type:o.deliveryType||"np",items:o.items,total:o.total,total_cost:o.totalCost,date:o.date,status:o.status,ttn:o.ttn||"",cod_amount:o.codAmount!=null?o.codAmount:null,prepayment:o.prepayment!=null?o.prepayment:null,comment:o.comment||""});
+const mapOrderFromDB=r=>({id:r.id,client:r.client,phone:r.phone,city:r.city,npBranch:r.np_branch,payment:r.payment,deliveryType:r.delivery_type,items:r.items,total:Number(r.total),totalCost:Number(r.total_cost),date:r.date,status:r.status,ttn:r.ttn,codAmount:r.cod_amount!=null?Number(r.cod_amount):null,prepayment:r.prepayment!=null?Number(r.prepayment):null,comment:r.comment||"",npStatusCode:r.np_status_code||"",npStatusText:r.np_status_text||""});
+const mapOrderToDB=o=>({id:o.id,client:o.client,phone:o.phone||"",city:o.city||"",np_branch:o.npBranch||"",payment:o.payment||"control",delivery_type:o.deliveryType||"np",items:o.items,total:o.total,total_cost:o.totalCost,date:o.date,status:o.status,ttn:o.ttn||"",cod_amount:o.codAmount!=null?o.codAmount:null,prepayment:o.prepayment!=null?o.prepayment:null,comment:o.comment||"",np_status_code:o.npStatusCode||null,np_status_text:o.npStatusText||null});
 
 const mapClientFromDB=r=>({id:r.id,name:r.name,phone:r.phone,city:r.city,npBranch:r.np_branch,created:r.created});
 const mapClientToDB=c=>({id:c.id,name:c.name,phone:c.phone||"",city:c.city||"",np_branch:c.npBranch||"",created:c.created});
