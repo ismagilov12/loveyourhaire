@@ -16,20 +16,24 @@ window.__sbCDNs=[
   "https://unpkg.com/@supabase/supabase-js@2.33.0/dist/umd/supabase.js",
   "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.33.0/dist/umd/supabase.min.js"
 ];
+function __dispatchSbReady(){try{window.dispatchEvent(new CustomEvent("supabase-ready"));}catch(e){}}
 function __tryLoadSB(idx){
-  if(window.supabase){window.__sbReady=true;return;}
-  if(idx>=window.__sbCDNs.length){console.error("All Supabase CDNs failed");return;}
+  if(window.supabase){window.__sbReady=true;__dispatchSbReady();return;}
+  if(idx>=window.__sbCDNs.length){console.error("All Supabase CDNs failed — retry in 5s");setTimeout(function(){__tryLoadSB(0);},5000);return;}
   var s=document.createElement("script");
   s.crossOrigin="anonymous";
   s.src=window.__sbCDNs[idx];
   s.onload=function(){
-    if(window.supabase){window.__sbReady=true;console.log("Supabase loaded from CDN #"+(idx+1));}
+    if(window.supabase){window.__sbReady=true;console.log("Supabase loaded from CDN #"+(idx+1));__dispatchSbReady();}
     else{console.warn("CDN #"+(idx+1)+" loaded but no window.supabase, trying next...");__tryLoadSB(idx+1);}
   };
   s.onerror=function(){console.warn("CDN #"+(idx+1)+" failed, trying next...");__tryLoadSB(idx+1);};
   document.head.appendChild(s);
 }
 __tryLoadSB(0);
+// Mobile resilience: retry on network reconnect / when tab becomes visible
+window.addEventListener("online",function(){if(!window.supabase){console.log("network online — retry SDK");__tryLoadSB(0);}else{__dispatchSbReady();}});
+document.addEventListener("visibilitychange",function(){if(document.visibilityState==="visible"&&!window.supabase){console.log("tab visible — retry SDK");__tryLoadSB(0);}});
 </script>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
 <style>
@@ -1912,7 +1916,7 @@ function OrdersListPage({orders,setOrders,products}){
       if(locked.has(o.status))continue;
       if(o.status===mapped)continue;
       // Special: code 2 (Видалена) → also clear TTN and bring back to Нові
-      if(code==="2"){nextOrders=nextOrders.map(x=>x.id===o.id?{...x,status:"new",ttn:""}:x);try{saveOrderField(o.id,{status:"new",ttn:""});}catch(e){}updated++;continue;}
+      if(code==="2"){console.warn("NP code 2 (Видалена) for TTN "+r.ttn+" order "+o.id+" — leaving TTN intact, manual review needed");continue;}
       nextOrders=nextOrders.map(x=>x.id===o.id?{...x,status:mapped}:x);
       try{saveOrderField(o.id,{status:mapped});}catch(e){}
       updated++;
@@ -2053,6 +2057,9 @@ function OrdersListPage({orders,setOrders,products}){
       <button className="filter-pill" onClick={doSyncTTN} disabled={!!(ttnSync&&ttnSync.running)} style={{color:"var(--np-red)",borderColor:"var(--np-red)",fontWeight:700}} title="Запитати статуси ТТН у Нової Пошти і застосувати правило воронки">
         {ttnSync&&ttnSync.running?`⟳ ${ttnSync.done}/${ttnSync.total}`:(ttnSync&&!ttnSync.running?`✓ оновлено ${ttnSync.updated}`:"⟳ Оновити ТТН")}
       </button>
+      <a className="filter-pill" href="/ttn-recovery.html" target="_blank" rel="noopener" style={{color:"#d97706",borderColor:"#d97706",fontWeight:700,textDecoration:"none"}} title="Знайти ТТН за фамілією/телефоном і прив'язати до замовлень">
+        🔧 Відновити ТТН
+      </a>
     </div>
     <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12,flexWrap:"wrap"}}>
       <div style={{display:"flex",alignItems:"center",gap:6}}>
@@ -2926,20 +2933,35 @@ function App(){
   const[synced,setSynced]=useState(false);
   const[syncErr,setSyncErr]=useState("");
   const fromRT=useRef(false); // flag to skip sync-back on realtime events
+  const prevOrdersRef=useRef(null); // for diff-based upsert (only push changed rows)
 
   // ─── Load from Supabase on mount ───
+  const loadRetryRef=useRef({attempt:0,timer:null});
+  const scheduleRetry=()=>{
+    const r=loadRetryRef.current;
+    if(r.timer)return;
+    r.attempt=Math.min(r.attempt+1,6);
+    const delay=Math.min(1000*Math.pow(2,r.attempt-1),30000); // 1,2,4,8,16,30,30
+    console.log("Sync retry #"+r.attempt+" in "+delay+"ms");
+    r.timer=setTimeout(()=>{r.timer=null;doLoad();},delay);
+  };
   const doLoad=async()=>{
     if(!supabase){
-      // Try one more time
       if(!initSupabase()){
         console.warn("Supabase not available, working from localStorage");
-        setSyncErr("Офлайн — база не підключена");
+        setSyncErr("");
         setSynced(true);
+        scheduleRetry();
         return;
       }
     }
+    if(typeof navigator!=="undefined"&&navigator.onLine===false){
+      console.warn("navigator.onLine=false — skip load, will retry on online event");
+      setSyncErr("");setSynced(true);return;
+    }
     try{
       setSynced(false);setSyncErr("");
+      loadRetryRef.current.attempt=0;
 
       // ─── STEP 1: flush any pending offline changes to DB before pulling ───
       const pending=PendingSync.get();
@@ -2984,6 +3006,8 @@ function App(){
           // If local has TTN but DB doesn't, OR local status is later than DB status → keep local
           const localHasTtn=locO.ttn&&String(locO.ttn).trim().length>0;
           const dbHasTtn=dbO.ttn&&String(dbO.ttn).trim().length>0;
+          // CRITICAL: never let local without TTN override DB that has a TTN — this caused mass TTN loss.
+          if(dbHasTtn&&!localHasTtn){return dbO;}
           const stagePref={new:0,studio:0,ttn:1,toSend:2,shipped:3,delivered:4,paid:5};
           const locRank=stagePref[locO.status]||0;
           const dbRank=stagePref[dbO.status]||0;
@@ -3027,18 +3051,22 @@ function App(){
         setExpenses(merged);LS.set("expenses",merged);
       }
       setSynced(true);setSyncErr("");
-    }catch(e){console.error("Sync load error",e);setSyncErr("Помилка: "+e.message);setSynced(true);}
+    }catch(e){console.error("Sync load error",e);setSyncErr("Помилка: "+e.message);setSynced(true);scheduleRetry();}
   };
   useEffect(()=>{
     if(user)doLoad();
   },[user]);
 
-  // ─── React to supabase-ready event from background loader ───
+  // ─── React to supabase-ready / online / visibility events (mobile resilience) ───
   useEffect(()=>{
     if(!user)return;
-    const onReady=()=>{console.log("supabase-ready event received, running doLoad");doLoad();};
+    const onReady=()=>{console.log("supabase-ready — running doLoad");doLoad();};
+    const onOnline=()=>{console.log("online — running doLoad");doLoad();};
+    const onVis=()=>{if(document.visibilityState==="visible"){console.log("visible — running doLoad");doLoad();}};
     window.addEventListener("supabase-ready",onReady);
-    return()=>window.removeEventListener("supabase-ready",onReady);
+    window.addEventListener("online",onOnline);
+    document.addEventListener("visibilitychange",onVis);
+    return()=>{window.removeEventListener("supabase-ready",onReady);window.removeEventListener("online",onOnline);document.removeEventListener("visibilitychange",onVis);};
   },[user]);
 
   // ─── Realtime subscriptions ───
@@ -3072,7 +3100,39 @@ function App(){
   // Persist to localStorage + Supabase on changes (skip if update came from realtime)
   // If supabase is offline, DB.upsertMany marks the table as pending-sync automatically.
   useEffect(()=>{LS.set("products",products);if(synced&&!fromRT.current){if(supabase)DB.upsertMany("products",products);else PendingSync.mark("products");}},[products]);
-  useEffect(()=>{LS.set("orders",orders);if(synced&&!fromRT.current){if(supabase)DB.upsertMany("orders",orders.map(mapOrderToDB));else PendingSync.mark("orders");}},[orders]);
+  useEffect(()=>{
+    LS.set("orders",orders);
+    if(synced&&!fromRT.current){
+      if(supabase){
+        // CRITICAL: only upsert orders whose persisted fields actually changed.
+        // Blanket-upserting all rows on every state change caused mass TTN loss whenever
+        // local state was stale or partially loaded — DB rows got overwritten with empty TTN.
+        const prev=prevOrdersRef.current;
+        let changed;
+        if(!prev){
+          // First run — flush any local-only orders that DB doesn't have yet.
+          changed=orders;
+        }else{
+          const prevById=new Map(prev.map(o=>[o.id,o]));
+          changed=orders.filter(o=>{
+            const p=prevById.get(o.id);
+            if(!p)return true; // newly added locally
+            // Guard: never push a row that just lost its TTN locally if DB previously had one.
+            // (saveOrderField/explicit user actions still push fine; this only blocks the bulk effect.)
+            const prevHadTtn=p.ttn&&String(p.ttn).trim().length>0;
+            const nowHasTtn=o.ttn&&String(o.ttn).trim().length>0;
+            if(prevHadTtn&&!nowHasTtn){
+              console.warn("Bulk upsert: refusing to clear TTN for order "+o.id+" via blanket effect — use saveTtn explicitly");
+              return false;
+            }
+            return p.status!==o.status||p.ttn!==o.ttn||p.payment!==o.payment||p.client!==o.client||p.phone!==o.phone||p.npBranch!==o.npBranch||p.city!==o.city||p.total!==o.total||p.totalCost!==o.totalCost||p.npStatusCode!==o.npStatusCode||p.npStatusText!==o.npStatusText||p.codAmount!==o.codAmount||p.prepayment!==o.prepayment||p.comment!==o.comment||JSON.stringify(p.items||[])!==JSON.stringify(o.items||[]);
+          });
+        }
+        if(changed.length>0)DB.upsertMany("orders",changed.map(mapOrderToDB));
+      }else PendingSync.mark("orders");
+    }
+    prevOrdersRef.current=orders;
+  },[orders]);
   useEffect(()=>{LS.set("clients",clients);if(synced&&!fromRT.current){if(supabase)DB.upsertMany("clients",clients.map(mapClientToDB));else PendingSync.mark("clients");}},[clients]);
   useEffect(()=>{LS.set("expenses",expenses);if(synced&&!fromRT.current){if(supabase)DB.upsertMany("expenses",expenses);else PendingSync.mark("expenses");}},[expenses]);
 
@@ -3114,11 +3174,13 @@ function App(){
         <h1>{pages.find(p=>p.id===page)?.label}</h1>
         <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
           {syncErr
-            ?<span onClick={doLoad} style={{fontSize:11,color:"var(--red)",background:"var(--red-light)",padding:"2px 8px",borderRadius:6,cursor:"pointer"}} title="Натисніть для повторної спроби">{"\u26A0\uFE0F"} {syncErr} {" ↻"}</span>
+            ?<span onClick={doLoad} style={{fontSize:11,color:"var(--red)",background:"var(--red-light)",padding:"2px 8px",borderRadius:6,cursor:"pointer"}} title={"Натисніть для повторної спроби. "+syncErr}>{"\u26A0\uFE0F"} {syncErr} {" ↻"}</span>
             :!synced
             ?<span style={{fontSize:11,color:"var(--blue)",background:"var(--blue-light)",padding:"2px 8px",borderRadius:6}}>{"⏳ Завантаження..."}</span>
             :!supabase
-            ?<span onClick={doLoad} style={{fontSize:11,color:"var(--gold)",background:"#fef3c7",padding:"2px 8px",borderRadius:6,cursor:"pointer"}} title="Supabase SDK не завантажився. Дані зберігаються лише локально! Натисніть для повторної спроби.">{"⚠️ Офлайн (тільки локально) ↻"}</span>
+            ?<span onClick={doLoad} style={{fontSize:11,color:"var(--gold)",background:"#fef3c7",padding:"2px 8px",borderRadius:6,cursor:"pointer"}} title="SDK ще не завантажений (мобільна мережа?). Дані пишуться локально й автоматично синхронізуються коли з'явиться зв'язок.">{"📴 Офлайн (локально) ↻"}</span>
+            :PendingSync.hasAny()
+            ?<span onClick={doLoad} style={{fontSize:11,color:"var(--gold)",background:"#fef3c7",padding:"2px 8px",borderRadius:6,cursor:"pointer"}} title="Є незбережені зміни — натисніть, щоб надіслати в БД">{"🔄 Не синхр. ↻"}</span>
             :<span onClick={doLoad} style={{fontSize:11,color:"var(--green)",background:"var(--green-light)",padding:"2px 8px",borderRadius:6,cursor:"pointer"}} title="Натисніть для оновлення">{"☁️ Синхронізовано"}</span>
           }
           <span className="topbar-date">{new Date().toLocaleDateString("uk-UA",{weekday:"short",day:"numeric",month:"long"})}</span>
@@ -3156,11 +3218,11 @@ function bootApp(){
       if(initSupabase()){
         clearInterval(poll);
         console.log("Supabase ready after "+attempts+" bg attempts");
-        // Notify app that supabase is now available
         window.dispatchEvent(new CustomEvent("supabase-ready"));
-      }else if(attempts>120){
+      }else if(attempts>600){
         clearInterval(poll);
-        console.warn("Supabase still not available after 60s, staying offline");
+        console.warn("Supabase still not available after 5 min, slow retry every 30s");
+        setInterval(()=>{if(initSupabase()){console.log("Supabase ready (slow retry)");window.dispatchEvent(new CustomEvent("supabase-ready"));}},30000);
       }
     },500);
   }
