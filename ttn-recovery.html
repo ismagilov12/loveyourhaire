@@ -34,7 +34,8 @@ tr.error{background:#3d0a0a}
 <h2>TTN Recovery — Love Your Haire</h2>
 <div class="meta">
 Інструмент шукає ТТН у системі Нової Пошти за період і автоматично прив'язує їх до замовлень у Supabase, де ТТН пропали.<br>
-Метчинг: за телефоном (нормалізований +380) і / або за іменем отримувача.
+Метчинг: за телефоном (нормалізований +380), повним іменем, або фамілією (фолбек).<br>
+<strong>Виключені:</strong> замовлення зі статусом «Студія» і delivery_type ≠ np (тобто продажі без відправки).
 </div>
 
 <div class="bar">
@@ -109,8 +110,9 @@ document.getElementById("scanBtn").onclick=async()=>{
 
   try{
     log("Завантажую замовлення з Supabase...");
-    const orders=await sbSelect("orders?select=id,client,phone,date,status,ttn,city&or=(ttn.is.null,ttn.eq.)&order=date.desc");
-    log("Знайдено "+orders.length+" замовлень без ТТН.");
+    // Тільки замовлення з НП-доставкою без ТТН. Студія (самовивіз без відправки) виключена явно.
+    const orders=await sbSelect("orders?select=id,client,phone,date,status,ttn,city,delivery_type&or=(ttn.is.null,ttn.eq.)&delivery_type=eq.np&status=neq.studio&order=date.desc");
+    log("Знайдено "+orders.length+" замовлень без ТТН (НП-доставка, без студії).");
 
     log("Завантажую ТТН з Нової Пошти...");
     const docs=await fetchNPDocuments(from,to);
@@ -215,16 +217,4 @@ async function applyOne(i){
 
 document.getElementById("applyAllBtn").onclick=async()=>{
   if(!MATCHES.length)return;
-  if(!confirm("Застосувати "+MATCHES.length+" оновлень? Дані буде змінено в Supabase."))return;
-  document.getElementById("applyAllBtn").disabled=true;
-  for(let i=0;i<MATCHES.length;i++){
-    await applyOne(i);
-    await new Promise(r=>setTimeout(r,80));
-  }
-  log("Готово.");
-  document.getElementById("applyAllBtn").disabled=false;
-};
-
-document.getElementById("clearBtn").onclick=()=>{clearLog();document.getElementById("results").innerHTML="";document.getElementById("summary").innerHTML="";MATCHES=[];};
-</script>
-</body></html>
+  if(!confirm("Застосувати "+MATCHES.length+" оновлень? Дані буде змінено в
