@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><title>TTN Recovery — LYH</title>
+<style>
+*{box-sizing:border-box}
+body{font-family:Inter,system-ui,sans-serif;max-width:1200px;margin:0 auto;padding:20px;background:#0f1115;color:#e7e9ee}
+h2{margin:0 0 10px}
+.meta{color:#9aa0a6;font-size:13px;margin-bottom:14px;line-height:1.55}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+input[type=date],input[type=text]{padding:9px 11px;border-radius:8px;border:1px solid #2a2f3a;background:#1a1d24;color:#e7e9ee;font-size:13px}
+.btn{padding:10px 18px;border:0;border-radius:8px;font-size:13px;cursor:pointer;font-weight:600}
+.btn-primary{background:#4f46e5;color:#fff}
+.btn-primary:hover{background:#3730a3}
+.btn-primary:disabled{background:#444;cursor:not-allowed}
+.btn-success{background:#10b981;color:#fff}
+.btn-success:hover{background:#059669}
+.btn-secondary{background:#374151;color:#e7e9ee}
+.btn-secondary:hover{background:#4b5563}
+table{width:100%;border-collapse:collapse;margin-top:12px;font-size:12.5px}
+th,td{text-align:left;padding:7px 8px;border-bottom:1px solid #2a2f3a;vertical-align:top}
+th{background:#1a1d24;font-weight:600;color:#9aa0a6;font-size:11px;text-transform:uppercase}
+tr.matched{background:#0c2118}
+tr.applied{background:#0a3d2a;opacity:.6}
+tr.error{background:#3d0a0a}
+.ttn{font-family:ui-monospace,monospace;font-weight:700;color:#9fefa4}
+.status{font-size:11px;padding:2px 6px;border-radius:4px;background:#374151;color:#fff}
+.status.shipped{background:#1d4ed8}.status.received{background:#10b981}.status.atPost{background:#d97706}.status.refused{background:#ef4444}
+.muted{color:#6b7280;font-size:11px}
+#log{background:#0a0a14;color:#9fefa4;padding:14px;border-radius:8px;font-family:ui-monospace,monospace;font-size:12px;max-height:280px;overflow-y:auto;margin-top:14px;white-space:pre-wrap;line-height:1.45;border:1px solid #2a2f3a}
+.summary{background:#0c2118;border:1px solid #145f3b;padding:10px 12px;border-radius:8px;color:#9fefa4;margin:12px 0;font-size:13px}
+.summary.warn{background:#1f1c0a;border-color:#6b5800;color:#ffd966}
+.bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:10px;background:#1a1d24;border-radius:8px;margin-bottom:10px}
+</style>
+</head><body>
+<h2>TTN Recovery — Love Your Haire</h2>
+<div class="meta">
+Інструмент шукає ТТН у системі Нової Пошти за період і автоматично прив'язує їх до замовлень у Supabase, де ТТН пропали.<br>
+Метчинг: за телефоном (нормалізований +380) і / або за іменем отримувача.
+</div>
+
+<div class="bar">
+  <label>Період з: <input type="date" id="from" value="2026-04-01"></label>
+  <label>по: <input type="date" id="to" value="2026-04-28"></label>
+  <button class="btn btn-primary" id="scanBtn">Сканувати</button>
+  <button class="btn btn-success" id="applyAllBtn" disabled>Застосувати все</button>
+  <button class="btn btn-secondary" id="clearBtn">Очистити</button>
+</div>
+
+<div id="summary"></div>
+<div id="results"></div>
+<div id="log"></div>
+
+<script>
+const NP_API="https://api.novaposhta.ua/v2.0/json/";
+const NP_KEY="4299d316a302da241c2b62cd4171765b";
+const SB_URL="https://fsihlzzjewhxpogvjapu.supabase.co";
+const SB_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZzaWhsenpqZXdoeHBvZ3ZqYXB1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUyOTY2MzUsImV4cCI6MjA5MDg3MjYzNX0._hS7TA8EqIHgz7CH6XxGKuDdOnVBb6u40ntEtZ__MjU";
+
+const TTN_TO_STATUS={"1":"toSend","2":"new","4":"shipped","5":"shipped","6":"shipped","7":"atPost","8":"received","9":"received","100":"received","10":"refused","11":"refused","102":"refused","103":"refused"};
+
+function log(m){const el=document.getElementById("log");el.textContent+=m+"\n";el.scrollTop=el.scrollHeight;console.log(m);}
+function clearLog(){document.getElementById("log").textContent="";}
+
+function npNorm(p){if(!p)return"";let d=String(p).replace(/\D/g,"");if(d.length===10&&d[0]==="0")d="380"+d.slice(1);return d.slice(-9);}// last 9 digits unique
+function nameKey(n){return(n||"").toLowerCase().replace(/[^а-яёіїєґa-z\s]/gi,"").replace(/\s+/g," ").trim();}
+// Surname only (first word). Useful for fallback when full name spelling differs (e.g. "Іванова О." vs "Іванова Олена Петрівна").
+function surnameKey(n){const k=nameKey(n);if(!k)return"";return k.split(" ")[0];}
+function fmtDate(d){const D=new Date(d);return String(D.getDate()).padStart(2,"0")+"."+String(D.getMonth()+1).padStart(2,"0")+"."+D.getFullYear();}
+
+async function npCall(modelName,calledMethod,methodProperties){
+  const r=await fetch(NP_API,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({apiKey:NP_KEY,modelName,calledMethod,methodProperties:methodProperties||{}})});
+  return r.json();
+}
+
+async function fetchNPDocuments(fromISO,toISO){
+  const all=[];
+  let page=1;
+  log("NP: getDocumentList "+fromISO+" — "+toISO);
+  while(true){
+    const r=await npCall("InternetDocument","getDocumentList",{DateTimeFrom:fmtDate(fromISO),DateTimeTo:fmtDate(toISO),Page:String(page),GetFullList:"0"});
+    if(!r.success){log("NP error: "+JSON.stringify(r.errors||r.warnings));break;}
+    const data=r.data||[];
+    log("NP page "+page+": "+data.length+" rows");
+    all.push(...data);
+    if(data.length<100)break;
+    page++;
+    if(page>100){log("NP: page limit");break;}
+  }
+  return all;
+}
+
+async function sbSelect(query){
+  const r=await fetch(SB_URL+"/rest/v1/"+query,{headers:{apikey:SB_KEY,Authorization:"Bearer "+SB_KEY}});
+  if(!r.ok){throw new Error("Supabase select failed: "+r.status+" "+await r.text());}
+  return r.json();
+}
+async function sbUpdate(id,fields){
+  const r=await fetch(SB_URL+"/rest/v1/orders?id=eq."+id,{method:"PATCH",headers:{apikey:SB_KEY,Authorization:"Bearer "+SB_KEY,"Content-Type":"application/json","Prefer":"return=representation"},body:JSON.stringify(fields)});
+  if(!r.ok)throw new Error("Supabase update "+id+" failed: "+r.status+" "+await r.text());
+  return r.json();
+}
+
+let MATCHES=[]; // {order, doc, status}
+
+document.getElementById("scanBtn").onclick=async()=>{
+  clearLog();MATCHES=[];document.getElementById("results").innerHTML="";document.getElementById("summary").innerHTML="";document.getElementById("applyAllBtn").disabled=true;
+  const from=document.getElementById("from").value;
+  const to=document.getElementById("to").value;
+  if(!from||!to){alert("Вкажіть дати");return;}
+
+  try{
+    log("Завантажую замовлення з Supabase...");
+    const orders=await sbSelect("orders?select=id,client,phone,date,status,ttn,city&or=(ttn.is.null,ttn.eq.)&order=date.desc");
+    log("Знайдено "+orders.length+" замовлень без ТТН.");
+
+    log("Завантажую ТТН з Нової Пошти...");
+    const docs=await fetchNPDocuments(from,to);
+    log("Всього документів НП: "+docs.length);
+    if(!docs.length){document.getElementById("summary").innerHTML='<div class="summary warn">НП не повернула документи. Перевірте дати або API-ключ.</div>';return;}
+
+    // Index NP by phone-last9, full name-key, and surname only
+    const byPhone=new Map();
+    const byName=new Map();
+    const bySurname=new Map();
+    for(const d of docs){
+      const phn=npNorm(d.RecipientsPhone||d.RecipientPhone||"");
+      if(phn)(byPhone.get(phn)||byPhone.set(phn,[]).get(phn)).push(d);
+      const nm=nameKey(d.Recipient||d.RecipientFullName||d.RecipientContactName||"");
+      if(nm)(byName.get(nm)||byName.set(nm,[]).get(nm)).push(d);
+      const sn=surnameKey(d.Recipient||d.RecipientFullName||d.RecipientContactName||"");
+      if(sn)(bySurname.get(sn)||bySurname.set(sn,[]).get(sn)).push(d);
+    }
+
+    // Try statuses too — bulk track for status code mapping
+    const ttnList=docs.map(d=>String(d.IntDocNumber||d.Number||"")).filter(Boolean);
+    log("Запитую статуси для "+ttnList.length+" ТТН (батч 100)...");
+    const statusByTtn=new Map();
+    for(let i=0;i<ttnList.length;i+=100){
+      const chunk=ttnList.slice(i,i+100);
+      const r=await npCall("TrackingDocument","getStatusDocuments",{Documents:chunk.map(t=>({DocumentNumber:t}))});
+      if(r&&r.success&&r.data){
+        for(const d of r.data){if(d&&d.Number)statusByTtn.set(String(d.Number),{code:String(d.StatusCode||""),status:d.Status||""});}
+      }
+    }
+
+    // Match
+    const matches=[];
+    let mPhone=0,mName=0,mSurname=0;
+    for(const o of orders){
+      const phn=npNorm(o.phone);
+      const nm=nameKey(o.client);
+      const sn=surnameKey(o.client);
+      let cands=[];let how="";
+      if(phn&&byPhone.has(phn)){cands.push(...byPhone.get(phn));how="phone";mPhone++;}
+      if(!cands.length&&nm&&byName.has(nm)){cands.push(...byName.get(nm));how="name";mName++;}
+      // Surname-only fallback: only if surname has at least 4 chars and a single match would be ambiguous,
+      // we still pick the closest in date — matches the user's intent ("сопоставление по фамилии").
+      if(!cands.length&&sn&&sn.length>=4&&bySurname.has(sn)){cands.push(...bySurname.get(sn));how="surname";mSurname++;}
+      if(!cands.length)continue;
+      // Pick closest in date
+      const od=new Date(o.date).getTime();
+      cands.sort((a,b)=>{
+        const ad=Math.abs(new Date(a.DateTime||a.PrintDate).getTime()-od);
+        const bd=Math.abs(new Date(b.DateTime||b.PrintDate).getTime()-od);
+        return ad-bd;
+      });
+      const doc=cands[0];
+      const ttn=String(doc.IntDocNumber||doc.Number||"");
+      if(!ttn)continue;
+      const sc=statusByTtn.get(ttn);
+      const newStatus=sc?(TTN_TO_STATUS[sc.code]||"toSend"):"toSend";
+      matches.push({order:o,ttn,docPhone:doc.RecipientsPhone||doc.RecipientPhone||"",docName:doc.Recipient||"",docDate:doc.DateTime||doc.PrintDate||"",code:sc?sc.code:"",statusText:sc?sc.status:"",newStatus,matchedBy:how});
+    }
+    MATCHES=matches;
+    log("Метч-знаходжень: "+matches.length+"  (тел: "+mPhone+", повне ім'я: "+mName+", фамілія: "+mSurname+")");
+
+    // Render
+    if(!matches.length){
+      document.getElementById("summary").innerHTML='<div class="summary warn">Жодне замовлення не матчиться з документами НП за вказаний період.</div>';
+      return;
+    }
+    document.getElementById("summary").innerHTML='<div class="summary">Знайдено <strong>'+matches.length+'</strong> метчів. Перевірте таблицю і натисніть "Застосувати все" — або "Apply" поряд з рядком, щоб застосувати по одному.</div>';
+    let html='<table><thead><tr><th>Дата</th><th>Клієнт у CRM</th><th>Тел</th><th>→</th><th>NP отримувач</th><th>Тел NP</th><th>Метч</th><th>ТТН</th><th>Статус НП</th><th>Новий статус</th><th></th></tr></thead><tbody>';
+    matches.forEach((m,i)=>{
+      const matchBadge=m.matchedBy==="phone"?'<span style="color:#10b981">тел</span>':(m.matchedBy==="name"?'<span style="color:#3b82f6">імʼя</span>':'<span style="color:#d97706">фамілія</span>');
+      html+='<tr id="row-'+i+'" class="'+(m.matchedBy==="surname"?"matched":"")+'">'+
+        '<td>'+(m.order.date?m.order.date.slice(0,10):"")+'</td>'+
+        '<td>'+m.order.client+'</td>'+
+        '<td>'+(m.order.phone||"")+'</td>'+
+        '<td class="muted">→</td>'+
+        '<td>'+m.docName+'</td>'+
+        '<td>'+m.docPhone+'</td>'+
+        '<td>'+matchBadge+'</td>'+
+        '<td class="ttn">'+m.ttn+'</td>'+
+        '<td>'+(m.statusText||m.code||"?")+'</td>'+
+        '<td><span class="status '+m.newStatus+'">'+m.newStatus+'</span></td>'+
+        '<td><button class="btn btn-primary" data-i="'+i+'" style="font-size:11px;padding:5px 10px">Apply</button></td>'+
+        '</tr>';
+    });
+    html+='</tbody></table>';
+    document.getElementById("results").innerHTML=html;
+    document.getElementById("applyAllBtn").disabled=false;
+    document.querySelectorAll('button[data-i]').forEach(b=>b.onclick=()=>applyOne(Number(b.dataset.i)));
+  }catch(e){log("ПОМИЛКА: "+e.message);console.error(e);}
+};
+
+async function applyOne(i){
+  const m=MATCHES[i];if(!m)return;
+  const tr=document.getElementById("row-"+i);if(tr.classList.contains("applied"))return;
+  try{
+    log("UPDATE order "+m.order.id+" → ttn="+m.ttn+" status="+m.newStatus);
+    await sbUpdate(m.order.id,{ttn:m.ttn,status:m.newStatus,np_status_code:m.code||null,np_status_text:m.statusText||null});
+    tr.classList.add("applied");
+  }catch(e){log("ПОМИЛКА для "+m.order.id+": "+e.message);tr.classList.add("error");}
+}
+
+document.getElementById("applyAllBtn").onclick=async()=>{
+  if(!MATCHES.length)return;
+  if(!confirm("Застосувати "+MATCHES.length+" оновлень? Дані буде змінено в Supabase."))return;
+  document.getElementById("applyAllBtn").disabled=true;
+  for(let i=0;i<MATCHES.length;i++){
+    await applyOne(i);
+    await new Promise(r=>setTimeout(r,80));
+  }
+  log("Готово.");
+  document.getElementById("applyAllBtn").disabled=false;
+};
+
+document.getElementById("clearBtn").onclick=()=>{clearLog();document.getElementById("results").innerHTML="";document.getElementById("summary").innerHTML="";MATCHES=[];};
+</script>
+</body></html>
