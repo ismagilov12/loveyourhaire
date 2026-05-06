@@ -1435,7 +1435,7 @@ function CreateTTNModal({order,onClose,onCreated}){
 }
 
 // ─── NEW ORDER ───
-function NewOrderPage({orders,setOrders,products,setProducts,clients,setClients}){
+function NewOrderPage({orders,setOrders,products,setProducts,clients,setClients,user}){
   const[raw,setRaw]=useState("");
   const[parsed,setParsed]=useState({name:"",phone:"",city:"",npBranch:"",payment:"control"});
   const[editP,setEditP]=useState(false);
@@ -1574,7 +1574,7 @@ function NewOrderPage({orders,setOrders,products,setProducts,clients,setClients}
             </div>)}
           </div>
           <div className="ot"><span>Разом</span><span>{fmt(curTotal)}</span></div>
-          <div className="op">+{fmt(curProfit)}</div>
+          {user?.role!=="manager"&&<div className="op">+{fmt(curProfit)}</div>}
         </div>}
         <div ref={endRef}/>
       </div>
@@ -1708,7 +1708,7 @@ function NewOrderPage({orders,setOrders,products,setProducts,clients,setClients}
 }
 
 // ─── ORDERS LIST ───
-function OrdersListPage({orders,setOrders,products}){
+function OrdersListPage({orders,setOrders,products,user}){
   const[filter,setFilter]=useState("all");
   const[ttnSync,setTtnSync]=useState(null); // {running, done, total, updated} or null
   const[search,setSearch]=useState("");
@@ -2231,7 +2231,7 @@ function OrdersListPage({orders,setOrders,products}){
         </div>
         <div style={{display:"flex",justifyContent:"space-between",marginTop:8,paddingTop:8,borderTop:"2px solid var(--border)",fontWeight:700,fontSize:14,flexWrap:"wrap",gap:4}}>
           <span>Разом: {fmt(editItems.reduce((s,i)=>s+i.price*i.qty,0))}</span>
-          <span style={{color:"var(--green)"}}>Прибуток: {fmt(editItems.reduce((s,i)=>s+(i.price-i.cost)*i.qty,0))}</span>
+          {user?.role!=="manager"&&<span style={{color:"var(--green)"}}>Прибуток: {fmt(editItems.reduce((s,i)=>s+(i.price-i.cost)*i.qty,0))}</span>}
         </div>
       </div>
       {/* Inline TTN creation */}
@@ -2772,6 +2772,7 @@ async function createTTNFromOrder(orderLike){
 const USERS_FALLBACK=[
   {login:"admin",password:"loveyourhaire2024",name:"Адміністратор",role:"admin"},
   {login:"yura",password:"yura123",name:"Юра",role:"admin"},
+  {login:"manager",password:"manager123",name:"Менеджер",role:"manager"},
 ];
 
 function LoginPage({onLogin}){
@@ -3140,7 +3141,8 @@ function App(){
 
   if(!user) return <LoginPage onLogin={setUser}/>;
 
-  const pages=[
+  const isManager=user.role==="manager";
+  const allPages=[
     {id:"neworder",label:"Замовлення",icon:I.plus2,mob:"Нове"},
     {id:"orders",label:"Всі замовлення",icon:I.list,mob:"Список"},
     {id:"admin",label:"Товари",icon:I.bag,mob:"Товари"},
@@ -3149,6 +3151,9 @@ function App(){
     {id:"bulk",label:"Масове",icon:I.bulk,mob:"Масове"},
     {id:"dashboard",label:"Сводка",icon:I.dash,mob:"Сводка"},
   ];
+  const pages=isManager?allPages.filter(p=>p.id==="neworder"||p.id==="orders"):allPages;
+  // If manager somehow lands on a restricted page (e.g. last-saved page), bounce to neworder
+  if(isManager&&!pages.some(p=>p.id===page)){setTimeout(()=>setPage("neworder"),0);}
   const todayOrders=orders.filter(o=>{const d=new Date(o.date),t=new Date();return sameDay(d,t);});
   const todayRev=todayOrders.reduce((s,o)=>s+o.total,0);
   const newCnt=orders.filter(o=>o.status==="new").length;
@@ -3188,8 +3193,8 @@ function App(){
         </div>
       </div>
       <div className="content">
-        {page==="neworder"&&<NewOrderPage orders={orders} setOrders={setOrders} products={products} setProducts={setProducts} clients={clients} setClients={setClients}/>}
-        {page==="orders"&&<OrdersListPage orders={orders} setOrders={setOrders} products={products}/>}
+        {page==="neworder"&&<NewOrderPage orders={orders} setOrders={setOrders} products={products} setProducts={setProducts} clients={clients} setClients={setClients} user={user}/>}
+        {page==="orders"&&<OrdersListPage orders={orders} setOrders={setOrders} products={products} user={user}/>}
         {page==="admin"&&<AdminPage products={products} setProducts={setProducts}/>}
         {page==="clients"&&<ClientsPage clients={clients} orders={orders}/>}
         {page==="expenses"&&<ExpensesPage expenses={expenses} setExpenses={setExpenses}/>}
