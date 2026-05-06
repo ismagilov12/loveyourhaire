@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Дякуємо за замовлення — Love Your Haire</title>
+<meta name="robots" content="noindex,nofollow">
+<style>
+  /* ─── РЕДАГУЙ ТУТ — username бота без @ ─── */
+  /* (значення також дублюється в JS нижче для побудови deep-link) */
+
+  :root {
+    --bg: #0a0a0a;
+    --surface: #131313;
+    --text: #f5f5f5;
+    --text-dim: #999;
+    --border: #2a2a2a;
+    --accent: #ffffff;
+    --tg: #2aabee;
+    --tg-hover: #1f8cc4;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Inter", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-size: 16px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    padding: 24px 20px;
+  }
+
+  .wrap {
+    width: 100%;
+    max-width: 540px;
+    margin: auto;
+  }
+
+  .brand {
+    text-align: center;
+    margin-bottom: 32px;
+    letter-spacing: 0.18em;
+    font-size: 12px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+  }
+
+  .check {
+    width: 64px;
+    height: 64px;
+    margin: 0 auto 24px;
+    border: 2px solid var(--accent);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .check svg { width: 28px; height: 28px; }
+
+  h1 {
+    font-size: clamp(28px, 6vw, 36px);
+    font-weight: 700;
+    text-align: center;
+    letter-spacing: -0.02em;
+    margin-bottom: 12px;
+    line-height: 1.15;
+  }
+
+  .subtitle {
+    text-align: center;
+    color: var(--text-dim);
+    font-size: 15px;
+    margin-bottom: 32px;
+  }
+
+  .order-id {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 18px;
+    text-align: center;
+    margin-bottom: 28px;
+  }
+  .order-id .label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    color: var(--text-dim);
+    margin-bottom: 4px;
+  }
+  .order-id .value {
+    font-size: 16px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    word-break: break-all;
+  }
+  .order-id.hidden { display: none; }
+
+  .tg-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 24px 22px;
+    margin-bottom: 24px;
+  }
+  .tg-card h2 {
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 8px;
+    letter-spacing: -0.01em;
+  }
+  .tg-card p {
+    color: var(--text-dim);
+    font-size: 14px;
+    margin-bottom: 20px;
+  }
+
+  .tg-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    width: 100%;
+    padding: 16px 20px;
+    background: var(--tg);
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    font-size: 16px;
+    font-weight: 600;
+    text-decoration: none;
+    cursor: pointer;
+    transition: background 0.15s ease, transform 0.1s ease;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .tg-btn:hover { background: var(--tg-hover); }
+  .tg-btn:active { transform: scale(0.98); }
+  .tg-btn svg { width: 22px; height: 22px; flex-shrink: 0; }
+
+  .steps {
+    list-style: none;
+    counter-reset: step;
+    margin-top: 22px;
+    padding-top: 22px;
+    border-top: 1px solid var(--border);
+  }
+  .steps li {
+    counter-increment: step;
+    position: relative;
+    padding-left: 36px;
+    margin-bottom: 14px;
+    font-size: 14px;
+    color: var(--text);
+  }
+  .steps li:last-child { margin-bottom: 0; }
+  .steps li::before {
+    content: counter(step);
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 24px;
+    height: 24px;
+    background: var(--accent);
+    color: var(--bg);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 700;
+  }
+  .steps li small {
+    display: block;
+    color: var(--text-dim);
+    font-size: 12px;
+    margin-top: 2px;
+  }
+
+  .footer-link {
+    text-align: center;
+    margin-top: 28px;
+  }
+  .footer-link a {
+    color: var(--text-dim);
+    font-size: 14px;
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+    padding-bottom: 1px;
+    transition: color 0.15s, border-color 0.15s;
+  }
+  .footer-link a:hover {
+    color: var(--text);
+    border-bottom-color: var(--text-dim);
+  }
+
+  @media (max-width: 480px) {
+    body { padding: 20px 16px; }
+    .tg-card { padding: 20px 18px; }
+    h1 { margin-bottom: 10px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+  <div class="brand">Love Your Haire</div>
+
+  <div class="check" aria-hidden="true">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="20 6 9 17 4 12"></polyline>
+    </svg>
+  </div>
+
+  <h1>Дякуємо за замовлення!</h1>
+  <p class="subtitle">Ми зв'яжемося з тобою найближчим часом для підтвердження.</p>
+
+  <div class="order-id hidden" id="orderBox">
+    <div class="label">Номер замовлення</div>
+    <div class="value" id="orderValue">—</div>
+  </div>
+
+  <div class="tg-card">
+    <h2>Стеж за статусом замовлення в Telegram</h2>
+    <p>Підпишись на бота — отримуй сповіщення про підтвердження, оплату, ТТН Нової Пошти та доставку. Без спаму, тільки про твоє замовлення.</p>
+
+    <a href="#" class="tg-btn" id="tgBtn">
+      <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+        <path d="M9.78 18.65l.28-4.23 7.68-6.92c.34-.31-.07-.46-.52-.19L7.74 13.3 3.64 12c-.88-.25-.89-.86.2-1.3l15.97-6.16c.73-.33 1.43.18 1.15 1.3l-2.72 12.81c-.19.91-.74 1.13-1.5.71L12.6 16.3l-1.99 1.93c-.23.23-.42.42-.83.42z"/>
+      </svg>
+      <span>Відкрити бота в Telegram</span>
+    </a>
+
+    <ol class="steps">
+      <li>Натисни кнопку вище
+        <small>Відкриється чат з нашим ботом</small>
+      </li>
+      <li>Натисни <b>Start</b> у боті
+        <small>Це підв'яже сповіщення до твого замовлення</small>
+      </li>
+      <li>Чекай повідомлень
+        <small>Бот напише як тільки буде ТТН і коли посилка вже їде до тебе</small>
+      </li>
+    </ol>
+  </div>
+
+  <div class="footer-link">
+    <a href="https://loveyourhaire.com" id="backLink">← Повернутися на сайт</a>
+  </div>
+
+</div>
+
+<script>
+  // ─── РЕДАГУЙ ТУТ ─────────────────────────────────────────────
+  // Username бота без @ (наприклад: "loveyourhaire_bot")
+  // Поки що заглушка — заміни після створення бота через @BotFather
+  var BOT_USERNAME = "loveyourhaire_bot";
+  var SITE_URL = "https://loveyourhaire.com";
+  // ─────────────────────────────────────────────────────────────
+
+  (function () {
+    // Витягуємо номер замовлення з query: ?order=123 або ?tranid=123 або ?orderid=123
+    var params = new URLSearchParams(window.location.search);
+    var orderId = params.get("order") || params.get("tranid") || params.get("orderid") || "";
+    orderId = String(orderId).trim();
+
+    if (orderId && orderId !== "{tranid}" && orderId !== "{orderid}") {
+      var box = document.getElementById("orderBox");
+      var val = document.getElementById("orderValue");
+      val.textContent = "#" + orderId;
+      box.classList.remove("hidden");
+    }
+
+    // Будуємо deep-link в Telegram з payload
+    // t.me/<bot>?start=order_<id>  — payload приходить боту як аргумент команди /start
+    var payload = orderId ? ("order_" + orderId.replace(/[^a-zA-Z0-9_-]/g, "")) : "thanks";
+    var tgUrl = "https://t.me/" + BOT_USERNAME + "?start=" + payload;
+
+    var btn = document.getElementById("tgBtn");
+    btn.setAttribute("href", tgUrl);
+    btn.setAttribute("target", "_blank");
+    btn.setAttribute("rel", "noopener");
+
+    // Site link
+    var back = document.getElementById("backLink");
+    back.setAttribute("href", SITE_URL);
+
+    // Простий аналітичний хук — клік по кнопці
+    btn.addEventListener("click", function () {
+      try {
+        if (window.gtag) gtag("event", "tg_subscribe_click", { order_id: orderId || null });
+        if (window.ym) ym(window.ymCounterId || 0, "reachGoal", "tg_subscribe_click");
+      } catch (e) { /* no-op */ }
+    });
+  })();
+</script>
+
+</body>
+</html>
