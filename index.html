@@ -1711,7 +1711,8 @@ function NewOrderPage({orders,setOrders,products,setProducts,clients,setClients,
 
 // ─── ORDERS LIST ───
 function OrdersListPage({orders,setOrders,products,user}){
-  const[filter,setFilter]=useState("all");
+  const isMgr=user?.role==="manager";
+  const[filter,setFilter]=useState(user?.role==="manager"?"new":"all");
   const[ttnSync,setTtnSync]=useState(null); // {running, done, total, updated} or null
   const[search,setSearch]=useState("");
   const[productFilter,setProductFilter]=useState("all");// "all" or product id
@@ -2044,24 +2045,24 @@ function OrdersListPage({orders,setOrders,products,user}){
       {search&&<button onClick={()=>setSearch("")} style={{position:"absolute",right:10,top:"50%",transform:"translateY(-50%)",background:"none",border:"none",fontSize:16,cursor:"pointer",opacity:.5}}>&times;</button>}
     </div>
     <div className="filter-pills" style={{marginBottom:16}}>
-      <button className={`filter-pill${filter==="all"?' active':''}`} onClick={()=>setFilter("all")}>Всі ({counts.all})</button>
+      {!isMgr&&<button className={`filter-pill${filter==="all"?' active':''}`} onClick={()=>setFilter("all")}>Всі ({counts.all})</button>}
       <button className={`filter-pill${filter==="new"?' active':''}`} onClick={()=>setFilter("new")}>Нові ({counts.new})</button>
-      <button className={`filter-pill${filter==="ttn"?' active':''}`} onClick={()=>setFilter("ttn")} title="НП-замовлення без ТТН (потрібно створити)">Потрібна ТТН ({counts.ttn})</button>
+      {!isMgr&&<button className={`filter-pill${filter==="ttn"?' active':''}`} onClick={()=>setFilter("ttn")} title="НП-замовлення без ТТН (потрібно створити)">Потрібна ТТН ({counts.ttn})</button>}
       <button className={`filter-pill${filter==="toSend"?' active':''}`} onClick={()=>setFilter("toSend")}>На відправку ({counts.toSend})</button>
       <button className={`filter-pill${filter==="shipped"?' active':''}`} onClick={()=>setFilter("shipped")}>Відправ. ({counts.shipped})</button>
       <button className={`filter-pill${filter==="atPost"?' active':''}`} onClick={()=>setFilter("atPost")} style={{color:filter==="atPost"?"#856404":""}}>На пошті ({counts.atPost})</button>
-      <button className={`filter-pill${filter==="received"?' active':''}`} onClick={()=>setFilter("received")} style={{color:filter==="received"?"var(--green)":""}}>Отримано ({counts.received})</button>
-      <button className={`filter-pill${filter==="refused"?' active':''}`} onClick={()=>setFilter("refused")} style={{color:filter==="refused"?"var(--red)":""}}>Відмова ({counts.refused})</button>
-      <button className={`filter-pill${filter==="delivered"?' active':''}`} onClick={()=>setFilter("delivered")}>Достав. ({counts.delivered})</button>
-      <button className={`filter-pill${filter==="paid"?' active':''}`} onClick={()=>setFilter("paid")} style={{color:filter==="paid"?"var(--green)":""}}>Оплач. ({counts.paid})</button>
-      <button className={`filter-pill${filter==="studio"?' active':''}`} onClick={()=>setFilter("studio")}>Студія ({counts.studio})</button>
-      {dupeCount>0&&<button className={`filter-pill${filter==="dupes"?' active':''}`} onClick={()=>setFilter("dupes")} style={{color:filter==="dupes"?"#fff":"var(--red)",background:filter==="dupes"?"var(--red)":"",borderColor:"var(--red)",fontWeight:700}} title="Замовлення від одного клієнта в межах 7 днів">⚠ Дублі ({dupeCount})</button>}
-      <button className="filter-pill" onClick={doSyncTTN} disabled={!!(ttnSync&&ttnSync.running)} style={{color:"var(--np-red)",borderColor:"var(--np-red)",fontWeight:700}} title="Запитати статуси ТТН у Нової Пошти і застосувати правило воронки">
+      {!isMgr&&<button className={`filter-pill${filter==="received"?' active':''}`} onClick={()=>setFilter("received")} style={{color:filter==="received"?"var(--green)":""}}>Отримано ({counts.received})</button>}
+      {!isMgr&&<button className={`filter-pill${filter==="refused"?' active':''}`} onClick={()=>setFilter("refused")} style={{color:filter==="refused"?"var(--red)":""}}>Відмова ({counts.refused})</button>}
+      {!isMgr&&<button className={`filter-pill${filter==="delivered"?' active':''}`} onClick={()=>setFilter("delivered")}>Достав. ({counts.delivered})</button>}
+      {!isMgr&&<button className={`filter-pill${filter==="paid"?' active':''}`} onClick={()=>setFilter("paid")} style={{color:filter==="paid"?"var(--green)":""}}>Оплач. ({counts.paid})</button>}
+      {!isMgr&&<button className={`filter-pill${filter==="studio"?' active':''}`} onClick={()=>setFilter("studio")}>Студія ({counts.studio})</button>}
+      {!isMgr&&dupeCount>0&&<button className={`filter-pill${filter==="dupes"?' active':''}`} onClick={()=>setFilter("dupes")} style={{color:filter==="dupes"?"#fff":"var(--red)",background:filter==="dupes"?"var(--red)":"",borderColor:"var(--red)",fontWeight:700}} title="Замовлення від одного клієнта в межах 7 днів">⚠ Дублі ({dupeCount})</button>}
+      {!isMgr&&<><button className="filter-pill" onClick={doSyncTTN} disabled={!!(ttnSync&&ttnSync.running)} style={{color:"var(--np-red)",borderColor:"var(--np-red)",fontWeight:700}} title="Запитати статуси ТТН у Нової Пошти і застосувати правило воронки">
         {ttnSync&&ttnSync.running?`⟳ ${ttnSync.done}/${ttnSync.total}`:(ttnSync&&!ttnSync.running?`✓ оновлено ${ttnSync.updated}`:"⟳ Оновити ТТН")}
       </button>
       <a className="filter-pill" href="/ttn-recovery.html" target="_blank" rel="noopener" style={{color:"#d97706",borderColor:"#d97706",fontWeight:700,textDecoration:"none"}} title="Знайти ТТН за фамілією/телефоном і прив'язати до замовлень">
         🔧 Відновити ТТН
-      </a>
+      </a></>}
     </div>
     <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12,flexWrap:"wrap"}}>
       <div style={{display:"flex",alignItems:"center",gap:6}}>
