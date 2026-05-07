@@ -3396,8 +3396,94 @@ function ChatPage({clients,orders,user}){
   </div>);
 }
 
+
+// ─── MANAGER ONBOARDING ───
+function ManagerOnboarding({onClose}){
+  const[step,setStep]=useState(0);
+  const slides=[
+    {
+      icon:"👋",
+      title:"Ласкаво просимо!",
+      body:<>
+        <p style={{marginBottom:10}}>{"Це короткий туторіал по роботі в CRM Love Your Haire."}</p>
+        <p style={{color:"var(--text2)",fontSize:13}}>{"Натискай "}<strong>{"«Далі»"}</strong>{", щоб переглянути 5 кроків робочого процесу."}</p>
+      </>
+    },
+    {
+      icon:"💬",
+      title:"1. Отримуєш дані в Direct",
+      body:<>
+        <p style={{marginBottom:10}}>{"Клієнт пише в Direct (Instagram) свої дані: ім'я, телефон, місто, № відділення НП."}</p>
+        <p>{"Скопіюй повідомлення ціликом — система розпізнає поля автоматично."}</p>
+      </>
+    },
+    {
+      icon:"📝",
+      title:"2. Створюєш замовлення",
+      body:<>
+        <p style={{marginBottom:8}}>{"Перейди в розділ "}<strong>{"«Замовлення»"}</strong>{" в меню."}</p>
+        <ol style={{paddingLeft:20,fontSize:13,lineHeight:1.7,margin:0}}>
+          <li>{"Встав повідомлення клієнта в текстове поле"}</li>
+          <li>{"Система розпізнає ім'я, телефон, місто, відділення"}</li>
+          <li>{"Обери модель/товари"}</li>
+          <li>{"Вкажи передоплату (якщо є)"}</li>
+        </ol>
+      </>
+    },
+    {
+      icon:"📦",
+      title:"3. Оформити + ТТН одним кліком",
+      body:<>
+        <p style={{marginBottom:10}}>{"Натисни зелену кнопку "}<strong style={{background:"#22c55e",color:"#fff",padding:"2px 8px",borderRadius:6,fontSize:12}}>{"📦 Оформити + ТТН"}</strong></p>
+        <p style={{marginBottom:8}}>{"Система одночасно:"}</p>
+        <ul style={{paddingLeft:20,fontSize:13,lineHeight:1.7,margin:0}}>
+          <li>{"створить замовлення в системі"}</li>
+          <li>{"згенерує ТТН Нової Пошти"}</li>
+          <li>{"збереже все в базу даних"}</li>
+        </ul>
+        <p style={{marginTop:10,color:"var(--green)",fontWeight:700}}>{"Готово ✓"}</p>
+      </>
+    },
+    {
+      icon:"🔍",
+      title:"4. Перевіряєш статус замовлень",
+      body:<>
+        <p style={{marginBottom:8}}>{"В розділі "}<strong>{"«Всі замовлення»"}</strong>{":"}</p>
+        <ul style={{paddingLeft:20,fontSize:13,lineHeight:1.7,margin:0}}>
+          <li>{"Введи прізвище клієнта в пошук — побачиш всі його замовлення"}</li>
+          <li>{"Перемикайся між воронками: "}<strong>{"Нові, На відправку, Відправ., На пошті"}</strong></li>
+          <li>{"Біля кожного замовлення показується номер ТТН і статус НП"}</li>
+        </ul>
+      </>
+    },
+  ];
+  const isLast=step===slides.length-1;
+  const cur=slides[step];
+  const finish=()=>{LS.set("manager_onboarded",true);onClose();};
+  return(<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.65)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+    <div style={{background:"#fff",borderRadius:20,maxWidth:480,width:"100%",padding:"28px 28px 24px",boxShadow:"0 20px 60px rgba(0,0,0,.4)"}}>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20}}>
+        <div style={{display:"flex",gap:6}}>
+          {slides.map((_,i)=><div key={i} style={{width:28,height:6,borderRadius:3,background:i<=step?"var(--pink2)":"var(--border)",transition:"background .2s"}}/>)}
+        </div>
+        <button onClick={finish} style={{background:"none",border:"none",cursor:"pointer",color:"var(--text2)",fontSize:12,textDecoration:"underline",padding:4}}>{"Пропустити"}</button>
+      </div>
+      <div style={{textAlign:"center",marginBottom:22}}>
+        <div style={{fontSize:54,marginBottom:6,lineHeight:1}}>{cur.icon}</div>
+        <h2 style={{fontSize:21,fontWeight:800,color:"var(--pink2)",marginBottom:14,marginTop:0}}>{cur.title}</h2>
+        <div style={{textAlign:"left",fontSize:14,lineHeight:1.6,color:"var(--text)"}}>{cur.body}</div>
+      </div>
+      <div style={{display:"flex",gap:8}}>
+        {step>0&&<button onClick={()=>setStep(step-1)} className="btn btn-secondary" style={{flex:1,padding:"11px",fontSize:14}}>{"← Назад"}</button>}
+        <button onClick={isLast?finish:()=>setStep(step+1)} className="btn btn-primary" style={{flex:step>0?2:1,padding:"11px",fontSize:14,fontWeight:700}}>{isLast?"Почати роботу ✓":"Далі →"}</button>
+      </div>
+    </div>
+  </div>);
+}
+
 function App(){
   const[user,setUser]=useState(()=>LS.get("user",null));
+  const[showOnboarding,setShowOnboarding]=useState(false);
   const[page,setPage]=useState("neworder");
   const[products,setProducts]=useState(()=>LS.get("products",INIT_PRODUCTS));
   const[orders,setOrders]=useState(()=>LS.get("orders",[]));
@@ -3610,7 +3696,12 @@ function App(){
   useEffect(()=>{LS.set("clients",clients);if(synced&&!fromRT.current){if(supabase)DB.upsertMany("clients",clients.map(mapClientToDB));else PendingSync.mark("clients");}},[clients]);
   useEffect(()=>{LS.set("expenses",expenses);if(synced&&!fromRT.current){if(supabase)DB.upsertMany("expenses",expenses);else PendingSync.mark("expenses");}},[expenses]);
 
-  const logout=()=>{LS.set("user",null);setUser(null);};
+  const logout=()=>{LS.set("user",null);setUser(null);setShowOnboarding(false);};
+
+  // Auto-show onboarding for first-time manager logins
+  useEffect(()=>{
+    if(user&&user.role==="manager"&&!LS.get("manager_onboarded",false))setShowOnboarding(true);
+  },[user]);
 
   if(!user) return <LoginPage onLogin={setUser}/>;
 
@@ -3664,6 +3755,7 @@ function App(){
             :<span onClick={doLoad} style={{fontSize:11,color:"var(--green)",background:"var(--green-light)",padding:"2px 8px",borderRadius:6,cursor:"pointer"}} title="Натисніть для оновлення">{"☁️ Синхронізовано"}</span>
           }
           <span className="topbar-date">{new Date().toLocaleDateString("uk-UA",{weekday:"short",day:"numeric",month:"long"})}</span>
+          {isManager&&<button onClick={()=>setShowOnboarding(true)} className="btn btn-sm btn-secondary" style={{fontSize:11,padding:"4px 10px"}} title="Показати туторіал">{"? Допомога"}</button>}
           <button onClick={logout} className="btn btn-sm btn-secondary" style={{fontSize:11,padding:"4px 10px"}}>Вийти</button>
         </div>
       </div>
@@ -3679,6 +3771,8 @@ function App(){
         {page==="dashboard"&&<DashboardPage orders={orders} products={products} expenses={expenses} dateRange={dateRange} setDateRange={setDateRange}/>}
       </div>
     </div>
+    {/* Manager onboarding overlay */}
+    {showOnboarding&&<ManagerOnboarding onClose={()=>setShowOnboarding(false)}/>}
     {/* Mobile bottom nav */}
     <div className="mobile-nav"><div className="mobile-nav-inner">
       {pages.map(p=><button key={p.id} className={`mob-nav-btn${page===p.id?' active':''}`} onClick={()=>setPage(p.id)}>{p.icon}<span>{p.mob}</span></button>)}
