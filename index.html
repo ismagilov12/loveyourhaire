@@ -2924,11 +2924,11 @@ function BulkImportPage({orders,setOrders,products,clients,setClients}){
 }
 
 // ─── APP ───
-function PaymentsPage({orders,setOrders}){
+function PaymentsPage({orders,setOrders,clients}){
   const[payments,setPayments]=useState([]);
   const[loading,setLoading]=useState(false);
   const[err,setErr]=useState("");
-  const[filter,setFilter]=useState("all"); // all | unmatched | approved | declined
+  const[filter,setFilter]=useState("all");
   const[matchModal,setMatchModal]=useState(null);
 
   const reload=async()=>{
@@ -2960,15 +2960,41 @@ function PaymentsPage({orders,setOrders}){
   });
 
   const phoneTail=p=>String(p||"").replace(/\D/g,"").slice(-10);
+  const normName=s=>String(s||"").toLowerCase().normalize("NFKD").replace(/[\u0300-\u036f]/g,"").replace(/[\u02bc'`\u2019]/g,"").replace(/[^a-z\u0430-\u044f\u0456\u0457\u0454\u0491\u0451 ]+/gi," ").replace(/\s+/g," ").trim();
+  const tokens=s=>{const n=normName(s);return n?n.split(" ").filter(t=>t.length>=2):[];};
+  const nameScore=(orderName,payName)=>{
+    const ots=new Set(tokens(orderName));
+    if(!ots.size)return 0;
+    const pts=tokens(payName);
+    if(!pts.length)return 0;
+    let score=0;let hits=0;
+    for(const t of pts){
+      if(ots.has(t)){score+=0.5;hits++;continue;}
+      for(const ot of ots){
+        if(ot.length>=4&&t.length>=4&&(ot.includes(t)||t.includes(ot))){score+=0.3;hits++;break;}
+      }
+    }
+    return Math.min(1,score);
+  };
 
   const openMatch=p=>{
     const tail=phoneTail(p.client_phone);
-    const candidates=orders.filter(o=>{
-      const ot=phoneTail(o.phone);
+    const tail7=tail?tail.slice(-7):"";
+    const seen=new Set();
+    const scored=[];
+    orders.forEach(o=>{
       const remaining=Number(o.total||0)-Number(o.prepayment||0);
-      return o.payment!=="prepaid"&&remaining>0&&(tail&&ot.endsWith(tail.slice(-7))||!tail);
-    }).slice(0,30);
-    setMatchModal({payment:p,candidates});
+      if(o.payment==="prepaid"||remaining<=0)return;
+      const ot=phoneTail(o.phone);
+      let score=0;let how=[];
+      if(tail7&&ot.endsWith(tail7)){score+=0.85;how.push("телефон");}
+      const ns=nameScore(o.client||"",p.client_name||"");
+      if(ns>0){score+=ns*0.6;how.push("імʼя "+Math.round(ns*100)+"%");}
+      if(Math.abs(remaining-Number(p.amount||0))<0.01&&score>0){score+=0.2;how.push("сума=");}
+      if(score>0&&!seen.has(o.id)){seen.add(o.id);scored.push({o,score,how:how.join(" + ")});}
+    });
+    scored.sort((a,b)=>b.score-a.score);
+    setMatchModal({payment:p,candidates:scored.slice(0,30)});
   };
 
   const doMatch=async(payment,order)=>{
@@ -2981,14 +3007,29 @@ function PaymentsPage({orders,setOrders}){
       let newCod=order.cod_amount===null?null:Number(order.cod_amount||0);
       if(newPre>=total-0.01&&total>0){newPayment="prepaid";newCod=null;}
       else if(newPre>0){newPayment="control";newCod=Math.max(0,total-newPre);}
-      const noteLine=`WayForPay: +${payment.amount}₴ (${payment.order_reference||""}) ✋ручна привʼязка`;
-      const newComment=order.comment?`${order.comment} • ${noteLine}`:noteLine;
+      const noteLine="WayForPay: +"+payment.amount+"₴ ("+(payment.order_reference||"")+") ✋ручна привʼязка";
+      const newComment=order.comment?(order.comment+" • "+noteLine):noteLine;
       const{error:e1}=await supabase.from("orders").update({
         prepayment:newPre,payment:newPayment,cod_amount:newCod,comment:newComment,updated_at:new Date().toISOString()
       }).eq("id",order.id);
       if(e1)throw e1;
+      // Try to find a client by phone or name to also link
+      let cid=order.client_id||null;
+      if(!cid){
+        const tail=phoneTail(payment.client_phone||order.phone);
+        if(tail){const c=clients&&clients.find(c=>phoneTail(c.phone).endsWith(tail.slice(-7)));if(c)cid=c.id;}
+        if(!cid&&clients){
+          let best=null,bs=0;
+          clients.forEach(c=>{
+            const fn=[c.name,c.surname].filter(Boolean).join(" ");
+            const sc=nameScore(fn,payment.client_name||order.client||"");
+            if(sc>bs){bs=sc;best=c;}
+          });
+          if(best&&bs>=0.55)cid=best.id;
+        }
+      }
       const{error:e2}=await supabase.from("wfp_payments").update({
-        matched_order_id:order.id,matched_method:"manual"
+        matched_order_id:order.id,matched_client_id:cid,matched_method:"manual",matched_score:1.0
       }).eq("id",payment.id);
       if(e2)throw e2;
       setOrders(orders.map(o=>o.id===order.id?{...o,prepayment:newPre,payment:newPayment,cod_amount:newCod,comment:newComment}:o));
@@ -3011,7 +3052,7 @@ function PaymentsPage({orders,setOrders}){
         }).eq("id",ord.id);
         setOrders(orders.map(o=>o.id===ord.id?{...o,prepayment:newPre,payment:newPayment,cod_amount:newCod}:o));
       }
-      await supabase.from("wfp_payments").update({matched_order_id:null,matched_method:null}).eq("id",payment.id);
+      await supabase.from("wfp_payments").update({matched_order_id:null,matched_client_id:null,matched_method:null,matched_score:null}).eq("id",payment.id);
       reload();
     }catch(e){alert("Помилка: "+(e.message||e));}
   };
@@ -3022,8 +3063,17 @@ function PaymentsPage({orders,setOrders}){
     return <span className="badge badge-amber">{s||"?"}</span>;
   };
 
+  const findClient=(p,ord)=>{
+    if(p.matched_client_id&&clients){const c=clients.find(c=>c.id===p.matched_client_id);if(c)return c;}
+    if(ord&&ord.client_id&&clients){const c=clients.find(c=>c.id===ord.client_id);if(c)return c;}
+    if(clients){
+      const tail=phoneTail(p.client_phone);
+      if(tail){const c=clients.find(c=>phoneTail(c.phone).endsWith(tail.slice(-7)));if(c)return c;}
+    }
+    return null;
+  };
+
   return(<div style={{display:"flex",flexDirection:"column",height:"100%"}}>
-    {/* Header stats */}
     <div style={{padding:"0 0 8px",borderBottom:"1px solid var(--border)",marginBottom:8}}>
       <div style={{display:"flex",gap:14,flexWrap:"wrap",alignItems:"center",marginBottom:8}}>
         <div><span style={{fontSize:13,color:"var(--text2)"}}>За місяць: </span><strong style={{color:"var(--green)",fontSize:18}}>{fmt(monthSum)}</strong></div>
@@ -3038,19 +3088,20 @@ function PaymentsPage({orders,setOrders}){
       </div>
       {err&&<div style={{color:"var(--red)",fontSize:12,marginTop:6}}>{err}</div>}
     </div>
-    {/* Feed */}
     <div style={{flex:1,overflowY:"auto",paddingBottom:12}}>
       <div className="orders-feed">
         {view.length===0&&<div style={{background:"var(--pink-pale)",border:"1px solid var(--border)",borderRadius:12,padding:14,textAlign:"center",fontSize:13,color:"var(--pink2)",marginBottom:12}}>{loading?"Завантаження...":"Платежів немає"}</div>}
         {view.map(p=>{
           const matchedOrder=p.matched_order_id?orders.find(o=>o.id===p.matched_order_id):null;
+          const cli=findClient(p,matchedOrder);
+          const scorePct=p.matched_score?Math.round(Number(p.matched_score)*100):null;
           return(<div key={p.id} className="order-card">
             <div className="oh">
               <span className="oh-name">
                 <strong style={{fontSize:16,color:"var(--green)",marginRight:8}}>{fmt(Number(p.amount||0))}</strong>
                 {statusBadge(p.transaction_status)}
                 {p.signature_valid===false&&<span className="badge badge-red" style={{marginLeft:6}} title="Невірний підпис">{"⚠"} підпис</span>}
-                {p.matched_order_id?<span className="badge badge-green" style={{marginLeft:6}}>{"✓"} #{p.matched_order_id}{p.matched_method?" ("+p.matched_method+")":""}</span>:p.transaction_status==="Approved"&&<span className="badge badge-amber" style={{marginLeft:6}}>не привʼязано</span>}
+                {p.matched_order_id?<span className="badge badge-green" style={{marginLeft:6}} title={"метод: "+(p.matched_method||"")+(scorePct?", впевненість "+scorePct+"%":"")}>{"✓"} #{p.matched_order_id}{p.matched_method?" ("+p.matched_method+")":""}{scorePct&&scorePct<100?" "+scorePct+"%":""}</span>:p.transaction_status==="Approved"&&<span className="badge badge-amber" style={{marginLeft:6}}>не привʼязано</span>}
               </span>
               <span className="oh-date">{new Date(p.received_at).toLocaleString("uk-UA",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})}</span>
             </div>
@@ -3060,8 +3111,13 @@ function PaymentsPage({orders,setOrders}){
               {p.order_reference&&<span>ref: <code>{p.order_reference}</code> · </span>}
               {p.payment_system||p.card_pan||""}
             </div>
+            {cli&&<div style={{fontSize:12,marginTop:2}}>
+              👤 Клієнт: <strong>{[cli.name,cli.surname].filter(Boolean).join(" ")||"#"+cli.id}</strong>
+              {cli.phone&&<span style={{color:"var(--text2)"}}> · {cli.phone}</span>}
+              {Number(cli.total_orders||0)>0&&<span style={{color:"var(--text2)"}}> · {cli.total_orders} замовл. · {fmt(Number(cli.total_spent||0))} всього</span>}
+            </div>}
             {matchedOrder&&<div style={{fontSize:12,color:"var(--text2)",marginTop:2}}>
-              Замовлення: {matchedOrder.client} · {fmt(Number(matchedOrder.total||0))} · {matchedOrder.payment==="prepaid"?"повна оплата":"передоплата "+fmt(Number(matchedOrder.prepayment||0))}
+              📦 Замовлення: {matchedOrder.client} · {fmt(Number(matchedOrder.total||0))} · {matchedOrder.payment==="prepaid"?<span style={{color:"var(--green)",fontWeight:600}}>повна оплата</span>:<span>передоплата <strong>{fmt(Number(matchedOrder.prepayment||0))}</strong> / залиш. {fmt(Number(matchedOrder.total||0)-Number(matchedOrder.prepayment||0))}</span>}
             </div>}
             <div style={{display:"flex",gap:6,marginTop:6}}>
               {p.transaction_status==="Approved"&&!p.matched_order_id&&<button className="btn btn-sm btn-primary" onClick={()=>openMatch(p)}>Привʼязати до замовлення</button>}
@@ -3073,17 +3129,26 @@ function PaymentsPage({orders,setOrders}){
     </div>
     {matchModal&&<Modal title={"Привʼязати "+fmt(Number(matchModal.payment.amount||0))+" до замовлення"} onClose={()=>setMatchModal(null)} wide>
       <div style={{fontSize:12,color:"var(--text2)",marginBottom:8}}>
-        Платіж від {matchModal.payment.client_name||"?"} · {matchModal.payment.client_phone||"?"}
+        Платіж від <strong>{matchModal.payment.client_name||"?"}</strong> · {matchModal.payment.client_phone||"?"}
         {matchModal.payment.order_reference&&" · ref: "+matchModal.payment.order_reference}
       </div>
-      {matchModal.candidates.length===0?<div style={{padding:14,textAlign:"center",color:"var(--text2)"}}>Не знайдено замовлень з тим самим телефоном без повної оплати.</div>:
+      {matchModal.candidates.length===0?<div style={{padding:14,textAlign:"center",color:"var(--text2)"}}>Не знайдено замовлень з тим самим телефоном/іменем без повної оплати.</div>:
       <div style={{maxHeight:400,overflowY:"auto"}}>
-        {matchModal.candidates.map(o=><div key={o.id} className="order-card" style={{cursor:"pointer"}} onClick={()=>doMatch(matchModal.payment,o)}>
+        {matchModal.candidates.map((c,i)=><div key={c.o.id} className="order-card" style={{cursor:"pointer",border:i===0?"2px solid var(--green)":undefined}} onClick={()=>doMatch(matchModal.payment,c.o)}>
           <div className="oh">
-            <span className="oh-name">{o.client} · <strong>{fmt(Number(o.total||0))}</strong> {Number(o.prepayment||0)>0&&<span style={{color:"var(--green)"}}> (передопл. {fmt(Number(o.prepayment||0))})</span>}</span>
-            <span className="oh-date">{new Date(o.date).toLocaleDateString("uk-UA")}</span>
+            <span className="oh-name">
+              {i===0&&<span className="badge badge-green" style={{marginRight:6}}>★ найкращий збіг</span>}
+              {c.o.client} · <strong>{fmt(Number(c.o.total||0))}</strong>
+              {Number(c.o.prepayment||0)>0&&<span style={{color:"var(--green)"}}> (передопл. {fmt(Number(c.o.prepayment||0))})</span>}
+            </span>
+            <span className="oh-date">{new Date(c.o.date).toLocaleDateString("uk-UA")}</span>
           </div>
-          <div style={{fontSize:12,color:"var(--text2)",marginTop:2}}>{o.phone} · {(o.items||[]).map(i=>i.name+"×"+i.qty).join(", ")}</div>
+          <div style={{fontSize:12,color:"var(--text2)",marginTop:2}}>
+            {c.o.phone} · {(c.o.items||[]).map(it=>it.name+"×"+it.qty).join(", ")||"—"}
+          </div>
+          <div style={{fontSize:11,color:"var(--text2)",marginTop:2}}>
+            збіг: {c.how} · впевненість {Math.round(c.score*100)}%
+          </div>
         </div>)}
       </div>}
     </Modal>}
@@ -3366,7 +3431,7 @@ function App(){
         {page==="admin"&&<AdminPage products={products} setProducts={setProducts}/>}
         {page==="clients"&&<ClientsPage clients={clients} orders={orders}/>}
         {page==="expenses"&&<ExpensesPage expenses={expenses} setExpenses={setExpenses}/>}
-        {page==="payments"&&<PaymentsPage orders={orders} setOrders={setOrders}/>}
+        {page==="payments"&&<PaymentsPage orders={orders} setOrders={setOrders} clients={clients}/>}
         {page==="bulk"&&<BulkImportPage orders={orders} setOrders={setOrders} products={products} clients={clients} setClients={setClients}/>}
         {page==="dashboard"&&<DashboardPage orders={orders} products={products} expenses={expenses} dateRange={dateRange} setDateRange={setDateRange}/>}
       </div>
