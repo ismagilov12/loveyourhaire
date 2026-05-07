@@ -3625,7 +3625,7 @@ function App(){
     {id:"bulk",label:"Масове",icon:I.bulk,mob:"Масове"},
     {id:"dashboard",label:"Сводка",icon:I.dash,mob:"Сводка"},
   ];
-  const pages=isManager?allPages.filter(p=>p.id==="neworder"||p.id==="orders"):allPages;
+  const pages=isManager?allPages.filter(p=>p.id==="neworder"||p.id==="orders"||p.id==="chat"):allPages;
   // If manager somehow lands on a restricted page (e.g. last-saved page), bounce to neworder
   if(isManager&&!pages.some(p=>p.id===page)){setTimeout(()=>setPage("neworder"),0);}
   const todayOrders=orders.filter(o=>{const d=new Date(o.date),t=new Date();return sameDay(d,t);});
