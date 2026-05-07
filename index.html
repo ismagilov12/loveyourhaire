@@ -3219,7 +3219,7 @@ function ChatPage({clients,orders,user}){
           });
           setTimeout(()=>{threadEnd.current?.scrollIntoView({behavior:"smooth"});},50);
           // auto-mark read since chat is open
-          if(m.direction==="in"){
+          if(m.direction==="incoming"||m.direction==="in"){
             supabase.from("messages").update({is_read:true}).eq("id",m.id);
           }
         }else{
@@ -3262,7 +3262,7 @@ function ChatPage({clients,orders,user}){
       if(!r.ok||!j.success){throw new Error(j.error||"send failed");}
       setDraft("");
       // realtime will deliver the new message; but also push optimistically
-      setMessages(prev=>[...prev,{id:"tmp_"+Date.now(),conversation_id:selected.id,direction:"out",message_type:"text",content:t,created_at:new Date().toISOString(),sent_by:user?.id||null}]);
+      setMessages(prev=>[...prev,{id:"tmp_"+Date.now(),conversation_id:selected.id,direction:"outgoing",message_type:"text",content:t,created_at:new Date().toISOString(),sent_by:user?.id||null}]);
       setTimeout(()=>{threadEnd.current?.scrollIntoView({behavior:"smooth"});},50);
     }catch(e){
       setErr("Помилка відправки: "+(e.message||e));
@@ -3338,7 +3338,7 @@ function ChatPage({clients,orders,user}){
           {loading&&<div style={{textAlign:"center",color:"var(--text2)",fontSize:12}}>Завантаження...</div>}
           {!loading&&messages.length===0&&<div style={{textAlign:"center",color:"var(--text2)",fontSize:12}}>Поки немає повідомлень</div>}
           {messages.map(m=>{
-            const isOut=m.direction==="out";
+            const isOut=m.direction==="outgoing"||m.direction==="out";
             return(<div key={m.id} style={{display:"flex",justifyContent:isOut?"flex-end":"flex-start",marginBottom:6}}>
               <div style={{maxWidth:"70%",padding:"8px 12px",borderRadius:14,background:isOut?"#fff":"var(--pink)",color:isOut?"var(--text)":"#fff",fontSize:13,whiteSpace:"pre-wrap",wordWrap:"break-word",border:isOut?"1px solid var(--border)":"none"}}>
                 {m.content}
