@@ -3214,8 +3214,17 @@ function ChatPage({clients,orders,user}){
         const m=p.new;
         if(selected&&m.conversation_id===selected.id){
           setMessages(prev=>{
+            // Already have this exact id?
             if(prev.some(x=>x.id===m.id))return prev;
-            return [...prev,m];
+            // Drop any optimistic tmp_ message with same direction+content within 60s
+            const filtered=prev.filter(x=>{
+              if(typeof x.id!=="string"||!x.id.startsWith("tmp_"))return true;
+              if((x.direction||"")!==(m.direction||""))return true;
+              if((x.content||"")!==(m.content||""))return true;
+              const dt=Math.abs(new Date(x.created_at).getTime()-new Date(m.created_at).getTime());
+              return dt>60000;
+            });
+            return [...filtered,m];
           });
           setTimeout(()=>{threadEnd.current?.scrollIntoView({behavior:"smooth"});},50);
           // auto-mark read since chat is open
@@ -3248,9 +3257,12 @@ function ChatPage({clients,orders,user}){
     return orders.filter(o=>phoneTail(o.phone).endsWith(tail.slice(-7))).slice(0,5);
   };
 
+  const sendingRef=useRef(false);
   const send=async()=>{
     const t=draft.trim();
     if(!t||!selected)return;
+    if(sendingRef.current)return; // re-entry guard: prevents double-send on quick Enter
+    sendingRef.current=true;
     setSending(true);setErr("");
     try{
       const r=await fetch(SEND_URL,{
@@ -3267,6 +3279,7 @@ function ChatPage({clients,orders,user}){
     }catch(e){
       setErr("Помилка відправки: "+(e.message||e));
     }
+    sendingRef.current=false;
     setSending(false);
   };
 
@@ -3353,7 +3366,7 @@ function ChatPage({clients,orders,user}){
         {/* Composer */}
         <div style={{padding:"8px 10px",borderTop:"1px solid var(--border)",display:"flex",gap:8,alignItems:"flex-end"}}>
           <textarea className="form-input" rows={2} value={draft} onChange={e=>setDraft(e.target.value)}
-            onKeyDown={e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();send();}}}
+            onKeyDown={e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();if(!sendingRef.current)send();}}}
             placeholder="Напишіть повідомлення... (Enter — відправити, Shift+Enter — новий рядок)"
             style={{margin:0,resize:"none",flex:1}}/>
           <button className="btn btn-primary" onClick={send} disabled={!draft.trim()||sending} style={{height:50}}>
