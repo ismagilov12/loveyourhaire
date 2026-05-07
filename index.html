@@ -3724,11 +3724,11 @@ function App(){
       <div className="sidebar-logo">{I.scissors}<span>Love Your Haire</span></div>
       <nav className="sidebar-nav">{pages.map(p=><button key={p.id} className={`nav-item${page===p.id?' active':''}`} onClick={()=>setPage(p.id)}>{p.icon}<span>{p.label}</span>{p.id==="orders"&&newCnt>0&&<span className="nav-badge">{newCnt}</span>}</button>)}</nav>
       <div className="sidebar-stats">
-        <div className="leopard-bg" style={{borderRadius:8,padding:"8px 10px",marginBottom:8}}>
+        {!isManager&&<div className="leopard-bg" style={{borderRadius:8,padding:"8px 10px",marginBottom:8}}>
           <div style={{fontSize:10,fontWeight:700,color:"#5a3a1a"}}>Сьогодні</div>
           <div style={{fontSize:16,fontWeight:800,color:"#2d1b1b"}}>{fmt(todayRev)}</div>
           <div style={{fontSize:10,color:"#5a3a1a"}}>{todayOrders.length} замовлень</div>
-        </div>
+        </div>}
         <div style={{padding:"8px 0",borderTop:"1px solid rgba(0,0,0,.1)",marginTop:8}}>
           <div style={{fontSize:11,color:"#5a3a1a"}}>{"\uD83D\uDC64"} {user.name}</div>
           <button onClick={logout} style={{background:"none",border:"none",color:"var(--pink2)",fontSize:11,cursor:"pointer",padding:"4px 0",textDecoration:"underline"}}>Вийти</button>
