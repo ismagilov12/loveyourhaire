@@ -2778,7 +2778,7 @@ const USERS_FALLBACK=[
   {login:"manager",password:"manager123",name:"Менеджер",role:"manager"},
 ];
 
-function LoginPage({onLogin}){
+function LoginPage({onLogin,onShowOnboarding}){
   const[login,setLogin]=useState("");
   const[pass,setPass]=useState("");
   const[err,setErr]=useState("");
@@ -2790,7 +2790,7 @@ function LoginPage({onLogin}){
       if(data) u={login:data.login,password:data.password,name:data.name,role:data.role};
     }catch{}
     if(!u) u=USERS_FALLBACK.find(x=>x.login===login.toLowerCase()&&x.password===pass);
-    if(u){LS.set("user",u);onLogin(u);}
+    if(u){LS.set("user",u);if(u.role==="manager"){const _c=Number(LS.get("manager_login_count",0)||0)+1;LS.set("manager_login_count",_c);if(_c===1&&typeof onShowOnboarding==="function")onShowOnboarding();}onLogin(u);}
     else setErr("Невірний логін або пароль");
   };
   return(<div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"linear-gradient(135deg,#fff0f3 0%,#ffd6e0 50%,#f5c6a0 100%)"}}>
@@ -3459,7 +3459,7 @@ function ManagerOnboarding({onClose}){
   ];
   const isLast=step===slides.length-1;
   const cur=slides[step];
-  const finish=()=>{LS.set("manager_onboarded",true);onClose();};
+  const finish=()=>{onClose();};
   return(<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.65)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
     <div style={{background:"#fff",borderRadius:20,maxWidth:480,width:"100%",padding:"28px 28px 24px",boxShadow:"0 20px 60px rgba(0,0,0,.4)"}}>
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20}}>
@@ -3698,12 +3698,7 @@ function App(){
 
   const logout=()=>{LS.set("user",null);setUser(null);setShowOnboarding(false);};
 
-  // Auto-show onboarding for first-time manager logins
-  useEffect(()=>{
-    if(user&&user.role==="manager"&&!LS.get("manager_onboarded",false))setShowOnboarding(true);
-  },[user]);
-
-  if(!user) return <LoginPage onLogin={setUser}/>;
+  if(!user) return <LoginPage onLogin={setUser} onShowOnboarding={()=>setShowOnboarding(true)}/>;
 
   const isManager=user.role==="manager";
   const allPages=[
