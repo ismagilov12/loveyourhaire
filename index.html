@@ -1208,102 +1208,6 @@ function DashboardPage({orders,products,expenses,dateRange,setDateRange}){
         </div>);
       })}</div>}
     </div>
-  </div>);
-}
-
-// ─── NP City Autocomplete ───
-function NPCityPicker({value,onChange,onCityRef,onDeliveryCityRef}){
-  const[q,setQ]=useState(value||"");
-  const[results,setResults]=useState([]);
-  const[open,setOpen]=useState(false);
-  const[loading,setLoading]=useState(false);
-  const timerRef=useRef(null);
-  useEffect(()=>{setQ(value||"");},[value]);
-  const doSearch=(txt)=>{
-    setQ(txt);onChange(txt);
-    if(timerRef.current)clearTimeout(timerRef.current);
-    if(txt.length<2){setResults([]);setOpen(false);return;}
-    setLoading(true);
-    timerRef.current=setTimeout(async()=>{
-      const r=await NP.searchCity(txt);
-      setResults(r);setOpen(r.length>0);setLoading(false);
-    },300);
-  };
-  const pick=(c)=>{setQ(c.name);onChange(c.city||c.name);if(onCityRef)onCityRef(c.ref);if(onDeliveryCityRef)onDeliveryCityRef(c.deliveryCityRef||c.ref);setOpen(false);setResults([]);};
-  return(<div style={{position:"relative"}}>
-    <input className="form-input" placeholder="Місто..." value={q} onChange={e=>doSearch(e.target.value)} onFocus={()=>{if(results.length)setOpen(true);}} style={{fontSize:12,marginTop:2}}/>
-    {loading&&<div style={{position:"absolute",right:8,top:8,fontSize:10,color:"var(--text2)"}}>...</div>}
-    {open&&<div style={{position:"absolute",top:"100%",left:0,right:0,background:"#fff",border:"1px solid var(--border)",borderRadius:8,maxHeight:200,overflowY:"auto",zIndex:100,boxShadow:"0 4px 16px rgba(0,0,0,.1)"}}>
-      {results.map((c,i)=><div key={i} style={{padding:"8px 12px",fontSize:12,cursor:"pointer",borderBottom:"1px solid var(--border)"}} onClick={()=>pick(c)} onMouseOver={e=>e.currentTarget.style.background="var(--pink-pale)"} onMouseOut={e=>e.currentTarget.style.background="#fff"}>{c.name}</div>)}
-    </div>}
-  </div>);
-}
-
-// ─── NP Warehouse Picker ───
-function NPWarehousePicker({cityRef,value,onChange}){
-  const[q,setQ]=useState(value||"");
-  const[whs,setWhs]=useState([]);
-  const[open,setOpen]=useState(false);
-  const[loading,setLoading]=useState(false);
-  const timerRef=useRef(null);
-  useEffect(()=>{setQ(value||"");},[value]);
-  useEffect(()=>{if(cityRef){setLoading(true);NP.getWarehouses(cityRef).then(w=>{setWhs(w);setLoading(false);});}else{setWhs([]);}},[cityRef]);
-  const filter=(txt)=>{
-    setQ(txt);
-    if(timerRef.current)clearTimeout(timerRef.current);
-    if(!cityRef)return;
-    timerRef.current=setTimeout(async()=>{
-      setLoading(true);
-      const w=await NP.getWarehouses(cityRef,txt);
-      setWhs(w);setOpen(w.length>0);setLoading(false);
-    },300);
-  };
-  const pick=(w)=>{setQ(w.desc);onChange(w.num,w.desc,w.ref);setOpen(false);};
-  return(<div style={{position:"relative"}}>
-    <input className="form-input" placeholder="Відділення №..." value={q} onChange={e=>filter(e.target.value)} onFocus={()=>{if(whs.length&&!open)setOpen(true);}} style={{fontSize:12,marginTop:2}}/>
-    {loading&&<div style={{position:"absolute",right:8,top:8,fontSize:10,color:"var(--text2)"}}>...</div>}
-    {open&&<div style={{position:"absolute",top:"100%",left:0,right:0,background:"#fff",border:"1px solid var(--border)",borderRadius:8,maxHeight:200,overflowY:"auto",zIndex:100,boxShadow:"0 4px 16px rgba(0,0,0,.1)"}}>
-      {whs.map((w,i)=><div key={i} style={{padding:"8px 12px",fontSize:11,cursor:"pointer",borderBottom:"1px solid var(--border)"}} onClick={()=>pick(w)} onMouseOver={e=>e.currentTarget.style.background="var(--pink-pale)"} onMouseOut={e=>e.currentTarget.style.background="#fff"}>{w.desc}</div>)}
-    </div>}
-  </div>);
-}
-
-// ─── TTN Status Badge ───
-const TTN_STATUS_MAP={"1":"Нова","2":"Видалена","3":"Немає даних","4":"В дорозі","5":"На складі міста","6":"В місті","7":"На відділенні","8":"Видано","9":"Отримано","10":"Повернення","11":"Повернено","100":"Отримано","102":"Відмова","103":"Повернення","104":"Зміна адреси"};
-const TTN_STATUS_CLS={"4":"badge-blue","5":"badge-blue","6":"badge-blue","7":"badge-amber","9":"badge-green","100":"badge-green","8":"badge-green","102":"badge-red","103":"badge-red","10":"badge-amber","11":"badge-red"};
-
-function TTNStatus({ttn,orderId,orderStatus,onAutoStatus,onStatusCode}){
-  const[info,setInfo]=useState(null);
-  const[loading,setLoading]=useState(false);
-  const track=async()=>{
-    if(!ttn)return;
-    setLoading(true);
-    const r=await NP.trackTTN(ttn);
-    setInfo(r);
-    setLoading(false);
-    // Report raw NP status code back to parent for precise filtering (e.g. "На відправку" = draft only)
-    if(r&&r.statusCode&&onStatusCode&&orderId!=null)onStatusCode(orderId,String(r.statusCode));
-    // Rule: map NP code -> order status. Skip if order in manual-terminal state (paid/studio).
-    if(r&&r.statusCode&&onAutoStatus&&orderId!=null){
-      const mapped=TTN_TO_ORDER_STATUS[String(r.statusCode)];
-      const locked=orderStatus==="paid"||orderStatus==="studio";
-      if(mapped&&!locked&&mapped!==orderStatus)onAutoStatus(orderId,mapped);
-    }
-  };
-  useEffect(()=>{if(ttn&&ttn.length>=10)track();},[ttn]);
-  if(!ttn)return null;
-  if(loading)return <span style={{fontSize:10,color:"var(--text2)"}}>Завантаження...</span>;
-  if(!info)return <span style={{fontSize:10,color:"var(--text2)",cursor:"pointer"}} onClick={track}>Оновити статус</span>;
-  const cls=TTN_STATUS_CLS[info.statusCode]||"badge-amber";
-  return(<div style={{display:"flex",flexDirection:"column",gap:2}}>
-    <div style={{display:"flex",alignItems:"center",gap:6}}>
-      <span className={`badge ${cls}`} style={{fontSize:9}}>{TTN_STATUS_MAP[info.statusCode]||info.status}</span>
-      <button style={{background:"none",border:"none",fontSize:9,color:"var(--blue)",cursor:"pointer",textDecoration:"underline"}} onClick={track}>Оновити</button>
-    </div>
-    {info.scheduledDate&&<span style={{fontSize:9,color:"var(--text2)"}}>Очік: {info.scheduledDate}</span>}
-    {info.redeliverySum&&Number(info.redeliverySum)>0&&<span style={{fontSize:9,color:"var(--green)"}}>Звор. дост: {info.redeliverySum} ₴</span>}
-  
-
     {/* === ROZSHYRENA ANALITYKA === */}
     {/* Conversion funnel */}
     <div style={{background:"#fff",borderRadius:16,border:"1px solid var(--border)",padding:16,marginBottom:16}}>
@@ -1402,6 +1306,103 @@ function TTNStatus({ttn,orderId,orderStatus,onAutoStatus,onStatusCode}){
         </tbody>
       </table>
     </div>
+
+  </div>);
+}
+
+// ─── NP City Autocomplete ───
+function NPCityPicker({value,onChange,onCityRef,onDeliveryCityRef}){
+  const[q,setQ]=useState(value||"");
+  const[results,setResults]=useState([]);
+  const[open,setOpen]=useState(false);
+  const[loading,setLoading]=useState(false);
+  const timerRef=useRef(null);
+  useEffect(()=>{setQ(value||"");},[value]);
+  const doSearch=(txt)=>{
+    setQ(txt);onChange(txt);
+    if(timerRef.current)clearTimeout(timerRef.current);
+    if(txt.length<2){setResults([]);setOpen(false);return;}
+    setLoading(true);
+    timerRef.current=setTimeout(async()=>{
+      const r=await NP.searchCity(txt);
+      setResults(r);setOpen(r.length>0);setLoading(false);
+    },300);
+  };
+  const pick=(c)=>{setQ(c.name);onChange(c.city||c.name);if(onCityRef)onCityRef(c.ref);if(onDeliveryCityRef)onDeliveryCityRef(c.deliveryCityRef||c.ref);setOpen(false);setResults([]);};
+  return(<div style={{position:"relative"}}>
+    <input className="form-input" placeholder="Місто..." value={q} onChange={e=>doSearch(e.target.value)} onFocus={()=>{if(results.length)setOpen(true);}} style={{fontSize:12,marginTop:2}}/>
+    {loading&&<div style={{position:"absolute",right:8,top:8,fontSize:10,color:"var(--text2)"}}>...</div>}
+    {open&&<div style={{position:"absolute",top:"100%",left:0,right:0,background:"#fff",border:"1px solid var(--border)",borderRadius:8,maxHeight:200,overflowY:"auto",zIndex:100,boxShadow:"0 4px 16px rgba(0,0,0,.1)"}}>
+      {results.map((c,i)=><div key={i} style={{padding:"8px 12px",fontSize:12,cursor:"pointer",borderBottom:"1px solid var(--border)"}} onClick={()=>pick(c)} onMouseOver={e=>e.currentTarget.style.background="var(--pink-pale)"} onMouseOut={e=>e.currentTarget.style.background="#fff"}>{c.name}</div>)}
+    </div>}
+  </div>);
+}
+
+// ─── NP Warehouse Picker ───
+function NPWarehousePicker({cityRef,value,onChange}){
+  const[q,setQ]=useState(value||"");
+  const[whs,setWhs]=useState([]);
+  const[open,setOpen]=useState(false);
+  const[loading,setLoading]=useState(false);
+  const timerRef=useRef(null);
+  useEffect(()=>{setQ(value||"");},[value]);
+  useEffect(()=>{if(cityRef){setLoading(true);NP.getWarehouses(cityRef).then(w=>{setWhs(w);setLoading(false);});}else{setWhs([]);}},[cityRef]);
+  const filter=(txt)=>{
+    setQ(txt);
+    if(timerRef.current)clearTimeout(timerRef.current);
+    if(!cityRef)return;
+    timerRef.current=setTimeout(async()=>{
+      setLoading(true);
+      const w=await NP.getWarehouses(cityRef,txt);
+      setWhs(w);setOpen(w.length>0);setLoading(false);
+    },300);
+  };
+  const pick=(w)=>{setQ(w.desc);onChange(w.num,w.desc,w.ref);setOpen(false);};
+  return(<div style={{position:"relative"}}>
+    <input className="form-input" placeholder="Відділення №..." value={q} onChange={e=>filter(e.target.value)} onFocus={()=>{if(whs.length&&!open)setOpen(true);}} style={{fontSize:12,marginTop:2}}/>
+    {loading&&<div style={{position:"absolute",right:8,top:8,fontSize:10,color:"var(--text2)"}}>...</div>}
+    {open&&<div style={{position:"absolute",top:"100%",left:0,right:0,background:"#fff",border:"1px solid var(--border)",borderRadius:8,maxHeight:200,overflowY:"auto",zIndex:100,boxShadow:"0 4px 16px rgba(0,0,0,.1)"}}>
+      {whs.map((w,i)=><div key={i} style={{padding:"8px 12px",fontSize:11,cursor:"pointer",borderBottom:"1px solid var(--border)"}} onClick={()=>pick(w)} onMouseOver={e=>e.currentTarget.style.background="var(--pink-pale)"} onMouseOut={e=>e.currentTarget.style.background="#fff"}>{w.desc}</div>)}
+    </div>}
+  </div>);
+}
+
+// ─── TTN Status Badge ───
+const TTN_STATUS_MAP={"1":"Нова","2":"Видалена","3":"Немає даних","4":"В дорозі","5":"На складі міста","6":"В місті","7":"На відділенні","8":"Видано","9":"Отримано","10":"Повернення","11":"Повернено","100":"Отримано","102":"Відмова","103":"Повернення","104":"Зміна адреси"};
+const TTN_STATUS_CLS={"4":"badge-blue","5":"badge-blue","6":"badge-blue","7":"badge-amber","9":"badge-green","100":"badge-green","8":"badge-green","102":"badge-red","103":"badge-red","10":"badge-amber","11":"badge-red"};
+
+function TTNStatus({ttn,orderId,orderStatus,onAutoStatus,onStatusCode}){
+  const[info,setInfo]=useState(null);
+  const[loading,setLoading]=useState(false);
+  const track=async()=>{
+    if(!ttn)return;
+    setLoading(true);
+    const r=await NP.trackTTN(ttn);
+    setInfo(r);
+    setLoading(false);
+    // Report raw NP status code back to parent for precise filtering (e.g. "На відправку" = draft only)
+    if(r&&r.statusCode&&onStatusCode&&orderId!=null)onStatusCode(orderId,String(r.statusCode));
+    // Rule: map NP code -> order status. Skip if order in manual-terminal state (paid/studio).
+    if(r&&r.statusCode&&onAutoStatus&&orderId!=null){
+      const mapped=TTN_TO_ORDER_STATUS[String(r.statusCode)];
+      const locked=orderStatus==="paid"||orderStatus==="studio";
+      if(mapped&&!locked&&mapped!==orderStatus)onAutoStatus(orderId,mapped);
+    }
+  };
+  useEffect(()=>{if(ttn&&ttn.length>=10)track();},[ttn]);
+  if(!ttn)return null;
+  if(loading)return <span style={{fontSize:10,color:"var(--text2)"}}>Завантаження...</span>;
+  if(!info)return <span style={{fontSize:10,color:"var(--text2)",cursor:"pointer"}} onClick={track}>Оновити статус</span>;
+  const cls=TTN_STATUS_CLS[info.statusCode]||"badge-amber";
+  return(<div style={{display:"flex",flexDirection:"column",gap:2}}>
+    <div style={{display:"flex",alignItems:"center",gap:6}}>
+      <span className={`badge ${cls}`} style={{fontSize:9}}>{TTN_STATUS_MAP[info.statusCode]||info.status}</span>
+      <button style={{background:"none",border:"none",fontSize:9,color:"var(--blue)",cursor:"pointer",textDecoration:"underline"}} onClick={track}>Оновити</button>
+    </div>
+    {info.scheduledDate&&<span style={{fontSize:9,color:"var(--text2)"}}>Очік: {info.scheduledDate}</span>}
+    {info.redeliverySum&&Number(info.redeliverySum)>0&&<span style={{fontSize:9,color:"var(--green)"}}>Звор. дост: {info.redeliverySum} ₴</span>}
+  
+
 
   </div>);
 }
