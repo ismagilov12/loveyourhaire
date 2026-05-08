@@ -1443,6 +1443,17 @@ function CreateTTNModal({order,onClose,onCreated}){
 }
 
 // ─── NEW ORDER ───
+// Convert a phone string to a Telegram t.me/+digits URL. Returns "" if no digits.
+function tgLinkFromPhone(p){
+  if(!p)return"";
+  var d=String(p).replace(/\D/g,"");
+  if(!d)return"";
+  if(d.length===10&&d.startsWith("0"))d="38"+d;
+  else if(d.length===11&&d.startsWith("8")&&!d.startsWith("38"))d="38"+d.slice(1);
+  else if(d.length===11&&d.startsWith("7"))d=d; // RU mobile — leave as is
+  return"https://t.me/+"+d;
+}
+
 function NewOrderPage({orders,setOrders,products,setProducts,clients,setClients,user}){
   const[raw,setRaw]=useState("");
   const[parsed,setParsed]=useState({name:"",phone:"",city:"",npBranch:"",payment:"control"});
@@ -1639,7 +1650,7 @@ function NewOrderPage({orders,setOrders,products,setProducts,clients,setClients,
             </>:
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6,marginTop:6}}>
               <div className="form-group" style={{marginBottom:0}}><label className="form-label">Ім'я</label><input className="form-input" value={parsed.name} onChange={e=>setParsed({...parsed,name:e.target.value})}/></div>
-              <div className="form-group" style={{marginBottom:0}}><label className="form-label">Телефон</label><input className="form-input" value={parsed.phone} onChange={e=>setParsed({...parsed,phone:e.target.value})}/></div>
+              <div className="form-group" style={{marginBottom:0}}><label className="form-label" style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}><span>Телефон</span>{parsed.phone&&<a href={tgLinkFromPhone(parsed.phone)} target="_blank" rel="noopener" title="Написати в Telegram" style={{fontSize:11,color:"#229ED9",textDecoration:"none",fontWeight:700}}>{"\u2708\uFE0F Telegram"}</a>}</label><input className="form-input" value={parsed.phone} onChange={e=>setParsed({...parsed,phone:e.target.value})}/></div>
               {deliv==="np"&&<><div className="form-group" style={{marginBottom:0}}><label className="form-label">Місто</label><NPCityPicker value={parsed.city} onChange={v=>setParsed({...parsed,city:v})} onCityRef={setCityRef}/></div>
               <div className="form-group" style={{marginBottom:0}}><label className="form-label">Відділення</label><NPWarehousePicker cityRef={cityRef} value={parsed.npBranch} onChange={(n,d,r)=>{setParsed({...parsed,npBranch:n});setWhRef(r);}}/></div></>}
             </div>}
@@ -2197,7 +2208,7 @@ function OrdersListPage({orders,setOrders,products,user}){
       </div>}
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:14}}>
         <div className="form-group" style={{marginBottom:0}}><label className="form-label">Клієнт</label><input className="form-input" value={editO.client} onChange={e=>setEditO({...editO,client:e.target.value})}/></div>
-        <div className="form-group" style={{marginBottom:0}}><label className="form-label">Телефон</label><input className="form-input" value={editO.phone} onChange={e=>setEditO({...editO,phone:e.target.value})}/></div>
+        <div className="form-group" style={{marginBottom:0}}><label className="form-label" style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}><span>Телефон</span>{editO.phone&&<a href={tgLinkFromPhone(editO.phone)} target="_blank" rel="noopener" title="Написати в Telegram" style={{fontSize:11,color:"#229ED9",textDecoration:"none",fontWeight:700,display:"inline-flex",alignItems:"center",gap:3}}>{"\u2708\uFE0F Telegram"}</a>}</label><input className="form-input" value={editO.phone} onChange={e=>setEditO({...editO,phone:e.target.value})}/></div>
         {editO.deliveryType==="np"&&<>
           <div className="form-group" style={{marginBottom:0}}><label className="form-label">Місто</label><input className="form-input" value={editO.city} onChange={e=>setEditO({...editO,city:e.target.value})}/></div>
           <div className="form-group" style={{marginBottom:0}}><label className="form-label">№ відділення</label><input className="form-input" value={editO.npBranch} onChange={e=>setEditO({...editO,npBranch:e.target.value})}/></div>
@@ -2385,7 +2396,7 @@ function ClientsPage({clients,orders}){
             <span style={{fontSize:12,color:"var(--text2)"}}>{co.length} зам.</span>
           </div>
           <div style={{display:"flex",gap:12,flexWrap:"wrap",fontSize:12,color:"var(--text2)",marginTop:4}}>
-            {c.phone&&<span>{"\uD83D\uDCDE"} {c.phone}</span>}
+            {c.phone&&<span style={{display:"inline-flex",alignItems:"center",gap:6}}>{"\uD83D\uDCDE"} {c.phone}<a href={tgLinkFromPhone(c.phone)} target="_blank" rel="noopener" onClick={e=>e.stopPropagation()} title="Написати в Telegram" style={{color:"#229ED9",textDecoration:"none",fontWeight:700,fontSize:11}}>{"\u2708\uFE0F TG"}</a></span>}
             {c.city&&<span>{"\uD83D\uDCCD"} {c.city}{c.npBranch?` №${c.npBranch}`:""}</span>}
             <span style={{marginLeft:"auto",fontWeight:700,color:"var(--pink2)"}}>Всього: {fmt(clientTotal(c))}</span>
           </div>
