@@ -984,6 +984,12 @@ function DashboardPage({orders,products,expenses,dateRange,setDateRange}){
       <button className="btn btn-sm btn-secondary" onClick={sToday}>{"\С\ь\о\г\о\д\н\і"}</button>
       <button className="btn btn-sm btn-secondary" onClick={sWeek}>7 {"\д\н\і\в"}</button>
       <button className="btn btn-sm btn-secondary" onClick={sMonth}>{"\М\і\с\я\ц\ь"}</button>
+      <div style={{display:"flex",gap:4,alignItems:"center",marginLeft:8}}>
+        <span style={{fontSize:11,color:"var(--text2)"}}>{"\В\і\д:"}</span>
+        <input type="date" value={dateRange.start?(()=>{const d=new Date(dateRange.start);return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");})():""} onChange={e=>{if(!e.target.value)return;const[y,m,dd]=e.target.value.split("-").map(Number);const d=new Date(y,m-1,dd);d.setHours(0,0,0,0);const end=dateRange.end&&d>dateRange.end?d:dateRange.end;setDateRange({start:d,end:end||d});setSelStart(true);setExpandDate(null);}} style={{padding:"4px 6px",borderRadius:6,border:"1px solid var(--border)",fontSize:12,background:"#fff",cursor:"pointer"}}/>
+        <span style={{fontSize:11,color:"var(--text2)"}}>{"\д\о:"}</span>
+        <input type="date" value={dateRange.end?(()=>{const d=new Date(dateRange.end);return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");})():""} onChange={e=>{if(!e.target.value)return;const[y,m,dd]=e.target.value.split("-").map(Number);const d=new Date(y,m-1,dd);d.setHours(23,59,59,999);const start=dateRange.start&&d<dateRange.start?d:dateRange.start;setDateRange({start:start||d,end:d});setSelStart(true);setExpandDate(null);}} style={{padding:"4px 6px",borderRadius:6,border:"1px solid var(--border)",fontSize:12,background:"#fff",cursor:"pointer"}}/>
+      </div>
       <span style={{fontSize:12,color:"var(--text2)",marginLeft:6}}>{dateRange.start?fmtD(dateRange.start):"\—"} {"\→"} {dateRange.end?fmtD(dateRange.end):"..."}</span>
     </div>
 
