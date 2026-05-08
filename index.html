@@ -1777,9 +1777,8 @@ function OrdersListPage({orders,setOrders,products,user}){
     const prev=Number(editO.prepayment||0);
     const next=Math.round((prev+Number(pay.amount||0))*100)/100;
     const cod=Math.max(0,total-next);
-    const note="WayForPay: +"+pay.amount+"₴ ("+(pay.order_reference||"")+")";
-    const newComment=editO.comment?(editO.comment+" • "+note):note;
-    setEditO({...editO,prepayment:next,codAmount:cod,comment:newComment});
+    // No comment text — link is preserved in wfp_payments.matched_order_id and shown in the WFP block.
+    setEditO({...editO,prepayment:next,codAmount:cod});
     if(supabase&&typeof supabase.from==="function"){
       try{
         await supabase.from("wfp_payments").update({matched_order_id:editO.id,matched_method:"manual",matched_score:1.0}).eq("id",pay.id);
