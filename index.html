@@ -1757,6 +1757,51 @@ function OrdersListPage({orders,setOrders,products,user}){
   const[ttnSenderInfo,setTtnSenderInfo]=useState(null);
   const[ttnSenderLoading,setTtnSenderLoading]=useState(false);
   const[prepayV,setPrepayV]=useState("");
+  const[wfpPays,setWfpPays]=useState([]);
+  const[wfpLoading,setWfpLoading]=useState(false);
+  const reloadWfp=async()=>{
+    if(!supabase||typeof supabase.from!=="function")return;
+    setWfpLoading(true);
+    try{
+      const{data}=await supabase.from("wfp_payments")
+        .select("id,order_reference,amount,transaction_status,received_at,client_name,client_phone,matched_order_id")
+        .order("received_at",{ascending:false}).limit(50);
+      setWfpPays(data||[]);
+    }catch(e){console.warn("wfp load failed",e);}
+    setWfpLoading(false);
+  };
+  // Attach a WayForPay payment to the currently-edited order (updates both wfp_payments and editO).
+  const attachWfp=async(pay)=>{
+    if(!editO||!pay)return;
+    const total=editItems.reduce((s,i)=>s+i.price*i.qty,0);
+    const prev=Number(editO.prepayment||0);
+    const next=Math.round((prev+Number(pay.amount||0))*100)/100;
+    const cod=Math.max(0,total-next);
+    const note="WayForPay: +"+pay.amount+"₴ ("+(pay.order_reference||"")+")";
+    const newComment=editO.comment?(editO.comment+" • "+note):note;
+    setEditO({...editO,prepayment:next,codAmount:cod,comment:newComment});
+    if(supabase&&typeof supabase.from==="function"){
+      try{
+        await supabase.from("wfp_payments").update({matched_order_id:editO.id,matched_method:"manual",matched_score:1.0}).eq("id",pay.id);
+        setWfpPays(prev=>prev.map(x=>x.id===pay.id?{...x,matched_order_id:editO.id}:x));
+      }catch(e){console.warn("wfp attach failed",e);}
+    }
+  };
+  const detachWfp=async(pay)=>{
+    if(!editO||!pay)return;
+    if(!confirm("Відвʼязати цей платіж від замовлення?"))return;
+    const prev=Number(editO.prepayment||0);
+    const next=Math.max(0,Math.round((prev-Number(pay.amount||0))*100)/100);
+    const total=editItems.reduce((s,i)=>s+i.price*i.qty,0);
+    const cod=Math.max(0,total-next);
+    setEditO({...editO,prepayment:next,codAmount:cod});
+    if(supabase&&typeof supabase.from==="function"){
+      try{
+        await supabase.from("wfp_payments").update({matched_order_id:null,matched_method:null,matched_score:null}).eq("id",pay.id);
+        setWfpPays(prev=>prev.map(x=>x.id===pay.id?{...x,matched_order_id:null}:x));
+      }catch(e){console.warn("wfp detach failed",e);}
+    }
+  };
   const searched=useMemo(()=>{
     if(!search.trim())return orders;
     const q=search.trim().toLowerCase();
@@ -1969,6 +2014,7 @@ function OrdersListPage({orders,setOrders,products,user}){
   useEffect(()=>{
     if(editO){
       setTtnErr("");setTtnResult(null);setTtnCreating(false);setTtnSettings(false);
+      reloadWfp();
       setTtnPayerDel("Recipient");setTtnWeight("0.5");
       setTtnDesc(editO.items?(editO.items.map(i=>i.name+(i.qty>1?" x"+i.qty:"")).join(", ")+(editO.comment?" | "+editO.comment:"")):"");
       // Preload sender info
@@ -2230,6 +2276,28 @@ function OrdersListPage({orders,setOrders,products,user}){
             {(()=>{const t=editItems.reduce((s,i)=>s+i.price*i.qty,0);const p=editO.prepayment||0;const c=editO.codAmount!=null?editO.codAmount:0;const isPaid=p>=t&&t>0;return isPaid?<span className="badge badge-green" style={{fontSize:11,padding:"5px 10px"}}>Оплачено ✅</span>:<span style={{fontSize:12,color:"var(--blue)",fontWeight:700}}>До сплати: {fmt(c)}₴</span>;})()}
           </div>
         </div>
+      </div>
+      {/* WayForPay прив'язка */}
+      <div style={{background:"#f0f9ff",border:"1px solid #bae6fd",borderRadius:10,padding:"10px 12px",marginBottom:14}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:6}}>
+          <span style={{fontSize:11,fontWeight:700,textTransform:"uppercase",color:"#0369a1"}}>WayForPay {"·"} передоплати</span>
+          <button onClick={reloadWfp} disabled={wfpLoading} style={{background:"none",border:"none",fontSize:11,color:"#0369a1",cursor:"pointer",textDecoration:"underline"}}>{wfpLoading?"…":"↻"}</button>
+        </div>
+        {(()=>{
+          const mine=wfpPays.filter(p=>p.matched_order_id===editO.id);
+          const free=wfpPays.filter(p=>p.transaction_status==="Approved"&&!p.matched_order_id).slice(0,8);
+          if(mine.length===0&&free.length===0)return <div style={{fontSize:11,color:"var(--text2)"}}>{wfpLoading?"⏳ Завантаження...":"— Платежів не знайдено"}</div>;
+          return <div style={{display:"flex",flexDirection:"column",gap:4}}>
+            {mine.map(p=><div key={p.id} style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,padding:"6px 8px",background:"var(--green-light)",borderRadius:6,fontSize:12}}>
+              <span style={{flex:1,minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}><strong style={{color:"var(--green)"}}>{"✓ "+p.amount+"₴"}</strong> {p.client_name||""} <span style={{color:"var(--text2)",fontSize:10}}>{new Date(p.received_at).toLocaleDateString("uk-UA",{day:"numeric",month:"short"})}</span></span>
+              <button onClick={()=>detachWfp(p)} className="btn btn-secondary btn-xs" style={{fontSize:10,padding:"3px 6px"}}>Відвʼязати</button>
+            </div>)}
+            {free.map(p=><div key={p.id} style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,padding:"6px 8px",background:"#fff",borderRadius:6,fontSize:12,border:"1px solid #e0f2fe"}}>
+              <span style={{flex:1,minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}><strong>{p.amount+"₴"}</strong> {p.client_name||"—"} {p.client_phone?<span style={{color:"var(--text2)",fontSize:10}}>{p.client_phone}</span>:null} <span style={{color:"var(--text2)",fontSize:10}}>{new Date(p.received_at).toLocaleDateString("uk-UA",{day:"numeric",month:"short"})}</span></span>
+              <button onClick={()=>attachWfp(p)} className="btn btn-primary btn-xs" style={{fontSize:10,padding:"3px 8px",whiteSpace:"nowrap"}}>{"+ Привʼязати"}</button>
+            </div>)}
+          </div>;
+        })()}
       </div>
       <div style={{marginBottom:12}}>
         <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",color:"var(--text2)",marginBottom:6}}>Товари</div>
