@@ -901,58 +901,118 @@ function DashboardPage({orders,products,expenses,dateRange,setDateRange}){
     return expenses.filter(x=>{const d=new Date(x.date);const s=new Date(dateRange.start);s.setHours(0,0,0,0);const e=new Date(dateRange.end);e.setHours(23,59,59,999);return d>=s&&d<=e;});
   },[expenses,dateRange]);
 
-  // Revenue & cost breakdown (type-agnostic)
-  const rev=fOrders.reduce((s,o)=>s+o.items.reduce((a,i)=>a+(Number(i.price)||0)*(Number(i.qty)||0),0),0);
-  const totalCost=fOrders.reduce((s,o)=>s+o.items.reduce((a,i)=>a+(Number(i.cost)||0)*(Number(i.qty)||0),0),0);
+  // Effective orders = excluding "refused" (відмова). All revenue/profit calcs use these.
+  const effOrders=useMemo(()=>fOrders.filter(o=>o.status!=="refused"),[fOrders]);
+  const refusedOrders=useMemo(()=>fOrders.filter(o=>o.status==="refused"),[fOrders]);
+  const refusedRev=refusedOrders.reduce((s,o)=>s+(Number(o.total)||0),0);
+  const refusalRate=fOrders.length>0?Math.round(refusedOrders.length/fOrders.length*100):0;
+
+  // Revenue & cost breakdown (excluding refused)
+  const rev=effOrders.reduce((s,o)=>s+o.items.reduce((a,i)=>a+(Number(i.price)||0)*(Number(i.qty)||0),0),0);
+  const totalCost=effOrders.reduce((s,o)=>s+o.items.reduce((a,i)=>a+(Number(i.cost)||0)*(Number(i.qty)||0),0),0);
   const expTotal=fExpenses.reduce((s,x)=>s+x.amount,0);
   const grossProfit=rev-totalCost;
   const netProfit=grossProfit-expTotal;
   const margin=rev>0?Math.round(netProfit/rev*100):0;
-  const avgCheck=fOrders.length>0?Math.round(rev/fOrders.length):0;
-  const cnt=fOrders.length;
+  const avgCheck=effOrders.length>0?Math.round(rev/effOrders.length):0;
+  const cnt=effOrders.length;
 
-  // Top products
+  // Top products (effective orders only)
   const topProds=useMemo(()=>{
     const m={};
-    fOrders.forEach(o=>o.items.forEach(it=>{
+    effOrders.forEach(o=>o.items.forEach(it=>{
       const k=it.name;
-      if(!m[k])m[k]={name:k,qty:0,rev:0,profit:0};
-      m[k].qty+=it.qty;m[k].rev+=it.price*it.qty;m[k].profit+=(it.price-it.cost)*it.qty;
+      if(!m[k])m[k]={name:k,qty:0,rev:0,profit:0,cost:0};
+      m[k].qty+=it.qty;m[k].rev+=it.price*it.qty;m[k].profit+=(it.price-it.cost)*it.qty;m[k].cost+=it.cost*it.qty;
     }));
-    return Object.values(m).sort((a,b)=>b.qty-a.qty).slice(0,8);
-  },[fOrders]);
+    return Object.values(m).sort((a,b)=>b.qty-a.qty);
+  },[effOrders]);
+  const topProdsTop8=topProds.slice(0,8);
 
-  // Top clients
+  // Top clients (effective orders only)
   const topClients=useMemo(()=>{
     const m={};
-    fOrders.forEach(o=>{
+    effOrders.forEach(o=>{
       const k=o.client;
       if(!m[k])m[k]={name:k,orders:0,total:0};
       m[k].orders++;m[k].total+=o.total;
     });
     return Object.values(m).sort((a,b)=>b.total-a.total).slice(0,5);
-  },[fOrders]);
+  },[effOrders]);
 
-  // Revenue by day (last 7 days chart data)
+  // Revenue by day — spans the selected date range (excluding refused)
   const dailyRev=useMemo(()=>{
     const days=[];
-    const end=dateRange.end||new Date();
-    for(let i=6;i>=0;i--){
-      const d=new Date(end);d.setDate(d.getDate()-i);d.setHours(0,0,0,0);
+    const start=dateRange.start?new Date(dateRange.start):new Date(Date.now()-6*864e5);
+    const end=dateRange.end?new Date(dateRange.end):new Date();
+    start.setHours(0,0,0,0); end.setHours(0,0,0,0);
+    const cur=new Date(start);
+    let safety=0;
+    while(cur<=end&&safety<366){
+      const d=new Date(cur);
       const dk=d.toLocaleDateString("uk-UA",{day:"numeric",month:"short"});
-      const dayO=orders.filter(o=>{const od=new Date(o.date);return od.getFullYear()===d.getFullYear()&&od.getMonth()===d.getMonth()&&od.getDate()===d.getDate();});
-      days.push({label:dk,rev:dayO.reduce((s,o)=>s+o.total,0),cnt:dayO.length});
+      const dayO=effOrders.filter(o=>{const od=new Date(o.date);return od.getFullYear()===d.getFullYear()&&od.getMonth()===d.getMonth()&&od.getDate()===d.getDate();});
+      const r=dayO.reduce((s,o)=>s+o.items.reduce((a,i)=>a+(Number(i.price)||0)*(Number(i.qty)||0),0),0);
+      const c=dayO.reduce((s,o)=>s+o.items.reduce((a,i)=>a+(Number(i.cost)||0)*(Number(i.qty)||0),0),0);
+      const dayProds={};
+      dayO.forEach(o=>o.items.forEach(it=>{dayProds[it.name]=(dayProds[it.name]||0)+it.qty;}));
+      const topProdOfDay=Object.entries(dayProds).sort((a,b)=>b[1]-a[1])[0]||null;
+      days.push({date:new Date(d),label:dk,rev:r,profit:r-c,cost:c,cnt:dayO.length,avg:dayO.length>0?Math.round(r/dayO.length):0,topProd:topProdOfDay?topProdOfDay[0]+" ×"+topProdOfDay[1]:"—"});
+      cur.setDate(cur.getDate()+1);
+      safety++;
     }
     return days;
-  },[orders,dateRange]);
+  },[effOrders,dateRange]);
   const maxDayRev=Math.max(...dailyRev.map(d=>d.rev),1);
 
-  // Status breakdown
+  // Status breakdown (all statuses)
   const statusCounts=useMemo(()=>{
-    const m={new:0,ttn:0,toSend:0,shipped:0,delivered:0,studio:0};
+    const m={new:0,ttn:0,toSend:0,shipped:0,atPost:0,received:0,refused:0,delivered:0,studio:0,paid:0};
     fOrders.forEach(o=>{if(m[o.status]!==undefined)m[o.status]++;});
     return m;
   },[fOrders]);
+
+  // Conversion funnel
+  const funnel=useMemo(()=>{
+    const total=fOrders.length;
+    const onward=fOrders.filter(o=>["toSend","shipped","atPost","received","delivered","paid"].includes(o.status)).length;
+    const shipped=fOrders.filter(o=>["shipped","atPost","received","delivered","paid"].includes(o.status)).length;
+    const delivered=fOrders.filter(o=>["delivered","received","paid"].includes(o.status)).length;
+    const paid=fOrders.filter(o=>["paid"].includes(o.status)||(o.prepayment>=o.total&&o.total>0)).length;
+    const refused=fOrders.filter(o=>o.status==="refused").length;
+    return{total,onward,shipped,delivered,paid,refused};
+  },[fOrders]);
+
+  // Best / average day
+  const bestDay=dailyRev.reduce((b,d)=>d.rev>(b?.rev||0)?d:b,null);
+  const avgDailyRev=dailyRev.length>0?Math.round(dailyRev.reduce((s,d)=>s+d.rev,0)/dailyRev.length):0;
+  const avgDailyOrders=dailyRev.length>0?(dailyRev.reduce((s,d)=>s+d.cnt,0)/dailyRev.length).toFixed(1):"0";
+
+  // Delivery split (НП vs Студія)
+  const deliverySplit=useMemo(()=>{
+    const np=effOrders.filter(o=>o.deliveryType==="np");
+    const st=effOrders.filter(o=>o.deliveryType==="studio");
+    return{
+      np:{cnt:np.length,rev:np.reduce((s,o)=>s+(Number(o.total)||0),0)},
+      studio:{cnt:st.length,rev:st.reduce((s,o)=>s+(Number(o.total)||0),0)},
+    };
+  },[effOrders]);
+
+  // Product × Day pivot (top 8 products × every day in range)
+  const prodDayPivot=useMemo(()=>{
+    const top=topProds.slice(0,8);
+    const days=dailyRev.map(d=>d.label);
+    const m={};
+    top.forEach(p=>{m[p.name]=days.map(_=>0);});
+    effOrders.forEach(o=>{
+      const dk=new Date(o.date).toLocaleDateString("uk-UA",{day:"numeric",month:"short"});
+      const idx=days.indexOf(dk);
+      if(idx===-1)return;
+      o.items.forEach(it=>{if(m[it.name]!==undefined)m[it.name][idx]+=it.qty;});
+    });
+    const maxCell=Math.max(1,...Object.values(m).flat());
+    return{top,days,m,maxCell};
+  },[topProds,dailyRev,effOrders]);
 
   // Expense breakdown by category
   const expByCat=useMemo(()=>{
@@ -1055,9 +1115,9 @@ function DashboardPage({orders,products,expenses,dateRange,setDateRange}){
       {/* Top products */}
       <div style={{background:"#fff",borderRadius:16,border:"1px solid var(--border)",padding:16}}>
         <div style={{fontSize:12,fontWeight:700,color:"var(--text2)",marginBottom:12,textTransform:"uppercase"}}>{"\Т\о\п \п\р\о\д\а\ж\і\в"}</div>
-        {topProds.length===0?<div style={{color:"var(--text2)",fontSize:12}}>{"\Н\е\м\а\є \д\а\н\и\х"}</div>:
-        topProds.map((p,i)=>{
-          const maxQ=topProds[0].qty;
+        {topProdsTop8.length===0?<div style={{color:"var(--text2)",fontSize:12}}>{"\Н\е\м\а\є \д\а\н\и\х"}</div>:
+        topProdsTop8.map((p,i)=>{
+          const maxQ=topProdsTop8[0].qty;
           return(<div key={i} style={{marginBottom:6}}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",fontSize:12,marginBottom:2}}>
               <span style={{fontWeight:600,flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}><span style={{color:"var(--pink2)",fontWeight:800,marginRight:4}}>#{i+1}</span>{p.name}</span>
@@ -1242,6 +1302,107 @@ function TTNStatus({ttn,orderId,orderStatus,onAutoStatus,onStatusCode}){
     </div>
     {info.scheduledDate&&<span style={{fontSize:9,color:"var(--text2)"}}>Очік: {info.scheduledDate}</span>}
     {info.redeliverySum&&Number(info.redeliverySum)>0&&<span style={{fontSize:9,color:"var(--green)"}}>Звор. дост: {info.redeliverySum} ₴</span>}
+  
+
+    {/* === ROZSHYRENA ANALITYKA === */}
+    {/* Conversion funnel */}
+    <div style={{background:"#fff",borderRadius:16,border:"1px solid var(--border)",padding:16,marginBottom:16}}>
+      <div style={{fontSize:12,fontWeight:700,color:"var(--text2)",marginBottom:12,textTransform:"uppercase"}}>{"Воронка конверсії"}</div>
+      <div style={{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>
+        {[
+          {label:"Замовлень",val:funnel.total,color:"#ff6b9d"},
+          {label:"На відправку",val:funnel.onward,color:"#e17055"},
+          {label:"Відправлено",val:funnel.shipped,color:"#6c5ce7"},
+          {label:"Доставл./отрим.",val:funnel.delivered,color:"#38b000"},
+          {label:"Оплачено",val:funnel.paid,color:"#16a34a"},
+        ].map((s,i,arr)=>{
+          const pct=arr[0].val>0?Math.round(s.val/arr[0].val*100):0;
+          return(<React.Fragment key={i}>
+            <div style={{flex:1,minWidth:120,background:y2kGrad(s.color,s.color+"99"),color:"#fff",borderRadius:10,padding:"10px 12px"}}>
+              <div style={{fontSize:10,opacity:.85,fontWeight:600,textTransform:"uppercase"}}>{s.label}</div>
+              <div style={{fontSize:22,fontWeight:800,marginTop:2}}>{s.val}</div>
+              <div style={{fontSize:10,opacity:.85,marginTop:2}}>{pct}%</div>
+            </div>
+            {i<arr.length-1&&<span style={{fontSize:18,color:"var(--text2)"}}>{"›"}</span>}
+          </React.Fragment>);
+        })}
+      </div>
+      {funnel.refused>0&&<div style={{marginTop:12,padding:"8px 12px",background:"var(--red-light)",borderRadius:8,display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,fontSize:13,flexWrap:"wrap"}}>
+        <span style={{color:"var(--red)",fontWeight:700}}>{"⚠ Відмови: "+funnel.refused}</span>
+        <span style={{color:"var(--text2)"}}>{"Втрачена виручка: "}<strong>{fmt(refusedRev)}</strong></span>
+        <span style={{color:"var(--text2)"}}>{"Рівень відмов: "}<strong>{refusalRate}%</strong></span>
+      </div>}
+    </div>
+
+    {/* Best day / average / delivery split */}
+    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:12,marginBottom:16}}>
+      <div style={{background:"#fff",borderRadius:16,border:"1px solid var(--border)",padding:14}}>
+        <div style={{fontSize:11,fontWeight:700,color:"var(--text2)",textTransform:"uppercase",marginBottom:6}}>{"Найкращий день"}</div>
+        {bestDay&&bestDay.cnt>0?<><div style={{fontSize:20,fontWeight:800,color:"var(--pink2)"}}>{fmt(bestDay.rev)}</div><div style={{fontSize:12,color:"var(--text2)"}}>{bestDay.label+" · "+bestDay.cnt+" зам."}</div></>:<div style={{fontSize:13,color:"var(--text2)"}}>{"—"}</div>}
+      </div>
+      <div style={{background:"#fff",borderRadius:16,border:"1px solid var(--border)",padding:14}}>
+        <div style={{fontSize:11,fontWeight:700,color:"var(--text2)",textTransform:"uppercase",marginBottom:6}}>{"Середня доба"}</div>
+        <div style={{fontSize:20,fontWeight:800,color:"var(--blue)"}}>{fmt(avgDailyRev)}</div>
+        <div style={{fontSize:12,color:"var(--text2)"}}>{avgDailyOrders+" зам./день"}</div>
+      </div>
+      <div style={{background:"#fff",borderRadius:16,border:"1px solid var(--border)",padding:14}}>
+        <div style={{fontSize:11,fontWeight:700,color:"var(--text2)",textTransform:"uppercase",marginBottom:6}}>{"Доставка"}</div>
+        <div style={{display:"flex",justifyContent:"space-between",fontSize:12,marginBottom:4}}><span><span style={{fontSize:9,marginRight:4,background:"var(--np-red)",color:"#fff",padding:"1px 5px",borderRadius:4,fontWeight:700}}>{"НП"}</span>{deliverySplit.np.cnt+" зам."}</span><strong>{fmt(deliverySplit.np.rev)}</strong></div>
+        <div style={{display:"flex",justifyContent:"space-between",fontSize:12}}><span><span style={{fontSize:9,marginRight:4,background:"var(--pink2)",color:"#fff",padding:"1px 5px",borderRadius:4,fontWeight:700}}>{"Студія"}</span>{deliverySplit.studio.cnt+" зам."}</span><strong>{fmt(deliverySplit.studio.rev)}</strong></div>
+      </div>
+    </div>
+
+    {/* Per-day breakdown */}
+    <div style={{background:"#fff",borderRadius:16,border:"1px solid var(--border)",padding:16,marginBottom:16,overflowX:"auto"}}>
+      <div style={{fontSize:12,fontWeight:700,color:"var(--text2)",marginBottom:10,textTransform:"uppercase"}}>{"Розбивка по днях"}</div>
+      <table className="tbl" style={{minWidth:600}}>
+        <thead><tr><th>{"Дата"}</th><th style={{textAlign:"right"}}>{"Замовл."}</th><th style={{textAlign:"right"}}>{"Виручка"}</th><th style={{textAlign:"right"}}>{"Прибуток"}</th><th style={{textAlign:"right"}}>{"Сер. чек"}</th><th>{"Топ товар"}</th></tr></thead>
+        <tbody>
+          {dailyRev.slice().reverse().map((d,i)=>(<tr key={i} style={d.cnt===0?{opacity:.4}:null}>
+            <td style={{fontWeight:600}}>{d.label}</td>
+            <td style={{textAlign:"right"}}>{d.cnt}</td>
+            <td style={{textAlign:"right",fontWeight:700,color:"var(--pink2)"}}>{fmt(d.rev)}</td>
+            <td style={{textAlign:"right",fontWeight:700,color:d.profit>=0?"var(--green)":"var(--red)"}}>{fmt(d.profit)}</td>
+            <td style={{textAlign:"right",color:"var(--text2)"}}>{d.cnt>0?fmt(d.avg):"—"}</td>
+            <td style={{fontSize:11,color:"var(--text2)"}}>{d.topProd}</td>
+          </tr>))}
+        </tbody>
+      </table>
+    </div>
+
+    {/* Product × Day pivot */}
+    {prodDayPivot.top.length>0&&prodDayPivot.days.length>0&&<div style={{background:"#fff",borderRadius:16,border:"1px solid var(--border)",padding:16,marginBottom:16,overflowX:"auto"}}>
+      <div style={{fontSize:12,fontWeight:700,color:"var(--text2)",marginBottom:10,textTransform:"uppercase"}}>{"Товар × День"}</div>
+      <table className="tbl" style={{minWidth:600,fontSize:11}}>
+        <thead><tr><th style={{minWidth:140,textAlign:"left"}}>{"Товар"}</th>{prodDayPivot.days.map((d,i)=><th key={i} style={{textAlign:"center",fontSize:10,minWidth:42}}>{d}</th>)}<th style={{textAlign:"right"}}>{"Сума"}</th></tr></thead>
+        <tbody>
+          {prodDayPivot.top.map((p,i)=>{const cells=prodDayPivot.m[p.name]||[];const total=cells.reduce((s,v)=>s+v,0);return(<tr key={i}>
+            <td style={{fontWeight:600}}>{p.name}</td>
+            {cells.map((v,j)=><td key={j} style={{textAlign:"center",background:v>0?"rgba(255,107,157,"+(0.15+0.5*v/prodDayPivot.maxCell)+")":"transparent",fontWeight:v>0?700:400,color:v>0?"#831843":"var(--text2)"}}>{v||""}</td>)}
+            <td style={{textAlign:"right",fontWeight:800,color:"var(--pink2)"}}>{total}</td>
+          </tr>);})}
+        </tbody>
+      </table>
+    </div>}
+
+    {/* Top products extended */}
+    <div style={{background:"#fff",borderRadius:16,border:"1px solid var(--border)",padding:16,marginBottom:16,overflowX:"auto"}}>
+      <div style={{fontSize:12,fontWeight:700,color:"var(--text2)",marginBottom:10,textTransform:"uppercase"}}>{"Топ товарів за період"}</div>
+      <table className="tbl" style={{minWidth:520}}>
+        <thead><tr><th style={{textAlign:"left"}}>#</th><th>{"Товар"}</th><th style={{textAlign:"right"}}>{"Шт."}</th><th style={{textAlign:"right"}}>{"Виручка"}</th><th style={{textAlign:"right"}}>{"Прибуток"}</th><th style={{textAlign:"right"}}>{"Маржа"}</th></tr></thead>
+        <tbody>
+          {topProds.slice(0,15).map((p,i)=>{const m=p.rev>0?Math.round(p.profit/p.rev*100):0;return(<tr key={i}>
+            <td style={{color:"var(--text2)",fontWeight:700}}>{i+1}</td>
+            <td style={{fontWeight:600}}>{p.name}</td>
+            <td style={{textAlign:"right"}}>{p.qty}</td>
+            <td style={{textAlign:"right",fontWeight:700,color:"var(--pink2)"}}>{fmt(p.rev)}</td>
+            <td style={{textAlign:"right",fontWeight:700,color:p.profit>=0?"var(--green)":"var(--red)"}}>{fmt(p.profit)}</td>
+            <td style={{textAlign:"right"}}><span className="badge badge-green">{m+"%"}</span></td>
+          </tr>);})}
+        </tbody>
+      </table>
+    </div>
+
   </div>);
 }
 
