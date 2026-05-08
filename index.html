@@ -961,8 +961,30 @@ function DashboardPage({orders,products,expenses,dateRange,setDateRange}){
       cur.setDate(cur.getDate()+1);
       safety++;
     }
+    // Per-day source split (site vs manual ИНСТ)
+    const isSite=(o)=>String(o.comment||"").trim().toUpperCase().startsWith("САЙТ");
+    days.forEach(d=>{
+      const dayO=effOrders.filter(o=>{const od=new Date(o.date);return od.getFullYear()===d.date.getFullYear()&&od.getMonth()===d.date.getMonth()&&od.getDate()===d.date.getDate();});
+      d.siteCnt=dayO.filter(isSite).length;
+      d.siteRev=dayO.filter(isSite).reduce((s,o)=>s+(Number(o.total)||0),0);
+      d.instCnt=dayO.filter(o=>!isSite(o)).length;
+      d.instRev=dayO.filter(o=>!isSite(o)).reduce((s,o)=>s+(Number(o.total)||0),0);
+    });
     return days;
   },[effOrders,dateRange]);
+
+  // Source totals across the period
+  const sourceTotals=useMemo(()=>{
+    const isSite=(o)=>String(o.comment||"").trim().toUpperCase().startsWith("САЙТ");
+    const site=effOrders.filter(isSite);
+    const inst=effOrders.filter(o=>!isSite(o));
+    const sumRev=arr=>arr.reduce((s,o)=>s+(Number(o.total)||0),0);
+    const total=effOrders.length||1;
+    return{
+      site:{cnt:site.length,rev:sumRev(site),pct:Math.round(site.length/total*100)},
+      inst:{cnt:inst.length,rev:sumRev(inst),pct:Math.round(inst.length/total*100)},
+    };
+  },[effOrders]);
   const maxDayRev=Math.max(...dailyRev.map(d=>d.rev),1);
 
   // Status breakdown (all statuses)
@@ -1238,8 +1260,8 @@ function DashboardPage({orders,products,expenses,dateRange,setDateRange}){
       </div>}
     </div>
 
-    {/* Best day / average / delivery split */}
-    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:12,marginBottom:16}}>
+    {/* Best day / average / delivery split / source split */}
+    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:12,marginBottom:16}}>
       <div style={{background:"#fff",borderRadius:16,border:"1px solid var(--border)",padding:14}}>
         <div style={{fontSize:11,fontWeight:700,color:"var(--text2)",textTransform:"uppercase",marginBottom:6}}>{"Найкращий день"}</div>
         {bestDay&&bestDay.cnt>0?<><div style={{fontSize:20,fontWeight:800,color:"var(--pink2)"}}>{fmt(bestDay.rev)}</div><div style={{fontSize:12,color:"var(--text2)"}}>{bestDay.label+" · "+bestDay.cnt+" зам."}</div></>:<div style={{fontSize:13,color:"var(--text2)"}}>{"—"}</div>}
@@ -1254,17 +1276,24 @@ function DashboardPage({orders,products,expenses,dateRange,setDateRange}){
         <div style={{display:"flex",justifyContent:"space-between",fontSize:12,marginBottom:4}}><span><span style={{fontSize:9,marginRight:4,background:"var(--np-red)",color:"#fff",padding:"1px 5px",borderRadius:4,fontWeight:700}}>{"НП"}</span>{deliverySplit.np.cnt+" зам."}</span><strong>{fmt(deliverySplit.np.rev)}</strong></div>
         <div style={{display:"flex",justifyContent:"space-between",fontSize:12}}><span><span style={{fontSize:9,marginRight:4,background:"var(--pink2)",color:"#fff",padding:"1px 5px",borderRadius:4,fontWeight:700}}>{"Студія"}</span>{deliverySplit.studio.cnt+" зам."}</span><strong>{fmt(deliverySplit.studio.rev)}</strong></div>
       </div>
+      <div style={{background:"#fff",borderRadius:16,border:"1px solid var(--border)",padding:14}}>
+        <div style={{fontSize:11,fontWeight:700,color:"var(--text2)",textTransform:"uppercase",marginBottom:6}}>{"Джерела замовлень"}</div>
+        <div style={{display:"flex",justifyContent:"space-between",fontSize:12,marginBottom:4}}><span><span style={{fontSize:9,marginRight:4,background:"#0369a1",color:"#fff",padding:"1px 5px",borderRadius:4,fontWeight:700}}>{"САЙТ"}</span>{sourceTotals.site.cnt+" ("+sourceTotals.site.pct+"%)"}</span><strong>{fmt(sourceTotals.site.rev)}</strong></div>
+        <div style={{display:"flex",justifyContent:"space-between",fontSize:12}}><span><span style={{fontSize:9,marginRight:4,background:"#a21caf",color:"#fff",padding:"1px 5px",borderRadius:4,fontWeight:700}}>{"ІНСТ"}</span>{sourceTotals.inst.cnt+" ("+sourceTotals.inst.pct+"%)"}</span><strong>{fmt(sourceTotals.inst.rev)}</strong></div>
+      </div>
     </div>
 
     {/* Per-day breakdown */}
     <div style={{background:"#fff",borderRadius:16,border:"1px solid var(--border)",padding:16,marginBottom:16,overflowX:"auto"}}>
       <div style={{fontSize:12,fontWeight:700,color:"var(--text2)",marginBottom:10,textTransform:"uppercase"}}>{"Розбивка по днях"}</div>
       <table className="tbl" style={{minWidth:600}}>
-        <thead><tr><th>{"Дата"}</th><th style={{textAlign:"right"}}>{"Замовл."}</th><th style={{textAlign:"right"}}>{"Виручка"}</th><th style={{textAlign:"right"}}>{"Прибуток"}</th><th style={{textAlign:"right"}}>{"Сер. чек"}</th><th>{"Топ товар"}</th></tr></thead>
+        <thead><tr><th>{"Дата"}</th><th style={{textAlign:"right"}}>{"Всього"}</th><th style={{textAlign:"center",color:"#0369a1"}}>{"Сайт"}</th><th style={{textAlign:"center",color:"#a21caf"}}>{"Інст"}</th><th style={{textAlign:"right"}}>{"Виручка"}</th><th style={{textAlign:"right"}}>{"Прибуток"}</th><th style={{textAlign:"right"}}>{"Сер. чек"}</th><th>{"Топ товар"}</th></tr></thead>
         <tbody>
           {dailyRev.slice().reverse().map((d,i)=>(<tr key={i} style={d.cnt===0?{opacity:.4}:null}>
             <td style={{fontWeight:600}}>{d.label}</td>
             <td style={{textAlign:"right"}}>{d.cnt}</td>
+            <td style={{textAlign:"center",color:"#0369a1",fontWeight:d.siteCnt>0?700:400}}>{d.siteCnt||"—"}</td>
+            <td style={{textAlign:"center",color:"#a21caf",fontWeight:d.instCnt>0?700:400}}>{d.instCnt||"—"}</td>
             <td style={{textAlign:"right",fontWeight:700,color:"var(--pink2)"}}>{fmt(d.rev)}</td>
             <td style={{textAlign:"right",fontWeight:700,color:d.profit>=0?"var(--green)":"var(--red)"}}>{fmt(d.profit)}</td>
             <td style={{textAlign:"right",color:"var(--text2)"}}>{d.cnt>0?fmt(d.avg):"—"}</td>
