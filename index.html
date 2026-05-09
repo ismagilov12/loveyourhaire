@@ -2027,7 +2027,24 @@ function OrdersListPage({orders,setOrders,products,user}){
   const readyToShip=searched.filter(isReadyToShip);
   const counts={all:searched.length,new:searched.filter(isNew).length,ttn:awaitingTtn.length,toSend:readyToShip.length,shipped:searched.filter(o=>o.status==="shipped").length,atPost:searched.filter(o=>o.status==="atPost").length,received:searched.filter(o=>o.status==="received").length,refused:searched.filter(o=>o.status==="refused").length,delivered:searched.filter(o=>o.status==="delivered").length,studio:searched.filter(o=>o.status==="studio").length,paid:searched.filter(o=>o.status==="paid").length,dupes:dupeCount};
   const openTtn=o=>{setTtnM(o);setTtnV(o.ttn||"");};
-  const saveTtn=()=>{if(!ttnM)return;const t=ttnV.trim();setOrders(orders.map(o=>o.id===ttnM.id?{...o,ttn:t,status:t?"toSend":"new"}:o));saveOrderField(ttnM.id,{ttn:t,status:t?"toSend":"new"});setTtnM(null);};
+  const saveTtn=async()=>{
+    if(!ttnM)return;
+    const t=ttnV.trim();
+    const prev=String(ttnM.ttn||"").trim();
+    // If the user is clearing or replacing a TTN that exists at NP, offer to delete it from NP too.
+    if(prev&&prev!==t){
+      const verb=t?"замінити":"видалити";
+      if(confirm("ТТН "+prev+" буде "+verb+"."+(t?" Стара ТТН":" ТТН")+" буде видалена і з Нової Пошти. Продовжити?")){
+        try{
+          const dr=await NP.deleteTTN(prev,ttnM.date?new Date(ttnM.date).getTime():null);
+          if(!dr.ok)alert("Не вдалося видалити ТТН "+prev+" з НП: "+dr.error+"\n(в CRM ТТН все одно " + (t?"змінено":"очищено") + ")");
+        }catch(e){alert("Помилка видалення ТТН з НП: "+(e.message||e));}
+      }else{return;}
+    }
+    setOrders(orders.map(o=>o.id===ttnM.id?{...o,ttn:t,status:t?"toSend":"new"}:o));
+    saveOrderField(ttnM.id,{ttn:t,status:t?"toSend":"new"});
+    setTtnM(null);
+  };
   const openPrepay=o=>{setPrepayO(o);setPrepayV(String(o.prepayment||""));};
   const savePrepay=()=>{
     if(!prepayO)return;
@@ -2193,8 +2210,15 @@ function OrdersListPage({orders,setOrders,products,user}){
       if(!mapped)continue;
       if(locked.has(o.status))continue;
       if(o.status===mapped)continue;
-      // Special: code 2 (Видалена) → also clear TTN and bring back to Нові
-      if(code==="2"){console.warn("NP code 2 (Видалена) for TTN "+r.ttn+" order "+o.id+" — leaving TTN intact, manual review needed");continue;}
+      // Special: code 2 (Видалена) → ТТН was deleted on NP side, clear it in CRM so a new one can be made.
+      if(code==="2"){
+        console.warn("NP code 2 (Видалена) for TTN "+r.ttn+" order "+o.id+" — clearing TTN in CRM");
+        nextOrders=nextOrders.map(x=>x.id===o.id?{...x,ttn:"",status:"new",npStatusCode:"",npStatusText:""}:x);
+        try{saveOrderField(o.id,{ttn:"",status:"new",np_status_code:"",np_status_text:""});}catch(e){}
+        try{TTNRefCache.remove(r.ttn);}catch(e){}
+        updated++;
+        continue;
+      }
       nextOrders=nextOrders.map(x=>x.id===o.id?{...x,status:mapped}:x);
       try{saveOrderField(o.id,{status:mapped});}catch(e){}
       updated++;
@@ -2825,6 +2849,18 @@ const Tombstones={
   ids(){return new Set(Object.keys(Tombstones.prune()));}
 };
 
+// ─── TTN Ref cache: NP API needs the Ref UUID to delete a TTN, but our orders only
+//     store the IntDocNumber. Cache {IntDocNumber: Ref} when we create a TTN, and look
+//     up via getDocumentList as fallback for older TTNs.
+const TTNRefCache={
+  KEY:"lyh_ttn_refs",
+  _read(){try{return JSON.parse(localStorage.getItem(TTNRefCache.KEY)||"{}");}catch{return{};}},
+  _write(o){try{localStorage.setItem(TTNRefCache.KEY,JSON.stringify(o));}catch{}},
+  set(num,ref){if(!num||!ref)return;const o=TTNRefCache._read();o[String(num)]=String(ref);TTNRefCache._write(o);},
+  get(num){if(!num)return"";const o=TTNRefCache._read();return o[String(num)]||"";},
+  remove(num){if(!num)return;const o=TTNRefCache._read();if(o[String(num)]!=null){delete o[String(num)];TTNRefCache._write(o);}}
+};
+
 // DB helper for CRUD
 const DB={
   async loadAll(table){if(!supabase)return null;const{data,error}=await supabase.from(table).select("*");if(error){console.error("DB load "+table,error);return null;}return data;},
@@ -2948,7 +2984,34 @@ const NP={
   async createTTN(params){
     const r=await NP.call("InternetDocument","save",params);
     if(!r.success)return{ok:false,errors:r.errors};
-    return{ok:true,ttn:r.data[0]?.IntDocNumber,ref:r.data[0]?.Ref,cost:r.data[0]?.CostOnSite,estimated:r.data[0]?.EstimatedDeliveryDate};
+    const num=r.data[0]?.IntDocNumber,ref=r.data[0]?.Ref;
+    if(num&&ref)try{TTNRefCache.set(num,ref);}catch{}
+    return{ok:true,ttn:num,ref,cost:r.data[0]?.CostOnSite,estimated:r.data[0]?.EstimatedDeliveryDate};
+  },
+  // Delete a TTN at NP. Needs the Ref UUID — looks it up by IntDocNumber if not cached,
+  // searching getDocumentList in a ±21d window around the supplied orderDateMs.
+  async _findTTNRef(ttnNumber,orderDateMs){
+    if(!ttnNumber)return"";
+    const cached=TTNRefCache.get(ttnNumber);
+    if(cached)return cached;
+    const fmt=d=>String(d.getDate()).padStart(2,"0")+"."+String(d.getMonth()+1).padStart(2,"0")+"."+d.getFullYear();
+    const center=new Date(orderDateMs||Date.now());
+    const from=new Date(center.getTime()-21*24*60*60*1000);
+    const to=new Date(center.getTime()+21*24*60*60*1000);
+    const r=await NP.call("InternetDocument","getDocumentList",{DateTimeFrom:fmt(from),DateTimeTo:fmt(to),Page:"1",GetFullList:"1"});
+    if(r&&r.success&&Array.isArray(r.data)){
+      const found=r.data.find(d=>String(d.IntDocNumber)===String(ttnNumber));
+      if(found&&found.Ref){try{TTNRefCache.set(ttnNumber,found.Ref);}catch{}return found.Ref;}
+    }
+    return"";
+  },
+  async deleteTTN(ttnNumber,orderDateMs){
+    if(!ttnNumber)return{ok:false,error:"немає номера ТТН"};
+    const ref=await NP._findTTNRef(ttnNumber,orderDateMs);
+    if(!ref)return{ok:false,error:"не вдалося знайти Ref для ТТН "+ttnNumber+" (можливо вже видалена або не у вашому акаунті)"};
+    const dr=await NP.call("InternetDocument","delete",{DocumentRefs:[ref]});
+    if(dr&&dr.success){try{TTNRefCache.remove(ttnNumber);}catch{}return{ok:true};}
+    return{ok:false,error:(dr&&dr.errors||["Невідома помилка НП"]).join(", ")};
   },
   // Cache for CargoDescription ref lookup (НП категорія вантажу, напр. "Одяг")
   _cargoRefCache:null,
