@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<title>Love Your Haire — Масова очистка ТТН</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.33.0/dist/umd/supabase.js"></script>
+<style>
+body{font-family:-apple-system,Segoe UI,Inter,sans-serif;max-width:720px;margin:32px auto;padding:24px;background:#fef7f9;color:#1a1a1a;line-height:1.5}
+h1{margin-top:0;color:#c0668c}
+.warn{background:#fff5e0;border-left:4px solid #ea580c;padding:14px 18px;border-radius:10px;margin-bottom:18px;font-size:14px;color:#7c2d12}
+#stats{background:#fff;border:1px solid #f0d2db;padding:16px;border-radius:12px;margin-bottom:16px;font-size:15px}
+#stats div{margin-bottom:6px}
+.btn{padding:13px 24px;border:0;border-radius:10px;font-size:14px;cursor:pointer;font-weight:700;margin-right:10px;margin-bottom:10px;transition:transform 0.05s}
+.btn:hover{transform:translateY(-1px)}
+.btn:disabled{opacity:0.5;cursor:not-allowed;transform:none}
+.btn-load{background:#c0668c;color:#fff}
+.btn-warn{background:#f59e0b;color:#fff}
+.btn-danger{background:#dc2626;color:#fff}
+#actions{display:none;margin-bottom:16px}
+#log{background:#1a1a1a;color:#9fefa4;padding:16px;border-radius:10px;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:12.5px;max-height:380px;overflow-y:auto;white-space:pre-wrap;line-height:1.55;margin-top:14px}
+</style>
+</head>
+<body>
+<h1>Масова очистка ТТН</h1>
+<div class="warn">
+<strong>Що робить ця сторінка:</strong>
+<ol style="margin:8px 0 0 18px;padding:0">
+<li>Завантажує всі заказы з ТТН з Supabase</li>
+<li>Показує скільки з них помічені як «Видалена» в НП</li>
+<li>Дозволяє очистити ТТН у вибраній групі (статус → «Новий»)</li>
+<li>Маркує очищені заказы в localStorage щоб основний CRM не воскресив ТТН</li>
+</ol>
+<p style="margin:10px 0 0;font-size:13px"><strong>Важливо:</strong> ця сторінка НЕ видаляє ТТН з самої Нової Пошти. Тільки чистить поле в CRM. Якщо ТТН треба видалити і з НП — це треба робити окремо в кабінеті НП або через основний CRM по одному.</p>
+</div>
+<button class="btn btn-load" id="loadBtn">Завантажити заказы</button>
+<div id="stats"></div>
+<div id="actions">
+  <button class="btn btn-warn" id="clearDeletedBtn">Очистити ТТН з Видалених</button>
+  <button class="btn btn-danger" id="clearAllBtn">Очистити ТТН з УСІХ</button>
+</div>
+<div id="log"></div>
+<script>
+
+const SUPABASE_URL = "https://fsihlzzjewhxpogvjapu.supabase.co";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZzaWhsenpqZXdoeHBvZ3ZqYXB1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUyOTY2MzUsImV4cCI6MjA5MDg3MjYzNX0._hS7TA8EqIHgz7CH6XxGKuDdOnVBb6u40ntEtZ__MjU";
+let sb = null;
+let allWithTtn = [];
+let deletedOnNP = [];
+
+function el(id){ return document.getElementById(id); }
+function log(msg){ const l = el("log"); l.textContent += msg + "\n"; l.scrollTop = l.scrollHeight; }
+
+function markCleared(orderId, oldTTN){
+  try{
+    const KEY = "lyh_cleared_ttns";
+    const raw = localStorage.getItem(KEY) || "{}";
+    const o = JSON.parse(raw);
+    o[String(orderId)] = { ts: Date.now(), oldTTN: String(oldTTN || "") };
+    localStorage.setItem(KEY, JSON.stringify(o));
+  }catch(e){ console.warn("LS write fail", e); }
+}
+
+async function load(){
+  el("loadBtn").disabled = true;
+  el("loadBtn").textContent = "Завантажую...";
+  try{
+    sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    log("Reading orders from Supabase...");
+    let from = 0; const pageSize = 1000; let all = [];
+    while(true){
+      const { data, error } = await sb.from("orders")
+        .select("id,client,ttn,status,np_status_code,np_status_text,date,total")
+        .neq("ttn", "")
+        .not("ttn", "is", null)
+        .order("date", { ascending: false })
+        .range(from, from + pageSize - 1);
+      if(error){ log("ERR " + error.message); break; }
+      if(!data || data.length === 0) break;
+      all = all.concat(data);
+      log("  loaded " + all.length);
+      if(data.length < pageSize) break;
+      from += pageSize;
+    }
+    allWithTtn = all.filter(o => o.ttn && String(o.ttn).trim().length > 0);
+    deletedOnNP = allWithTtn.filter(o => String(o.np_status_code) === "2" || /видален/i.test(String(o.np_status_text || "")));
+    el("stats").innerHTML =
+      "<div><strong>" + allWithTtn.length + "</strong> заказів з ТТН всього</div>" +
+      "<div><strong>" + deletedOnNP.length + "</strong> з них помічені як Видалена в НП</div>";
+    el("actions").style.display = "block";
+    el("clearDeletedBtn").textContent = "Очистити ТТН з " + deletedOnNP.length + " Видалених";
+    el("clearAllBtn").textContent = "Очистити ТТН з УСІХ " + allWithTtn.length;
+    el("loadBtn").textContent = "Перезавантажити дані";
+    el("loadBtn").disabled = false;
+  }catch(e){
+    log("EXCEPTION " + e.message);
+    el("loadBtn").disabled = false;
+    el("loadBtn").textContent = "Спробувати знову";
+  }
+}
+
+async function clearList(list, label){
+  if(!list.length){ alert("Немає що чистити"); return; }
+  if(!confirm("Точно очистити ТТН у " + list.length + " заказів (" + label + ")? Дію не можна скасувати з цього екрану.")) return;
+  el("clearDeletedBtn").disabled = true;
+  el("clearAllBtn").disabled = true;
+  log("");
+  log("=== Clearing " + list.length + " orders ===");
+  let ok = 0, fail = 0;
+  // Mark all in localStorage FIRST so even if DB update fails or page reload happens,
+  // the main app will not resurrect them via doLoad merge.
+  for(const o of list){ markCleared(o.id, o.ttn); }
+  log("ClearedTTNs marker set for " + list.length + " orders");
+  // Now batch update DB. Supabase doesn't support bulk-update-by-id-list with different bodies,
+  // but since we're setting the SAME values for all rows, .in("id", ids).update() works.
+  const ids = list.map(o => o.id);
+  const chunkSize = 200;
+  for(let i = 0; i < ids.length; i += chunkSize){
+    const chunk = ids.slice(i, i + chunkSize);
+    const { error } = await sb.from("orders").update({
+      ttn: "",
+      status: "new",
+      np_status_code: null,
+      np_status_text: null,
+      updated_at: new Date().toISOString()
+    }).in("id", chunk);
+    if(error){
+      log("FAIL chunk " + (i/chunkSize+1) + " (" + chunk.length + " rows): " + error.message);
+      fail += chunk.length;
+    } else {
+      ok += chunk.length;
+      log("OK chunk " + (i/chunkSize+1) + ": cleared " + chunk.length + " rows");
+    }
+  }
+  log("");
+  log("Done. OK: " + ok + ", FAIL: " + fail);
+  if(fail === 0){
+    log("");
+    log("Готово! Закрий цю вкладку і відкрий loveyourhaire.vercel.app");
+    log("Зроби жорстке оновлення (Ctrl+Shift+R) — заказы залишаться без ТТН.");
+  }
+  el("clearDeletedBtn").disabled = false;
+  el("clearAllBtn").disabled = false;
+}
+
+window.addEventListener("DOMContentLoaded", function(){
+  el("loadBtn").addEventListener("click", load);
+  el("clearDeletedBtn").addEventListener("click", () => clearList(deletedOnNP, "тільки Видалені на НП"));
+  el("clearAllBtn").addEventListener("click", () => clearList(allWithTtn, "ВСІ з ТТН"));
+});
+
+</script>
+</body>
+</html>
