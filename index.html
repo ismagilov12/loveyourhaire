@@ -1551,7 +1551,7 @@ function CreateTTNModal({order,onClose,onCreated}){
         Sender:senderInfo.ref,SenderAddress:sWhRef||senderInfo.address?.ref||"",
         ContactSender:senderInfo.contact?.ref||"",SendersPhone:senderInfo.contact?.phone||"",
         CityRecipient:rCityRef,RecipientAddress:whRef,
-        Recipient:recip.ref,ContactRecipient:recip.contactRef,RecipientsPhone:order.phone,
+        Recipient:recip.ref,ContactRecipient:recip.contactRef,RecipientsPhone:normPhoneNP(order.phone),
       };
       if(payType==="control"&&Number(controlAmount)>0){params.AfterpaymentOnGoodsCost=controlAmount;}
       // CargoDescription expects a Ref from NP dictionary, not free text.
@@ -2112,7 +2112,7 @@ function OrdersListPage({orders,setOrders,products,user}){
           Sender:sender.ref,SenderAddress:savedSW.whRef||sender.address?.ref||"",
           ContactSender:sender.contact?.ref||"",SendersPhone:sender.contact?.phone||"",
           CityRecipient:city.ref,RecipientAddress:wh.ref,
-          Recipient:recip.ref,ContactRecipient:recip.contactRef,RecipientsPhone:o.phone,
+          Recipient:recip.ref,ContactRecipient:recip.contactRef,RecipientsPhone:normPhoneNP(o.phone),
           OptionsSeat:[{volumetricVolume:"1",volumetricWidth:"10",volumetricLength:"20",volumetricHeight:"10",weight:"0.5"}]
         };
         if(payType==="control"&&cod>0)params.AfterpaymentOnGoodsCost=String(cod);
@@ -2270,7 +2270,7 @@ function OrdersListPage({orders,setOrders,products,user}){
         Sender:ttnSenderInfo.ref,SenderAddress:savedSW.whRef||ttnSenderInfo.address?.ref||"",
         ContactSender:ttnSenderInfo.contact?.ref||"",SendersPhone:ttnSenderInfo.contact?.phone||"",
         CityRecipient:city.ref,RecipientAddress:wh.ref,
-        Recipient:recip.ref,ContactRecipient:recip.contactRef,RecipientsPhone:editO.phone,
+        Recipient:recip.ref,ContactRecipient:recip.contactRef,RecipientsPhone:normPhoneNP(editO.phone),
       };
       if(payType==="control"&&cod>0){params.AfterpaymentOnGoodsCost=String(cod);}
       // CargoDescription expects a Ref — fetch "Одяг" category ref
@@ -2532,7 +2532,7 @@ function OrdersListPage({orders,setOrders,products,user}){
         <button className="btn btn-np" onClick={doInlineTTN} disabled={ttnCreating||ttnSenderLoading} style={{width:"100%",padding:"10px",fontSize:14,fontWeight:700}}>{ttnCreating?"Створюю ТТН...":"Оформити ТТН"}</button>
       </div>}
       <div style={{display:"flex",gap:8,justifyContent:"flex-end",flexWrap:"wrap"}}>
-        <button className="btn btn-danger" onClick={()=>{if(confirm("Видалити замовлення?")){DB.remove("orders",editO.id);setOrders(orders.filter(o=>o.id!==editO.id));setEditO(null);}}}>Видалити</button>
+        <button className="btn btn-danger" onClick={()=>{if(confirm("Видалити замовлення?")){Tombstones.add(editO.id);DB.remove("orders",editO.id);setOrders(orders.filter(o=>o.id!==editO.id));setEditO(null);}}}>Видалити</button>
         <button className="btn btn-secondary" onClick={()=>setEditO(null)}>Скасувати</button>
         <button className="btn btn-primary" style={{padding:"8px 20px",fontSize:13}} onClick={saveEdit}>Зберегти</button>
       </div>
@@ -2787,6 +2787,21 @@ const PendingSync={
   hasAny(){const p=PendingSync.get();return Object.keys(p).length>0;}
 };
 
+// ─── Tombstones: track recently-deleted order IDs so a slow DB.remove or stale sync
+//     does not resurrect them on reload/visibility change.
+//     Entries auto-expire after 7 days.
+const Tombstones={
+  KEY:"lyh_tombstones_orders",
+  TTL:7*24*60*60*1000,
+  _read(){try{return JSON.parse(localStorage.getItem(Tombstones.KEY)||"{}");}catch{return{};}},
+  _write(o){try{localStorage.setItem(Tombstones.KEY,JSON.stringify(o));}catch{}},
+  prune(){const o=Tombstones._read();const now=Date.now();let changed=false;for(const k in o){if(now-o[k]>Tombstones.TTL){delete o[k];changed=true;}}if(changed)Tombstones._write(o);return o;},
+  add(id){const o=Tombstones.prune();o[String(id)]=Date.now();Tombstones._write(o);},
+  remove(id){const o=Tombstones._read();if(o[String(id)]!=null){delete o[String(id)];Tombstones._write(o);}},
+  has(id){const o=Tombstones.prune();return o[String(id)]!=null;},
+  ids(){return new Set(Object.keys(Tombstones.prune()));}
+};
+
 // DB helper for CRUD
 const DB={
   async loadAll(table){if(!supabase)return null;const{data,error}=await supabase.from(table).select("*");if(error){console.error("DB load "+table,error);return null;}return data;},
@@ -2797,6 +2812,18 @@ const DB={
 
 
 // ─── NOVA POSHTA API ───
+// Normalize a phone number to NP-acceptable format: 12-digit string starting with 380.
+// Accepts inputs like "+380 (63) 991-53-16", "0639915316", "380639915316", "+380639915316".
+function normPhoneNP(p){
+  if(!p)return"";
+  var d=String(p).replace(/\D+/g,"");
+  if(!d)return"";
+  if(d.length===10&&d.charAt(0)==="0")d="38"+d;            // 0XXXXXXXXX -> 380XXXXXXXXX
+  else if(d.length===9)d="380"+d;                          // XXXXXXXXX -> 380XXXXXXXXX
+  else if(d.length===11&&d.startsWith("80"))d="3"+d;        // 80XXXXXXXXX -> 380XXXXXXXXX
+  else if(d.length===12&&d.startsWith("380")){/*ok*/}
+  return d;
+}
 const NP_API_KEY="4299d316a302da241c2b62cd4171765b";
 const NP_API="https://api.novaposhta.ua/v2.0/json/";
 
@@ -2943,7 +2970,7 @@ const NP={
     // Save recipient counterparty
     const payload={
       FirstName:firstName,LastName:lastName,
-      Phone:phone,CounterpartyType:"PrivatePerson",CounterpartyProperty:"Recipient",CityRef:cityRef
+      Phone:normPhoneNP(phone),CounterpartyType:"PrivatePerson",CounterpartyProperty:"Recipient",CityRef:cityRef
     };
     if(middleName)payload.MiddleName=middleName;
     const r=await NP.call("Counterparty","save",payload);
@@ -3035,7 +3062,7 @@ async function createTTNFromOrder(orderLike){
     SenderAddress:(sw&&sw.whRef)||sender.address.ref,ContactSender:sender.contact.ref,SendersPhone:sender.contact.phone,
     CityRecipient:orderLike.deliveryCityRef||orderLike.cityRef,
     Recipient:recip.ref,RecipientAddress:orderLike.warehouseRef,
-    ContactRecipient:recip.contactRef,RecipientsPhone:orderLike.phone,
+    ContactRecipient:recip.contactRef,RecipientsPhone:normPhoneNP(orderLike.phone),
   };
   if(cargoRef)params.CargoDescription=cargoRef;
   if(cod>0)params.BackwardDeliveryData=[{PayerType:'Recipient',CargoType:'Money',RedeliveryString:String(cod)}];
@@ -3825,11 +3852,20 @@ function App(){
         setProducts(fixed);LS.set("products",fixed);
       }
       if(oData){
-        const mapped=oData.map(mapOrderFromDB);
+        // Drop any DB rows that we recently deleted locally — DB.remove may still be in flight,
+        // or the row may persist if the delete request was lost. Tombstones prevent resurrection.
+        const tombstoneIds=Tombstones.ids();
+        const liveData=tombstoneIds.size?oData.filter(r=>!tombstoneIds.has(String(r.id))):oData;
+        // Best-effort retry: re-issue DELETE for any tombstoned row that is still in DB.
+        if(tombstoneIds.size&&supabase){
+          const stillThere=oData.filter(r=>tombstoneIds.has(String(r.id))).map(r=>r.id);
+          if(stillThere.length){console.warn("Re-deleting tombstoned orders still in DB:",stillThere);try{supabase.from("orders").delete().in("id",stillThere).then(r=>{if(r&&r.error)console.error("Tombstone re-delete err",r.error);});}catch(e){console.error("Tombstone re-delete throw",e);}}
+        }
+        const mapped=liveData.map(mapOrderFromDB);
         // Merge:
         //  - Local-only orders (id not in DB) → keep + retry push
         //  - Orders in both: prefer local if local has TTN/toSend-status that DB lacks (save didn't persist)
-        const cached=LS.get("orders",[]);
+        const cached=LS.get("orders",[]).filter(o=>!tombstoneIds.has(String(o.id)));
         const dbById=new Map(mapped.map(o=>[o.id,o]));
         const localOnly=cached.filter(o=>!dbById.has(o.id));
         const conflicts=[];// orders where local wins over DB
@@ -3914,7 +3950,7 @@ function App(){
     if(typeof supabase.channel!=="function"){console.warn("realtime unavailable: supabase.channel missing — skipping subscription");return;}
     const rtUpdate=(setter,mapper)=>payload=>{
       fromRT.current=true;
-      if(payload.eventType==="DELETE"){setter(prev=>{const next=prev.filter(x=>x.id!==payload.old.id);return next;});}
+      if(payload.eventType==="DELETE"){if(payload.table==="orders"&&payload.old&&payload.old.id!=null){try{Tombstones.remove(payload.old.id);}catch{}}setter(prev=>{const next=prev.filter(x=>x.id!==payload.old.id);return next;});}
       else{const row=mapper?mapper(payload.new):payload.new;setter(prev=>{const idx=prev.findIndex(x=>x.id===row.id);let next;if(idx>=0){next=[...prev];next[idx]=row;}else{next=[...prev,row];}return next;});}
       setTimeout(()=>{fromRT.current=false;},100);
     };
