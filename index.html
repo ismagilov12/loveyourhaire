@@ -1961,6 +1961,22 @@ function OrdersListPage({orders,setOrders,products,user}){
     }catch(e){console.warn("wfp load failed",e);}
     setWfpLoading(false);
   };
+  // Load WFP payments once on mount so we can highlight site-prepayment orders that have no payment yet.
+  useEffect(()=>{reloadWfp();},[]);
+  // Set of order IDs that have at least one matched WFP payment — used by needsSitePrepayment().
+  const wfpMatchedIds=React.useMemo(()=>{const m=new Set();for(const p of wfpPays){if(p.matched_order_id!=null)m.add(p.matched_order_id);}return m;},[wfpPays]);
+  // True for orders whose comment indicates a site prepayment (САЙТ-предоплата tag) but where
+  // no actual prepayment is recorded AND no WayForPay payment is matched yet.
+  const needsSitePrepayment=React.useCallback((o)=>{
+    if(!o)return false;
+    const c=String(o.comment||"");
+    if(!c)return false;
+    if(!/САЙТ/i.test(c))return false;
+    if(!/(передопл|предопл|prepay|wayforpay|liqpay|fondy|monobank)/i.test(c))return false;
+    if(Number(o.prepayment||0)>0)return false;
+    if(wfpMatchedIds.has(o.id))return false;
+    return true;
+  },[wfpMatchedIds]);
   // Attach a WayForPay payment to the currently-edited order (updates both wfp_payments and editO).
   const attachWfp=async(pay)=>{
     if(!editO||!pay)return;
@@ -2389,10 +2405,10 @@ function OrdersListPage({orders,setOrders,products,user}){
     {/* Desktop table */}
     <div className="desktop-tbl card" style={{padding:0,overflowX:"auto"}}>
       <table className="tbl"><thead><tr><th style={{width:32,textAlign:"center"}}><input type="checkbox" title="Виділити всі видимі" checked={sorted.length>0&&sorted.every(o=>selectedIds.has(o.id))} onChange={toggleSelectAll} style={{cursor:"pointer"}}/></th><th>Дата</th><th>Клієнт</th><th>Тел</th><th>Товари</th><th>Доставка</th><th>Сума</th><th>Передопл</th><th>ТТН</th><th>Статус</th><th></th></tr></thead><tbody>
-        {sorted.map(o=>{const dupe=dupeMap.get(o.id);const dupeOthers=dupe?dupe.groupIds.filter(x=>x!==o.id):[];const canSel=true;return(<tr key={o.id} style={{...(dupe?{background:"#fef3c7"}:null),...(selectedIds.has(o.id)?{background:"#fce7f3"}:null)}}>
+        {sorted.map(o=>{const dupe=dupeMap.get(o.id);const dupeOthers=dupe?dupe.groupIds.filter(x=>x!==o.id):[];const canSel=true;const noPay=needsSitePrepayment(o);return(<tr key={o.id} style={{...(noPay?{background:"#fff1e6",boxShadow:"inset 3px 0 0 #ea580c"}:null),...(dupe?{background:"#fef3c7"}:null),...(selectedIds.has(o.id)?{background:"#fce7f3"}:null)}}>
           <td style={{textAlign:"center"}}>{canSel?<input type="checkbox" checked={selectedIds.has(o.id)} onChange={()=>toggleSelect(o.id)} style={{cursor:"pointer"}}/>:<span style={{fontSize:14,opacity:.3}}>{"·"}</span>}</td>
           <td style={{whiteSpace:"nowrap",fontSize:12}}>{new Date(o.date).toLocaleDateString("uk-UA")}</td>
-          <td><div style={{fontWeight:600,display:"flex",alignItems:"center",gap:4}}>{o.client}{dupe&&<span title={`Можливий дубль — ще ${dupeOthers.length} замовл. від цього клієнта за останні 7 днів`} style={{background:"var(--red)",color:"#fff",fontSize:9,padding:"2px 6px",borderRadius:8,fontWeight:700,whiteSpace:"nowrap"}}>⚠ ДУБЛЬ ×{dupe.groupIds.length}</span>}</div>{o.comment&&<div style={{fontSize:10,color:"var(--text2)",maxWidth:160,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}} title={o.comment}>{o.comment}</div>}</td>
+          <td><div style={{fontWeight:600,display:"flex",alignItems:"center",gap:4,flexWrap:"wrap"}}>{o.client}{noPay&&<span title={"Сайт-передоплата без отриманого платежу — перевірити WayForPay"} style={{background:"#ea580c",color:"#fff",fontSize:9,padding:"2px 6px",borderRadius:8,fontWeight:700,whiteSpace:"nowrap"}}>{"\u26A0 ОЧІКУЄ ОПЛАТУ"}</span>}{dupe&&<span title={`Можливий дубль — ще ${dupeOthers.length} замовл. від цього клієнта за останні 7 днів`} style={{background:"var(--red)",color:"#fff",fontSize:9,padding:"2px 6px",borderRadius:8,fontWeight:700,whiteSpace:"nowrap"}}>⚠ ДУБЛЬ ×{dupe.groupIds.length}</span>}</div>{o.comment&&<div style={{fontSize:10,color:"var(--text2)",maxWidth:160,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}} title={o.comment}>{o.comment}</div>}</td>
           <td style={{fontSize:12,color:"var(--text2)"}}>{o.phone||"—"}</td>
           <td style={{fontSize:11,maxWidth:200}}>{o.items.map((it,i)=><span key={i}>{it.name}{it.qty>1?` ×${it.qty}`:""}{i<o.items.length-1?", ":""}</span>)}</td>
           <td style={{fontSize:11}}>{o.deliveryType==="np"?`${o.city}${o.npBranch?` №${o.npBranch}`:""}`:<span style={{color:"var(--pink2)"}}>Студія</span>}</td>
@@ -2410,10 +2426,10 @@ function OrdersListPage({orders,setOrders,products,user}){
     </div>
     {/* Mobile cards */}
     <div className="mob-orders-feed">
-      {sorted.map(o=>{const dupe=dupeMap.get(o.id);const canSel=o.deliveryType==="np"&&!o.ttn;return(
-        <div key={o.id} className={`mob-order-card${dupe?' dupe-highlight':''}`} style={selectedIds.has(o.id)?{outline:"2px solid var(--np-red)",background:"#fce7f3"}:null} onClick={()=>openEdit(o)}>
+      {sorted.map(o=>{const dupe=dupeMap.get(o.id);const canSel=o.deliveryType==="np"&&!o.ttn;const noPay=needsSitePrepayment(o);return(
+        <div key={o.id} className={`mob-order-card${dupe?' dupe-highlight':''}`} style={selectedIds.has(o.id)?{outline:"2px solid var(--np-red)",background:"#fce7f3"}:(noPay?{outline:"2px solid #ea580c",background:"#fff1e6"}:null)} onClick={()=>openEdit(o)}>
           <div className="mob-oc-top">
-            <div className="mob-oc-name" style={{display:"flex",alignItems:"center",gap:8}}>{canSel&&<input type="checkbox" checked={selectedIds.has(o.id)} onClick={e=>e.stopPropagation()} onChange={()=>toggleSelect(o.id)} style={{cursor:"pointer",width:18,height:18}}/>}{o.client||"Без імені"}{dupe&&<span style={{background:"var(--red)",color:"#fff",fontSize:9,padding:"1px 5px",borderRadius:6,fontWeight:700,verticalAlign:"middle"}}>ДУБЛЬ</span>}</div>
+            <div className="mob-oc-name" style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>{canSel&&<input type="checkbox" checked={selectedIds.has(o.id)} onClick={e=>e.stopPropagation()} onChange={()=>toggleSelect(o.id)} style={{cursor:"pointer",width:18,height:18}}/>}{o.client||"Без імені"}{noPay&&<span title={"Сайт-передоплата без отриманого платежу — перевірити WayForPay"} style={{background:"#ea580c",color:"#fff",fontSize:9,padding:"1px 5px",borderRadius:6,fontWeight:700,verticalAlign:"middle"}}>{"\u26A0 ОЧІКУЄ ОПЛАТУ"}</span>}{dupe&&<span style={{background:"var(--red)",color:"#fff",fontSize:9,padding:"1px 5px",borderRadius:6,fontWeight:700,verticalAlign:"middle"}}>ДУБЛЬ</span>}</div>
             <div className="mob-oc-badge"><span className={`badge ${STCLS[o.status]}`}>{STATUSES[o.status]}</span></div>
           </div>
           <div className="mob-oc-info">
