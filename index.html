@@ -2134,17 +2134,40 @@ function OrdersListPage({orders,setOrders,products,user}){
     const okIds=new Set(results.filter(x=>x.ok).map(x=>x.id));
     setSelectedIds(prev=>{const n=new Set(prev);okIds.forEach(id=>n.delete(id));return n;});
   };
+  // Bulk delete — removes selected orders (any kind, including those with TTN)
+  const bulkDeleteOrders=async()=>{
+    const ids=[...selectedIds];
+    if(!ids.length)return;
+    if(!confirm("Видалити "+ids.length+" замовл."+(ids.length===1?"ення":(ids.length<5?"ення":"ень"))+"? Цю дію не можна скасувати."))return;
+    // Tombstone everything first so a stale sync cannot resurrect deleted rows
+    for(const id of ids){try{Tombstones.add(id);}catch{}}
+    // Optimistic local state update
+    const idSet=new Set(ids);
+    setOrders(prev=>prev.filter(o=>!idSet.has(o.id)));
+    setSelectedIds(new Set());
+    // Delete from DB in parallel; failures fall back to PendingSync via DB.remove
+    try{
+      if(supabase&&typeof supabase.from==="function"){
+        const r=await supabase.from("orders").delete().in("id",ids);
+        if(r&&r.error){console.error("bulk delete err",r.error);PendingSync.mark("orders");}
+      }else{
+        for(const id of ids)await DB.remove("orders",id);
+      }
+    }catch(e){console.error("bulk delete throw",e);PendingSync.mark("orders");}
+  };
   const toggleSelect=(id)=>{setSelectedIds(prev=>{const n=new Set(prev);if(n.has(id))n.delete(id);else n.add(id);return n;});};
-  const toggleSelectAll=()=>{const eligible=sorted.filter(o=>o.deliveryType==="np"&&!o.ttn).map(o=>o.id);const allSelected=eligible.every(id=>selectedIds.has(id));setSelectedIds(prev=>{const n=new Set(prev);if(allSelected)eligible.forEach(id=>n.delete(id));else eligible.forEach(id=>n.add(id));return n;});};
+  const toggleSelectAll=()=>{const all=sorted.map(o=>o.id);const allSelected=all.length>0&&all.every(id=>selectedIds.has(id));setSelectedIds(prev=>{const n=new Set(prev);if(allSelected)all.forEach(id=>n.delete(id));else all.forEach(id=>n.add(id));return n;});};
   const clearSelection=()=>setSelectedIds(new Set());
   const eligibleSelectedCount=()=>{let n=0;for(const o of orders){if(selectedIds.has(o.id)&&o.deliveryType==="np"&&!o.ttn&&o.city&&o.npBranch&&o.client&&o.phone)n++;}return n;};
   const updSt=(id,st)=>{setOrders(orders.map(o=>o.id===id?{...o,status:st}:o));saveOrderField(id,{status:st});};
   // In-memory only — stores raw NP tracking code per order (no DB column needed)
   const updNpCode=(id,code)=>{setOrders(prev=>prev.map(o=>o.id===id?{...o,npStatusCode:code}:o));if(code)saveOrderField(id,{np_status_code:code});};
   const doSyncTTN=async()=>{
-    // Collect TTNs from orders that are not in manual-terminal states
+    // Collect TTNs from orders that are not in manual-terminal states.
+    // Also skip the entire "studio" funnel (deliveryType==="studio") — these are
+    // walk-in/in-store deals and should never have their status overwritten by NP sync.
     const locked=new Set(["paid","studio","delivered"]);
-    const list=orders.filter(o=>o.ttn&&!locked.has(o.status)).map(o=>({id:o.id,ttn:String(o.ttn).trim(),status:o.status}));
+    const list=orders.filter(o=>o.ttn&&!locked.has(o.status)&&o.deliveryType!=="studio").map(o=>({id:o.id,ttn:String(o.ttn).trim(),status:o.status}));
     if(!list.length){setTtnSync({running:false,total:0,done:0,updated:0,msg:"Немає ТТН для оновлення"});setTimeout(()=>setTtnSync(null),3000);return;}
     setTtnSync({running:true,total:list.length,done:0,updated:0});
     let updated=0;
@@ -2332,7 +2355,7 @@ function OrdersListPage({orders,setOrders,products,user}){
       <div style={{fontSize:13,fontWeight:600}}>{"Виділено: "}<span style={{color:"var(--np-red)"}}>{selectedIds.size}</span>{" (придатні до ТТН: "}{eligibleSelectedCount()}{")"}</div>
       <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
         <button className="btn btn-np" style={{padding:"6px 14px",fontSize:12,fontWeight:700}} onClick={bulkCreateTTN} disabled={bulkRunning||eligibleSelectedCount()===0}>{bulkRunning?"Створюю...":"Створити ТТН масово"}</button>
-        <button className="btn btn-secondary" style={{padding:"6px 14px",fontSize:12}} onClick={clearSelection} disabled={bulkRunning}>{"Скасувати виділення"}</button>
+        <button className="btn btn-danger" style={{padding:"6px 14px",fontSize:12,fontWeight:700}} onClick={bulkDeleteOrders} disabled={bulkRunning}>{"\uD83D\uDDD1 Видалити ("+selectedIds.size+")"}</button><button className="btn btn-secondary" style={{padding:"6px 14px",fontSize:12}} onClick={clearSelection} disabled={bulkRunning}>{"Скасувати виділення"}</button>
       </div>
     </div>}
     {filter==="dupes"&&dupeCount>0&&<div style={{background:"#fef3c7",border:"1px solid #f59e0b",borderRadius:10,padding:"10px 14px",marginBottom:12,fontSize:12,color:"#78350f"}}>
@@ -2341,8 +2364,8 @@ function OrdersListPage({orders,setOrders,products,user}){
     {sorted.length===0?<div className="empty-state"><p>Немає замовлень</p></div>:<>
     {/* Desktop table */}
     <div className="desktop-tbl card" style={{padding:0,overflowX:"auto"}}>
-      <table className="tbl"><thead><tr><th style={{width:32,textAlign:"center"}}><input type="checkbox" title="Виділити всі без ТТН" checked={sorted.filter(o=>o.deliveryType==="np"&&!o.ttn).length>0&&sorted.filter(o=>o.deliveryType==="np"&&!o.ttn).every(o=>selectedIds.has(o.id))} onChange={toggleSelectAll} style={{cursor:"pointer"}}/></th><th>Дата</th><th>Клієнт</th><th>Тел</th><th>Товари</th><th>Доставка</th><th>Сума</th><th>Передопл</th><th>ТТН</th><th>Статус</th><th></th></tr></thead><tbody>
-        {sorted.map(o=>{const dupe=dupeMap.get(o.id);const dupeOthers=dupe?dupe.groupIds.filter(x=>x!==o.id):[];const canSel=o.deliveryType==="np"&&!o.ttn;return(<tr key={o.id} style={{...(dupe?{background:"#fef3c7"}:null),...(selectedIds.has(o.id)?{background:"#fce7f3"}:null)}}>
+      <table className="tbl"><thead><tr><th style={{width:32,textAlign:"center"}}><input type="checkbox" title="Виділити всі видимі" checked={sorted.length>0&&sorted.every(o=>selectedIds.has(o.id))} onChange={toggleSelectAll} style={{cursor:"pointer"}}/></th><th>Дата</th><th>Клієнт</th><th>Тел</th><th>Товари</th><th>Доставка</th><th>Сума</th><th>Передопл</th><th>ТТН</th><th>Статус</th><th></th></tr></thead><tbody>
+        {sorted.map(o=>{const dupe=dupeMap.get(o.id);const dupeOthers=dupe?dupe.groupIds.filter(x=>x!==o.id):[];const canSel=true;return(<tr key={o.id} style={{...(dupe?{background:"#fef3c7"}:null),...(selectedIds.has(o.id)?{background:"#fce7f3"}:null)}}>
           <td style={{textAlign:"center"}}>{canSel?<input type="checkbox" checked={selectedIds.has(o.id)} onChange={()=>toggleSelect(o.id)} style={{cursor:"pointer"}}/>:<span style={{fontSize:14,opacity:.3}}>{"·"}</span>}</td>
           <td style={{whiteSpace:"nowrap",fontSize:12}}>{new Date(o.date).toLocaleDateString("uk-UA")}</td>
           <td><div style={{fontWeight:600,display:"flex",alignItems:"center",gap:4}}>{o.client}{dupe&&<span title={`Можливий дубль — ще ${dupeOthers.length} замовл. від цього клієнта за останні 7 днів`} style={{background:"var(--red)",color:"#fff",fontSize:9,padding:"2px 6px",borderRadius:8,fontWeight:700,whiteSpace:"nowrap"}}>⚠ ДУБЛЬ ×{dupe.groupIds.length}</span>}</div>{o.comment&&<div style={{fontSize:10,color:"var(--text2)",maxWidth:160,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}} title={o.comment}>{o.comment}</div>}</td>
