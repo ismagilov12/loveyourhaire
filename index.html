@@ -1965,21 +1965,18 @@ function OrdersListPage({orders,setOrders,products,user}){
   useEffect(()=>{reloadWfp();},[]);
   // Set of order IDs that have at least one matched WFP payment — used by needsSitePrepayment().
   const wfpMatchedIds=React.useMemo(()=>{const m=new Set();for(const p of wfpPays){if(p.matched_order_id!=null)m.add(p.matched_order_id);}return m;},[wfpPays]);
-  // True if the order looks like a paid-online site order (САЙТ/Тільда tag + payment=prepaid
-  // or explicit prepayment mention in the comment) but has NO matching WayForPay payment row.
-  // The Tilda webhook sets `payment=prepaid` optimistically when the customer picked an online
-  // method, but if the actual transaction never went through, no wfp_payments record will appear —
-  // that is exactly the case we want to flag for the manager.
+  // True if the order is a site order (САЙТ/Тільда tag in comment) AND its prepayment column
+  // is empty/zero AND total > 0. That is the visual rule the user wants: any site order whose
+  // "Передопл" cell shows 0 should be flagged so the manager can chase the payment.
+  // Orders with any prepayment recorded (manual or via WFP match) are considered settled-enough.
   const needsSitePrepayment=React.useCallback((o)=>{
     if(!o)return false;
     const c=String(o.comment||"");
-    const isSiteOrder=/САЙТ|Т[іи]льда/i.test(c);
-    if(!isSiteOrder)return false;
-    const isPrepaidExpected=o.payment==="prepaid"||/(передопл|предопл|prepay|wayforpay|liqpay|fondy|monobank)/i.test(c);
-    if(!isPrepaidExpected)return false;
-    if(wfpMatchedIds.has(o.id))return false;
+    if(!/САЙТ|Т[іи]льда/i.test(c))return false;
+    if(Number(o.prepayment||0)>0)return false;
+    if(Number(o.total||0)<=0)return false;
     return true;
-  },[wfpMatchedIds]);
+  },[]);
   // Attach a WayForPay payment to the currently-edited order (updates both wfp_payments and editO).
   const attachWfp=async(pay)=>{
     if(!editO||!pay)return;
@@ -2053,15 +2050,24 @@ function OrdersListPage({orders,setOrders,products,user}){
     // If the user is clearing or replacing a TTN that exists at NP, offer to delete it from NP too.
     if(prev&&prev!==t){
       const verb=t?"замінити":"видалити";
-      if(confirm("ТТН "+prev+" буде "+verb+"."+(t?" Стара ТТН":" ТТН")+" буде видалена і з Нової Пошти. Продовжити?")){
-        try{
-          const dr=await NP.deleteTTN(prev,ttnM.date?new Date(ttnM.date).getTime():null);
-          if(!dr.ok)alert("Не вдалося видалити ТТН "+prev+" з НП: "+dr.error+"\n(в CRM ТТН все одно " + (t?"змінено":"очищено") + ")");
-        }catch(e){alert("Помилка видалення ТТН з НП: "+(e.message||e));}
-      }else{return;}
+      if(!confirm("ТТН "+prev+" буде "+verb+"."+(t?" Стара ТТН":" ТТН")+" буде видалена і з Нової Пошти. Продовжити?"))return;
+      // CRITICAL: record the clear BEFORE the async NP call so any concurrent doLoad/visibility
+      // event respects the local clear instead of restoring the TTN from DB.
+      if(!t)try{ClearedTTNs.add(ttnM.id,prev);}catch{}
+      try{
+        const dr=await NP.deleteTTN(prev,ttnM.date?new Date(ttnM.date).getTime():null);
+        if(!dr.ok)alert("Не вдалося видалити ТТН "+prev+" з НП: "+dr.error+"\n(в CRM ТТН все одно " + (t?"змінено":"очищено") + ")");
+      }catch(e){alert("Помилка видалення ТТН з НП: "+(e.message||e));}
     }
+    // Also mark cleared if t is empty even when prev was empty (defensive)
+    if(!t)try{ClearedTTNs.add(ttnM.id,prev);}catch{}
     setOrders(orders.map(o=>o.id===ttnM.id?{...o,ttn:t,status:t?"toSend":"new"}:o));
-    saveOrderField(ttnM.id,{ttn:t,status:t?"toSend":"new"});
+    // Use direct supabase update (await) instead of fire-and-forget to ensure DB is updated before next sync
+    if(supabase&&typeof supabase.from==="function"){
+      try{await supabase.from("orders").update({ttn:t,status:t?"toSend":"new",updated_at:new Date().toISOString()}).eq("id",ttnM.id);}catch(e){console.error("saveTtn DB err",e);PendingSync.mark("orders");}
+    }else{PendingSync.mark("orders");}
+    // Also patch LS
+    try{const arr=LS.get("orders",[]);const idx=arr.findIndex(o=>o.id===ttnM.id);if(idx>=0){arr[idx]={...arr[idx],ttn:t,status:t?"toSend":"new"};LS.set("orders",arr);}}catch(e){console.error("LS patch err",e);}
     setTtnM(null);
   };
   const openPrepay=o=>{setPrepayO(o);setPrepayV(String(o.prepayment||""));};
@@ -2232,6 +2238,7 @@ function OrdersListPage({orders,setOrders,products,user}){
       // Special: code 2 (Видалена) → ТТН was deleted on NP side, clear it in CRM so a new one can be made.
       if(code==="2"){
         console.warn("NP code 2 (Видалена) for TTN "+r.ttn+" order "+o.id+" — clearing TTN in CRM");
+        try{ClearedTTNs.add(o.id,r.ttn);}catch{}
         nextOrders=nextOrders.map(x=>x.id===o.id?{...x,ttn:"",status:"new",npStatusCode:"",npStatusText:""}:x);
         try{saveOrderField(o.id,{ttn:"",status:"new",np_status_code:"",np_status_text:""});}catch(e){}
         try{TTNRefCache.remove(r.ttn);}catch(e){}
@@ -2878,6 +2885,21 @@ const TTNRefCache={
   set(num,ref){if(!num||!ref)return;const o=TTNRefCache._read();o[String(num)]=String(ref);TTNRefCache._write(o);},
   get(num){if(!num)return"";const o=TTNRefCache._read();return o[String(num)]||"";},
   remove(num){if(!num)return;const o=TTNRefCache._read();if(o[String(num)]!=null){delete o[String(num)];TTNRefCache._write(o);}}
+};
+
+// ─── ClearedTTNs: track explicit TTN-clears so a slow saveOrderField or stale doLoad
+//     does not resurrect the cleared TTN via the conservative "dbHasTtn wins" rule.
+//     Entries auto-expire after 7 days.
+const ClearedTTNs={
+  KEY:"lyh_cleared_ttns",
+  TTL:7*24*60*60*1000,
+  _read(){try{return JSON.parse(localStorage.getItem(ClearedTTNs.KEY)||"{}");}catch{return{};}},
+  _write(o){try{localStorage.setItem(ClearedTTNs.KEY,JSON.stringify(o));}catch{}},
+  prune(){const o=ClearedTTNs._read();const now=Date.now();let changed=false;for(const k in o){if(!o[k]||now-o[k].ts>ClearedTTNs.TTL){delete o[k];changed=true;}}if(changed)ClearedTTNs._write(o);return o;},
+  add(orderId,oldTTN){const o=ClearedTTNs.prune();o[String(orderId)]={ts:Date.now(),oldTTN:String(oldTTN||"")};ClearedTTNs._write(o);},
+  remove(orderId){const o=ClearedTTNs._read();if(o[String(orderId)]!=null){delete o[String(orderId)];ClearedTTNs._write(o);}},
+  has(orderId){const o=ClearedTTNs.prune();return o[String(orderId)]!=null;},
+  all(){return ClearedTTNs.prune();}
 };
 
 // DB helper for CRUD
@@ -3974,12 +3996,20 @@ function App(){
         const dbById=new Map(mapped.map(o=>[o.id,o]));
         const localOnly=cached.filter(o=>!dbById.has(o.id));
         const conflicts=[];// orders where local wins over DB
+        const clearedMap=ClearedTTNs.all();
+        const ttnReclears=[]; // orders we need to re-push as cleared because DB still has the TTN
         const mergedWithConflictResolution=mapped.map(dbO=>{
           const locO=cached.find(o=>o.id===dbO.id);
           if(!locO)return dbO;
-          // If local has TTN but DB doesn't, OR local status is later than DB status → keep local
           const localHasTtn=locO.ttn&&String(locO.ttn).trim().length>0;
           const dbHasTtn=dbO.ttn&&String(dbO.ttn).trim().length>0;
+          // CRITICAL: if user explicitly cleared the TTN recently, prefer the local clear and
+          // schedule a re-push to DB. Without this, the conservative "dbHasTtn wins" rule below
+          // resurrects every cleared TTN whenever doLoad races with saveOrderField.
+          if(!localHasTtn&&dbHasTtn&&clearedMap[String(dbO.id)]){
+            ttnReclears.push({...locO,ttn:"",status:"new",npStatusCode:"",npStatusText:""});
+            return{...locO,ttn:"",status:"new",npStatusCode:"",npStatusText:""};
+          }
           // CRITICAL: never let local without TTN override DB that has a TTN — this caused mass TTN loss.
           if(dbHasTtn&&!localHasTtn){return dbO;}
           const stagePref={new:0,studio:0,ttn:1,toSend:2,shipped:3,delivered:4,paid:5};
@@ -3991,6 +4021,12 @@ function App(){
           }
           return dbO;
         });
+        // Re-push any TTNs that were cleared locally but still set in DB (defensive against
+        // dropped saveOrderField updates).
+        if(ttnReclears.length>0&&supabase){
+          console.warn("doLoad: re-clearing TTN in DB for "+ttnReclears.length+" order(s):",ttnReclears.map(o=>o.id));
+          try{supabase.from("orders").upsert(ttnReclears.map(mapOrderToDB),{onConflict:"id"}).then(r=>{if(r&&r.error)console.error("ttn-reclear err",r.error);});}catch(e){console.error("ttn-reclear throw",e);}
+        }
         if(conflicts.length>0){
           console.warn("Resolving "+conflicts.length+" local-over-DB conflicts (unpersisted TTN/status) — pushing to DB");
         }
@@ -4055,8 +4091,17 @@ function App(){
     if(typeof supabase.channel!=="function"){console.warn("realtime unavailable: supabase.channel missing — skipping subscription");return;}
     const rtUpdate=(setter,mapper)=>payload=>{
       fromRT.current=true;
-      if(payload.eventType==="DELETE"){if(payload.table==="orders"&&payload.old&&payload.old.id!=null){try{Tombstones.remove(payload.old.id);}catch{}}setter(prev=>{const next=prev.filter(x=>x.id!==payload.old.id);return next;});}
-      else{const row=mapper?mapper(payload.new):payload.new;setter(prev=>{const idx=prev.findIndex(x=>x.id===row.id);let next;if(idx>=0){next=[...prev];next[idx]=row;}else{next=[...prev,row];}return next;});}
+      if(payload.eventType==="DELETE"){
+        // CRITICAL: do NOT remove tombstone on RT DELETE — keep it until TTL expires so a late
+        // INSERT (e.g., other-tab conflict re-upload) cannot resurrect the deleted order.
+        setter(prev=>{const next=prev.filter(x=>x.id!==payload.old.id);return next;});
+      }
+      else{
+        const row=mapper?mapper(payload.new):payload.new;
+        // If DB confirms ttn is now empty, drop the cleared-TTN marker for this order.
+        if(payload.table==="orders"&&row&&row.id!=null&&(!row.ttn||String(row.ttn).trim()==="")){try{ClearedTTNs.remove(row.id);}catch{}}
+        setter(prev=>{const idx=prev.findIndex(x=>x.id===row.id);let next;if(idx>=0){next=[...prev];next[idx]=row;}else{next=[...prev,row];}return next;});
+      }
       setTimeout(()=>{fromRT.current=false;},100);
     };
     let channel;
@@ -4096,8 +4141,12 @@ function App(){
             const prevHadTtn=p.ttn&&String(p.ttn).trim().length>0;
             const nowHasTtn=o.ttn&&String(o.ttn).trim().length>0;
             if(prevHadTtn&&!nowHasTtn){
-              console.warn("Bulk upsert: refusing to clear TTN for order "+o.id+" via blanket effect — use saveTtn explicitly");
-              return false;
+              // If the user explicitly cleared this TTN (ClearedTTNs marker present), let the
+              // bulk effect push the clear too — otherwise refuse (defensive against stale state).
+              if(!ClearedTTNs.has(o.id)){
+                console.warn("Bulk upsert: refusing to clear TTN for order "+o.id+" via blanket effect — no ClearedTTNs marker");
+                return false;
+              }
             }
             return p.status!==o.status||p.ttn!==o.ttn||p.payment!==o.payment||p.client!==o.client||p.phone!==o.phone||p.npBranch!==o.npBranch||p.city!==o.city||p.total!==o.total||p.totalCost!==o.totalCost||p.npStatusCode!==o.npStatusCode||p.npStatusText!==o.npStatusText||p.codAmount!==o.codAmount||p.prepayment!==o.prepayment||p.comment!==o.comment||JSON.stringify(p.items||[])!==JSON.stringify(o.items||[]);
           });
