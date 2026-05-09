@@ -1956,7 +1956,7 @@ function OrdersListPage({orders,setOrders,products,user}){
     try{
       const{data}=await supabase.from("wfp_payments")
         .select("id,order_reference,amount,transaction_status,received_at,client_name,client_phone,matched_order_id")
-        .order("received_at",{ascending:false}).limit(50);
+        .order("received_at",{ascending:false}).limit(500);
       setWfpPays(data||[]);
     }catch(e){console.warn("wfp load failed",e);}
     setWfpLoading(false);
@@ -1965,15 +1965,18 @@ function OrdersListPage({orders,setOrders,products,user}){
   useEffect(()=>{reloadWfp();},[]);
   // Set of order IDs that have at least one matched WFP payment — used by needsSitePrepayment().
   const wfpMatchedIds=React.useMemo(()=>{const m=new Set();for(const p of wfpPays){if(p.matched_order_id!=null)m.add(p.matched_order_id);}return m;},[wfpPays]);
-  // True for orders whose comment indicates a site prepayment (САЙТ-предоплата tag) but where
-  // no actual prepayment is recorded AND no WayForPay payment is matched yet.
+  // True if the order looks like a paid-online site order (САЙТ/Тільда tag + payment=prepaid
+  // or explicit prepayment mention in the comment) but has NO matching WayForPay payment row.
+  // The Tilda webhook sets `payment=prepaid` optimistically when the customer picked an online
+  // method, but if the actual transaction never went through, no wfp_payments record will appear —
+  // that is exactly the case we want to flag for the manager.
   const needsSitePrepayment=React.useCallback((o)=>{
     if(!o)return false;
     const c=String(o.comment||"");
-    if(!c)return false;
-    if(!/САЙТ/i.test(c))return false;
-    if(!/(передопл|предопл|prepay|wayforpay|liqpay|fondy|monobank)/i.test(c))return false;
-    if(Number(o.prepayment||0)>0)return false;
+    const isSiteOrder=/САЙТ|Т[іи]льда/i.test(c);
+    if(!isSiteOrder)return false;
+    const isPrepaidExpected=o.payment==="prepaid"||/(передопл|предопл|prepay|wayforpay|liqpay|fondy|monobank)/i.test(c);
+    if(!isPrepaidExpected)return false;
     if(wfpMatchedIds.has(o.id))return false;
     return true;
   },[wfpMatchedIds]);
