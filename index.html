@@ -2027,9 +2027,26 @@ function OrdersListPage({orders,setOrders,products,user}){
   // Apply product filter to searched results
   const byProduct=productFilter==="all"?searched:searched.filter(o=>(o.items||[]).some(it=>String(it.productId)===String(productFilter)||it.name===productFilter));
   // Filters MUST match counter logic below — same predicates
-  const isAwaitingTtn=o=>o.deliveryType==="np"&&!hasTtn(o)&&o.status!=="shipped"&&o.status!=="delivered"&&o.status!=="paid"&&o.status!=="studio";
+  // Has the full set of fields required to create a NP TTN: name + surname, phone, city, branch.
+  const hasFullNPData=o=>{
+    if(o.deliveryType!=="np")return false;
+    const nm=String(o.client||"").trim().split(/\s+/).filter(Boolean);
+    if(nm.length<2)return false; // need at least name + surname
+    if(!String(o.phone||"").trim())return false;
+    if(!String(o.city||"").trim())return false;
+    if(!String(o.npBranch||"").trim())return false;
+    return true;
+  };
+  // Has at least some prepayment or is marked fully prepaid online.
+  const hasPayment=o=>Number(o.prepayment||0)>0||o.payment==="prepaid";
+  // Order is ready to have a TTN generated: full data + at least partial prepayment.
+  const isReadyForTTN=o=>!hasTtn(o)&&hasFullNPData(o)&&hasPayment(o)&&o.status!=="shipped"&&o.status!=="delivered"&&o.status!=="paid"&&o.status!=="studio"&&o.status!=="refused"&&o.status!=="received"&&o.status!=="atPost";
+  // "Потрібна ТТН" filter — only ready (paid + complete) orders. Cash-on-delivery / incomplete
+  // orders stay in "Нові" so the manager finishes filling them out before TTN creation.
+  const isAwaitingTtn=isReadyForTTN;
   const isReadyToShip=o=>{if(!hasTtn(o))return false;if(o.npStatusCode)return o.npStatusCode==="1";return o.status==="toSend";};
-  const isNew=o=>o.deliveryType==="np"&&o.status==="new"&&!hasTtn(o);
+  // "Нові" — NP orders with status=new, no TTN, NOT yet ready for TTN (so they don't show twice).
+  const isNew=o=>o.deliveryType==="np"&&o.status==="new"&&!hasTtn(o)&&!isReadyForTTN(o);
   const filtered=filter==="dupes"?byProduct.filter(o=>dupeMap.has(o.id)):(filter==="all"?byProduct:(filter==="ttn"?byProduct.filter(isAwaitingTtn):(filter==="toSend"?byProduct.filter(isReadyToShip):(filter==="new"?byProduct.filter(isNew):byProduct.filter(o=>o.status===filter)))));
   // Sort: when showing dupes — group by duplicate key then by date desc; otherwise use sortDir
   const dateSort=(a,b)=>{const d=new Date(b.date)-new Date(a.date);return sortDir==="asc"?-d:d;};
