@@ -283,7 +283,7 @@ const INIT_PRODUCTS=[
   {id:15,name:'Футболка "Giant Pussy"',sku:"T-GP",category:"Oversize футболки",cost:450,price:1400,stock:50,type:"product",photo:""},
   {id:16,name:"Deep Clean Shampoo",sku:"COS-DC",category:"Косметика для волосся",cost:300,price:950,stock:30,type:"product",photo:""},
   {id:17,name:"Текстуруюча паста для укладки",sku:"COS-TP",category:"Косметика для волосся",cost:200,price:650,stock:30,type:"product",photo:""},
-  {id:18,name:"Beach Spray",sku:"COS-BS",category:"Косметика для волосся",cost:280,price:890,stock:30,type:"product",photo:""},
+  {id:18,name:"Beach Spray",sku:"COS-BS",category:"Косметика для волосся",cost:300,price:890,stock:30,type:"product",photo:""},
   {id:19,name:"Hydration Conditioner",sku:"COS-HC",category:"Косметика для волосся",cost:380,price:1200,stock:30,type:"product",photo:""},
   {id:20,name:"Everyday Shampoo",sku:"COS-ES",category:"Косметика для волосся",cost:300,price:950,stock:30,type:"product",photo:""},
   {id:21,name:"Curly Cream Gel",sku:"COS-CG",category:"Косметика для волосся",cost:320,price:1000,stock:30,type:"product",photo:""},
@@ -1240,7 +1240,6 @@ function DashboardPage({orders,products,expenses,dateRange,setDateRange}){
           {label:"На відправку",val:funnel.onward,color:"#e17055"},
           {label:"Відправлено",val:funnel.shipped,color:"#6c5ce7"},
           {label:"Доставл./отрим.",val:funnel.delivered,color:"#38b000"},
-          {label:"Оплачено",val:funnel.paid,color:"#16a34a"},
         ].map((s,i,arr)=>{
           const pct=arr[0].val>0?Math.round(s.val/arr[0].val*100):0;
           return(<React.Fragment key={i}>
@@ -1747,7 +1746,7 @@ function NewOrderPage({orders,setOrders,products,setProducts,clients,setClients,
       if(!r.ok){return;}
       ttn=r.ttn||"";
     }
-    const order={id:Date.now(),client:cn,phone:parsed.phone,city:deliv==="np"?parsed.city:"",npBranch:deliv==="np"?parsed.npBranch:"",payment:deliv==="np"?parsed.payment:"cash",deliveryType:deliv,items:[...items],total,totalCost,date:new Date().toISOString(),status:ttn?"toSend":((prepay!==""&&Number(prepay)>=total)?"paid":(deliv==="np"?"new":"studio")),ttn:ttn,codAmount:codAmount!==""?Number(codAmount):null,prepayment:prepay!==""?Number(prepay):null,discount:discount!==""?Number(discount):null,comment:comment};
+    const order={id:Date.now(),client:cn,phone:parsed.phone,city:deliv==="np"?parsed.city:"",npBranch:deliv==="np"?parsed.npBranch:"",payment:deliv==="np"?parsed.payment:"cash",deliveryType:deliv,items:[...items],total,totalCost,date:new Date().toISOString(),status:ttn?"toSend":(deliv==="np"?"new":"studio"),ttn:ttn,codAmount:codAmount!==""?Number(codAmount):null,prepayment:prepay!==""?Number(prepay):null,discount:discount!==""?Number(discount):null,comment:comment};
     setProducts(products.map(p=>{const it=items.find(i=>i.productId===p.id);return it&&p.type==="product"?{...p,stock:p.stock-it.qty}:p;}));
     setOrders([...orders,order]);
     const cPhone=parsed.phone||cn;
@@ -3990,12 +3989,42 @@ function App(){
       ]);
       console.log("Supabase data:",{products:pData?.length,orders:oData?.length,clients:cData?.length,expenses:eData?.length});
       if(pData&&pData.length>0){
-        const fixed=pData.map(p=>p.category==="Футболки"||p.category==="Oversize футболки"?{...p,cost:p.cost<450?450:p.cost}:p);
+        const fixed=pData.map(p=>{if(p.category==="Футболки"||p.category==="Oversize футболки")return{...p,cost:p.cost<450?450:p.cost};if(p.id===18||p.sku==="COS-BS")return{...p,cost:300};return p;});
         const changed=fixed.filter((p,i)=>p.cost!==pData[i].cost);
         if(changed.length>0)DB.upsertMany("products",changed);
         setProducts(fixed);LS.set("products",fixed);
       }
       if(oData){
+        // One-time backfill: bump Beach Spray cost in historical order items to 300 so the
+        // dashboard summary recalculates profit correctly. Runs once per device (LS flag).
+        try{
+          if(!LS.get("bs_cost_fix_v1",false)){
+            const BS_NEW_COST=300;
+            const isBS=it=>(it&&(Number(it.productId)===18||it.name==="Beach Spray"));
+            const fixedOrders=[];
+            for(const r of oData){
+              const items=Array.isArray(r.items)?r.items:[];
+              let touched=false;
+              const nextItems=items.map(it=>{
+                if(isBS(it)&&Number(it.cost)!==BS_NEW_COST){touched=true;return{...it,cost:BS_NEW_COST};}
+                return it;
+              });
+              if(touched){
+                const newTotalCost=nextItems.reduce((s,i)=>s+(Number(i.cost)||0)*(Number(i.qty)||0),0);
+                fixedOrders.push({...r,items:nextItems,total_cost:newTotalCost});
+              }
+            }
+            if(fixedOrders.length>0){
+              console.log("Beach Spray cost backfill: updating "+fixedOrders.length+" orders");
+              try{await supabase.from("orders").upsert(fixedOrders,{onConflict:"id"});}
+              catch(e){console.error("BS backfill upsert error",e);}
+              // Replace in-memory oData so the downstream mapper sees the new costs
+              const byId=new Map(fixedOrders.map(o=>[o.id,o]));
+              for(let i=0;i<oData.length;i++){const u=byId.get(oData[i].id);if(u)oData[i]=u;}
+            }
+            LS.set("bs_cost_fix_v1",true);
+          }
+        }catch(e){console.error("BS backfill failed",e);}
         // Drop any DB rows that we recently deleted locally — DB.remove may still be in flight,
         // or the row may persist if the delete request was lost. Tombstones prevent resurrection.
         const tombstoneIds=Tombstones.ids();
