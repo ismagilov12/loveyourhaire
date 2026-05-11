@@ -1745,7 +1745,13 @@ function NewOrderPage({orders,setOrders,products,setProducts,clients,setClients,
       if(!r.ok){return;}
       ttn=r.ttn||"";
     }
-    const order={id:Date.now(),client:cn,phone:parsed.phone,city:deliv==="np"?parsed.city:"",npBranch:deliv==="np"?parsed.npBranch:"",payment:deliv==="np"?parsed.payment:"cash",deliveryType:deliv,items:[...items],total,totalCost,date:new Date().toISOString(),status:ttn?"toSend":(deliv==="np"?"new":"studio"),ttn:ttn,codAmount:codAmount!==""?Number(codAmount):null,prepayment:prepay!==""?Number(prepay):null,discount:discount!==""?Number(discount):null,comment:comment};
+    // Detect "fully paid" intent from parser (paymentType) or explicit prepay>=total.
+    // If full-paid: set payment="prepaid" and prepayment=total so the order lands in
+    // "Потрібна ТТН" (when full NP data + name + surname).
+    const _fullyPaid=(parsed.paymentType==="full"||parsed.paymentType==="paid"||(prepay!==""&&total>0&&Number(prepay)>=total));
+    const _finalPayment=deliv==="np"?(_fullyPaid?"prepaid":parsed.payment):"cash";
+    const _finalPrepay=prepay!==""?Number(prepay):(_fullyPaid?total:null);
+    const order={id:Date.now(),client:cn,phone:parsed.phone,city:deliv==="np"?parsed.city:"",npBranch:deliv==="np"?parsed.npBranch:"",payment:_finalPayment,deliveryType:deliv,items:[...items],total,totalCost,date:new Date().toISOString(),status:ttn?"toSend":(deliv==="np"?"new":"studio"),ttn:ttn,codAmount:codAmount!==""?Number(codAmount):null,prepayment:_finalPrepay,discount:discount!==""?Number(discount):null,comment:comment};
     setProducts(products.map(p=>{const it=items.find(i=>i.productId===p.id);return it&&p.type==="product"?{...p,stock:p.stock-it.qty}:p;}));
     setOrders([...orders,order]);
     const cPhone=parsed.phone||cn;
@@ -4024,21 +4030,33 @@ function App(){
             LS.set("bs_cost_fix_v1",true);
           }
         }catch(e){console.error("BS backfill failed",e);}
-        // One-time backfill: move any status="paid" orders to "new" (paid funnel was removed).
+        // One-time backfill v2: move status="paid" -> "new" AND mark fully paid
+        // (payment="prepaid", prepayment=total) so orders appear in "Потрібна ТТН" when
+        // all NP data is present (name+surname, phone, city, branch).
         try{
-          if(!LS.get("paid_to_new_fix_v1",false)){
-            const paidIds=oData.filter(r=>r.status==="paid").map(r=>r.id);
-            if(paidIds.length>0){
-              console.log("paid->new backfill: moving "+paidIds.length+" orders");
+          if(!LS.get("paid_to_new_fix_v2",false)){
+            const paidRows=oData.filter(r=>r.status==="paid");
+            if(paidRows.length>0){
+              console.log("paid->new backfill v2: migrating "+paidRows.length+" orders");
+              const updates=paidRows.map(r=>{
+                const t=Number(r.total||0);
+                const cp=Number(r.prepayment||0);
+                const np=cp>0?cp:t;
+                return{id:r.id,status:"new",payment:"prepaid",prepayment:np,cod_amount:null,updated_at:new Date().toISOString()};
+              });
               try{
-                const{error}=await supabase.from("orders").update({status:"new",updated_at:new Date().toISOString()}).in("id",paidIds);
-                if(error)console.error("paid->new update err",error);
+                const ur=await supabase.from("orders").upsert(updates,{onConflict:"id"});
+                if(ur&&ur.error)console.error("paid->new upsert err",ur.error);
                 else{
-                  for(let i=0;i<oData.length;i++)if(oData[i].status==="paid")oData[i]={...oData[i],status:"new"};
+                  const byId=new Map(updates.map(u=>[u.id,u]));
+                  for(let i=0;i<oData.length;i++){
+                    const u=byId.get(oData[i].id);
+                    if(u)oData[i]={...oData[i],status:u.status,payment:u.payment,prepayment:u.prepayment,cod_amount:u.cod_amount};
+                  }
                 }
               }catch(e){console.error("paid->new upsert error",e);}
             }
-            LS.set("paid_to_new_fix_v1",true);
+            LS.set("paid_to_new_fix_v2",true);
           }
         }catch(e){console.error("paid->new backfill failed",e);}
         // Drop any DB rows that we recently deleted locally — DB.remove may still be in flight,
