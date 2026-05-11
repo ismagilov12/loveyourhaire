@@ -305,7 +305,7 @@ const INIT_PRODUCTS=[
 const CATEGORIES=["Все","Oversize футболки","Косметика для волосся","Пояси","Showgirl","Bikinis","Neck Pieces"];
 const MONTHS=["Січень","Лютий","Березень","Квітень","Травень","Червень","Липень","Серпень","Вересень","Жовтень","Листопад","Грудень"];
 const DAYS=["Пн","Вт","Ср","Чт","Пт","Сб","Нд"];
-const STATUSES={new:"Новий",ttn:"ТТН",toSend:"На відправку",shipped:"Відправлено",atPost:"На пошті",received:"Отримано",refused:"Відмова",delivered:"Доставлено",studio:"Студія",paid:"Оплачено"};
+const STATUSES={new:"Новий",ttn:"ТТН",toSend:"На відправку",shipped:"Відправлено",atPost:"На пошті",received:"Отримано",refused:"Відмова",delivered:"Доставлено",studio:"Студія"};
 const STCLS={new:"status-new",ttn:"status-ttn",toSend:"status-shipped",shipped:"status-shipped",atPost:"status-atpost",received:"status-received",refused:"status-refused",delivered:"status-delivered",studio:"status-studio"};
 // Rule: Nova Poshta TTN status code -> internal order status (auto-applied when TTN tracked).
 // 4=В дорозi, 5=На складi мiста, 6=В мiстi, 7=На вiддiленнi, 8=Видано, 9/100=Отримано, 10/11/102/103=Повернення/Вiдмова
@@ -989,7 +989,7 @@ function DashboardPage({orders,products,expenses,dateRange,setDateRange}){
 
   // Status breakdown (all statuses)
   const statusCounts=useMemo(()=>{
-    const m={new:0,ttn:0,toSend:0,shipped:0,atPost:0,received:0,refused:0,delivered:0,studio:0,paid:0};
+    const m={new:0,ttn:0,toSend:0,shipped:0,atPost:0,received:0,refused:0,delivered:0,studio:0};
     fOrders.forEach(o=>{if(m[o.status]!==undefined)m[o.status]++;});
     return m;
   },[fOrders]);
@@ -997,12 +997,11 @@ function DashboardPage({orders,products,expenses,dateRange,setDateRange}){
   // Conversion funnel
   const funnel=useMemo(()=>{
     const total=fOrders.length;
-    const onward=fOrders.filter(o=>["toSend","shipped","atPost","received","delivered","paid"].includes(o.status)).length;
-    const shipped=fOrders.filter(o=>["shipped","atPost","received","delivered","paid"].includes(o.status)).length;
-    const delivered=fOrders.filter(o=>["delivered","received","paid"].includes(o.status)).length;
-    const paid=fOrders.filter(o=>["paid"].includes(o.status)||(o.prepayment>=o.total&&o.total>0)).length;
+    const onward=fOrders.filter(o=>["toSend","shipped","atPost","received","delivered"].includes(o.status)).length;
+    const shipped=fOrders.filter(o=>["shipped","atPost","received","delivered"].includes(o.status)).length;
+    const delivered=fOrders.filter(o=>["delivered","received"].includes(o.status)).length;
     const refused=fOrders.filter(o=>o.status==="refused").length;
-    return{total,onward,shipped,delivered,paid,refused};
+    return{total,onward,shipped,delivered,refused};
   },[fOrders]);
 
   // Best / average day
@@ -1413,7 +1412,7 @@ function TTNStatus({ttn,orderId,orderStatus,onAutoStatus,onStatusCode}){
     // Rule: map NP code -> order status. Skip if order in manual-terminal state (paid/studio).
     if(r&&r.statusCode&&onAutoStatus&&orderId!=null){
       const mapped=TTN_TO_ORDER_STATUS[String(r.statusCode)];
-      const locked=orderStatus==="paid"||orderStatus==="studio";
+      const locked=orderStatus==="studio";
       if(mapped&&!locked&&mapped!==orderStatus)onAutoStatus(orderId,mapped);
     }
   };
@@ -2039,7 +2038,7 @@ function OrdersListPage({orders,setOrders,products,user}){
   // Has at least some prepayment or is marked fully prepaid online.
   const hasPayment=o=>Number(o.prepayment||0)>0||o.payment==="prepaid";
   // Order is ready to have a TTN generated: full data + at least partial prepayment.
-  const isReadyForTTN=o=>!hasTtn(o)&&hasFullNPData(o)&&hasPayment(o)&&o.status!=="shipped"&&o.status!=="delivered"&&o.status!=="paid"&&o.status!=="studio"&&o.status!=="refused"&&o.status!=="received"&&o.status!=="atPost";
+  const isReadyForTTN=o=>!hasTtn(o)&&hasFullNPData(o)&&hasPayment(o)&&o.status!=="shipped"&&o.status!=="delivered"&&o.status!=="studio"&&o.status!=="refused"&&o.status!=="received"&&o.status!=="atPost";
   // "Потрібна ТТН" filter — only ready (paid + complete) orders. Cash-on-delivery / incomplete
   // orders stay in "Нові" so the manager finishes filling them out before TTN creation.
   const isAwaitingTtn=isReadyForTTN;
@@ -2057,7 +2056,7 @@ function OrdersListPage({orders,setOrders,products,user}){
   // Funnels — predicates declared above (isAwaitingTtn, isReadyToShip, isNew). Counts use same predicates.
   const awaitingTtn=searched.filter(isAwaitingTtn);
   const readyToShip=searched.filter(isReadyToShip);
-  const counts={all:searched.length,new:searched.filter(isNew).length,ttn:awaitingTtn.length,toSend:readyToShip.length,shipped:searched.filter(o=>o.status==="shipped").length,atPost:searched.filter(o=>o.status==="atPost").length,received:searched.filter(o=>o.status==="received").length,refused:searched.filter(o=>o.status==="refused").length,delivered:searched.filter(o=>o.status==="delivered").length,studio:searched.filter(o=>o.status==="studio").length,paid:searched.filter(o=>o.status==="paid").length,dupes:dupeCount};
+  const counts={all:searched.length,new:searched.filter(isNew).length,ttn:awaitingTtn.length,toSend:readyToShip.length,shipped:searched.filter(o=>o.status==="shipped").length,atPost:searched.filter(o=>o.status==="atPost").length,received:searched.filter(o=>o.status==="received").length,refused:searched.filter(o=>o.status==="refused").length,delivered:searched.filter(o=>o.status==="delivered").length,studio:searched.filter(o=>o.status==="studio").length,dupes:dupeCount};
   const openTtn=o=>{setTtnM(o);setTtnV(o.ttn||"");};
   const saveTtn=async()=>{
     if(!ttnM)return;
@@ -2224,7 +2223,7 @@ function OrdersListPage({orders,setOrders,products,user}){
     // Collect TTNs from orders that are not in manual-terminal states.
     // Also skip the entire "studio" funnel (deliveryType==="studio") — these are
     // walk-in/in-store deals and should never have their status overwritten by NP sync.
-    const locked=new Set(["paid","studio","delivered"]);
+    const locked=new Set(["studio","delivered"]);
     const list=orders.filter(o=>o.ttn&&!locked.has(o.status)&&o.deliveryType!=="studio").map(o=>({id:o.id,ttn:String(o.ttn).trim(),status:o.status}));
     if(!list.length){setTtnSync({running:false,total:0,done:0,updated:0,msg:"Немає ТТН для оновлення"});setTimeout(()=>setTtnSync(null),3000);return;}
     setTtnSync({running:true,total:list.length,done:0,updated:0});
@@ -4025,6 +4024,23 @@ function App(){
             LS.set("bs_cost_fix_v1",true);
           }
         }catch(e){console.error("BS backfill failed",e);}
+        // One-time backfill: move any status="paid" orders to "new" (paid funnel was removed).
+        try{
+          if(!LS.get("paid_to_new_fix_v1",false)){
+            const paidIds=oData.filter(r=>r.status==="paid").map(r=>r.id);
+            if(paidIds.length>0){
+              console.log("paid->new backfill: moving "+paidIds.length+" orders");
+              try{
+                const{error}=await supabase.from("orders").update({status:"new",updated_at:new Date().toISOString()}).in("id",paidIds);
+                if(error)console.error("paid->new update err",error);
+                else{
+                  for(let i=0;i<oData.length;i++)if(oData[i].status==="paid")oData[i]={...oData[i],status:"new"};
+                }
+              }catch(e){console.error("paid->new upsert error",e);}
+            }
+            LS.set("paid_to_new_fix_v1",true);
+          }
+        }catch(e){console.error("paid->new backfill failed",e);}
         // Drop any DB rows that we recently deleted locally — DB.remove may still be in flight,
         // or the row may persist if the delete request was lost. Tombstones prevent resurrection.
         const tombstoneIds=Tombstones.ids();
@@ -4058,7 +4074,7 @@ function App(){
           }
           // CRITICAL: never let local without TTN override DB that has a TTN — this caused mass TTN loss.
           if(dbHasTtn&&!localHasTtn){return dbO;}
-          const stagePref={new:0,studio:0,ttn:1,toSend:2,shipped:3,delivered:4,paid:5};
+          const stagePref={new:0,studio:0,ttn:1,toSend:2,shipped:3,delivered:4};
           const locRank=stagePref[locO.status]||0;
           const dbRank=stagePref[dbO.status]||0;
           if((localHasTtn&&!dbHasTtn)||(locRank>dbRank)){
