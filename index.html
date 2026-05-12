@@ -1940,7 +1940,8 @@ function OrdersListPage({orders,setOrders,products,user}){
   const[prepayO,setPrepayO]=useState(null);// quick prepayment order
   const[selectedIds,setSelectedIds]=useState(()=>new Set());
   const[bulkRunning,setBulkRunning]=useState(false);
-  const[bulkResults,setBulkResults]=useState(null);// {total,done:[{id,client,ok,ttn?,err?}]}
+  const[bulkResults,setBulkResults]=useState(null);// {total,done:[{id,client,ok,ttn?,ref?,err?}]}
+  const[bulkScanSheet,setBulkScanSheet]=useState(null);// {loading,ref?,number?,err?}
   // Inline TTN creation states
   const[ttnCreating,setTtnCreating]=useState(false);
   const[ttnErr,setTtnErr]=useState("");
@@ -2183,7 +2184,7 @@ function OrdersListPage({orders,setOrders,products,user}){
         if(addInfo.trim())params.AdditionalInformation=addInfo.trim().slice(0,99);
         const r=await NP.createTTN(params);
         if(!r.ok)throw new Error((r.errors||[]).join(", ")||"Помилка створення ТТН");
-        item.ok=true;item.ttn=r.ttn;
+        item.ok=true;item.ttn=r.ttn;item.ref=r.ref||"";
         updated=updated.map(x=>x.id===o.id?{...x,ttn:r.ttn,status:"toSend"}:x);
         // Persist
         saveOrderField(o.id,{ttn:r.ttn,status:"toSend"});
@@ -2632,19 +2633,62 @@ function OrdersListPage({orders,setOrders,products,user}){
       </div>
     </Modal>}
     {createTTNOrder&&<CreateTTNModal order={createTTNOrder} onClose={()=>setCreateTTNOrder(null)} onCreated={ttn=>{setOrders(orders.map(o=>o.id===createTTNOrder.id?{...o,ttn,status:"toSend"}:o));saveOrderField(createTTNOrder.id,{ttn,status:"toSend"});setCreateTTNOrder(null);}}/>}
-    {bulkResults&&<Modal title="Масове створення ТТН" onClose={()=>{if(!bulkRunning)setBulkResults(null);}} wide>
-      <div style={{marginBottom:10,fontSize:13,fontWeight:600}}>{"Прогрес: "}<span style={{color:"var(--np-red)"}}>{bulkResults.done.length}</span>{" / "+bulkResults.total}{bulkRunning?" ⟳":""}</div>
-      <div style={{maxHeight:400,overflowY:"auto",border:"1px solid var(--border)",borderRadius:8}}>
-        {bulkResults.done.map((r,i)=><div key={i} style={{padding:"8px 12px",borderBottom:"1px solid var(--border)",display:"flex",alignItems:"center",justifyContent:"space-between",gap:10,fontSize:12,background:r.ok?"var(--green-light)":"#fee2e2"}}>
-          <span style={{fontWeight:600}}>{r.client}</span>
-          {r.ok?<span style={{color:"var(--green)",fontWeight:700,fontFamily:"monospace"}}>{"✓ "+r.ttn}</span>:<span style={{color:"var(--red)",fontSize:11}}>{"✗ "+r.err}</span>}
-        </div>)}
-      </div>
-      <div style={{marginTop:12,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-        <div style={{fontSize:11,color:"var(--text2)"}}>{bulkRunning?"Обробка триває — не закривайте вікно":"Готово. Замовлення з успішними ТТН переведено в статус \"ТТН\"."}</div>
-        {!bulkRunning&&<button className="btn btn-primary" onClick={()=>setBulkResults(null)}>{"Закрити"}</button>}
-      </div>
-    </Modal>}
+    {bulkResults&&(()=>{
+      const okItems=bulkResults.done.filter(x=>x.ok&&(x.ref||x.ttn));
+      const okRefs=okItems.map(x=>x.ref).filter(Boolean);
+      const okTtns=okItems.map(x=>x.ttn).filter(Boolean);
+      const haveOk=okItems.length>0;
+      const openMarking=async()=>{
+        try{
+          let refs=okRefs;
+          if(refs.length<okItems.length){
+            // Some items lack ref — try to resolve from ttn numbers
+            const need=okItems.filter(x=>!x.ref).map(x=>x.ttn);
+            if(need.length){const resolved=await NP.resolveRefs(need);refs=[...okRefs,...resolved.map(r=>r.ref)];}
+          }
+          if(!refs.length){alert("Не вдалося отримати Ref ТТН для друку.");return;}
+          window.open(NP.printMarking100x100URL(refs),"_blank","noopener");
+        }catch(e){alert("Помилка: "+(e.message||e));}
+      };
+      const openScanSheet=async()=>{
+        try{
+          setBulkScanSheet({loading:true});
+          let refs=okRefs;
+          if(refs.length<okItems.length){
+            const need=okItems.filter(x=>!x.ref).map(x=>x.ttn);
+            if(need.length){const resolved=await NP.resolveRefs(need);refs=[...okRefs,...resolved.map(r=>r.ref)];}
+          }
+          if(!refs.length){setBulkScanSheet({err:"Не вдалося отримати Ref ТТН"});return;}
+          const ss=await NP.createScanSheet(refs);
+          if(!ss.ok){setBulkScanSheet({err:(ss.errors||["Помилка створення реєстру"]).join(", ")});return;}
+          setBulkScanSheet({ref:ss.ref,number:ss.number});
+          window.open(NP.printScanSheetURL(ss.ref),"_blank","noopener");
+        }catch(e){setBulkScanSheet({err:e.message||String(e)});}
+      };
+      return(<Modal title="Масове створення ТТН" onClose={()=>{if(!bulkRunning){setBulkResults(null);setBulkScanSheet(null);}}} wide>
+        <div style={{marginBottom:10,fontSize:13,fontWeight:600}}>{"Прогрес: "}<span style={{color:"var(--np-red)"}}>{bulkResults.done.length}</span>{" / "+bulkResults.total}{bulkRunning?" ⟳":""}</div>
+        <div style={{maxHeight:360,overflowY:"auto",border:"1px solid var(--border)",borderRadius:8}}>
+          {bulkResults.done.map((r,i)=><div key={i} style={{padding:"8px 12px",borderBottom:"1px solid var(--border)",display:"flex",alignItems:"center",justifyContent:"space-between",gap:10,fontSize:12,background:r.ok?"var(--green-light)":"#fee2e2"}}>
+            <span style={{fontWeight:600}}>{r.client}</span>
+            {r.ok?<span style={{color:"var(--green)",fontWeight:700,fontFamily:"monospace"}}>{"✓ "+r.ttn}</span>:<span style={{color:"var(--red)",fontSize:11}}>{"✗ "+r.err}</span>}
+          </div>)}
+        </div>
+        {!bulkRunning&&haveOk&&<div style={{marginTop:12,padding:"10px 12px",background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:8}}>
+          <div style={{fontSize:12,fontWeight:700,marginBottom:8}}>{"Документи для друку ("+okItems.length+" ТТН)"}</div>
+          <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+            <button className="btn btn-np" style={{padding:"8px 14px",fontSize:12,fontWeight:700}} onClick={openMarking}>{"📦 Маркування 100×100 (PDF)"}</button>
+            <button className="btn btn-primary" style={{padding:"8px 14px",fontSize:12,fontWeight:700}} onClick={openScanSheet} disabled={bulkScanSheet&&bulkScanSheet.loading}>{bulkScanSheet&&bulkScanSheet.loading?"Створюю реєстр...":"📋 Реєстр (PDF)"}</button>
+          </div>
+          {bulkScanSheet&&bulkScanSheet.number&&<div style={{marginTop:8,fontSize:11,color:"var(--text2)"}}>{"Реєстр №"+bulkScanSheet.number+" створено. Якщо PDF не відкрився — дозвольте спливаючі вікна або натисніть кнопку ще раз."}</div>}
+          {bulkScanSheet&&bulkScanSheet.err&&<div style={{marginTop:8,fontSize:11,color:"var(--red)"}}>{"Помилка: "+bulkScanSheet.err}</div>}
+          <div style={{marginTop:8,fontSize:10,color:"var(--text2)",lineHeight:1.4}}>{"PDF відкриється у новій вкладці — збережіть його через Ctrl+S (або кнопку «Завантажити» в переглядачі)."}</div>
+        </div>}
+        <div style={{marginTop:12,display:"flex",justifyContent:"space-between",alignItems:"center",gap:10}}>
+          <div style={{fontSize:11,color:"var(--text2)"}}>{bulkRunning?"Обробка триває — не закривайте вікно":"Готово. Замовлення з успішними ТТН переведено в статус \"ТТН\"."}</div>
+          {!bulkRunning&&<button className="btn btn-primary" onClick={()=>{setBulkResults(null);setBulkScanSheet(null);}}>{"Закрити"}</button>}
+        </div>
+      </Modal>);
+    })()}
   </div>);
 }
 
@@ -3131,7 +3175,50 @@ const NP={
       if(c.success&&c.data&&c.data[0])contactRef=c.data[0].Ref;
     }
     return{ok:true,ref:cp.Ref,contactRef};
-  }
+  },
+  // Resolve TTN numbers to Refs (for print/scansheet methods).
+  // Tries TTNRefCache first; falls back to getDocumentList ±21 days around now.
+  async resolveRefs(ttns){
+    const out=[];const missing=[];
+    for(const t of (ttns||[])){
+      if(!t)continue;
+      const cached=TTNRefCache.get(t);
+      if(cached)out.push({ttn:t,ref:cached}); else missing.push(t);
+    }
+    if(missing.length){
+      const fmt=d=>String(d.getDate()).padStart(2,"0")+"."+String(d.getMonth()+1).padStart(2,"0")+"."+d.getFullYear();
+      const now=new Date();
+      const from=new Date(now.getTime()-21*24*60*60*1000);
+      const to=new Date(now.getTime()+1*24*60*60*1000);
+      try{
+        const r=await NP.call("InternetDocument","getDocumentList",{DateTimeFrom:fmt(from),DateTimeTo:fmt(to),Page:"1",GetFullList:"1"});
+        if(r&&r.success&&Array.isArray(r.data)){
+          const map=new Map();r.data.forEach(d=>{if(d.IntDocNumber&&d.Ref)map.set(String(d.IntDocNumber),d.Ref);});
+          for(const t of missing){const ref=map.get(String(t));if(ref){try{TTNRefCache.set(t,ref);}catch{}out.push({ttn:t,ref});}}
+        }
+      }catch(e){console.warn("resolveRefs lookup failed",e);}
+    }
+    return out;
+  },
+  // Insert a list of TTN refs into a single ScanSheet (реєстр прийому-передачі).
+  // Returns {ok, ref, number, errors}.
+  async createScanSheet(refs){
+    const list=(refs||[]).filter(Boolean);
+    if(!list.length)return{ok:false,errors:["Немає Ref для реєстру"]};
+    const r=await NP.call("ScanSheet","insertDocuments",{DocumentRefs:list});
+    if(!r||!r.success)return{ok:false,errors:r&&r.errors||["Не вдалося створити реєстр"]};
+    const row=Array.isArray(r.data)?r.data[0]:null;
+    return{ok:true,ref:row?.Ref||"",number:row?.Number||"",raw:r.data};
+  },
+  // Build a direct PDF URL for Nova Poshta print endpoints.
+  // Returns a URL the user can open in a new tab to view/download the PDF.
+  _printURL(method,refs,type){
+    const parts=(refs||[]).filter(Boolean).map(r=>"orders[]/"+encodeURIComponent(r)).join("/");
+    return"https://my.novaposhta.ua/orders/"+method+"/"+parts+"/type/"+(type||"pdf")+"/apiKey/"+NP_API_KEY;
+  },
+  printMarking100x100URL(refs){return NP._printURL("printMarking100x100",refs,"pdf");},
+  printScanSheetURL(scanSheetRef){return NP._printURL("printScanSheet",[scanSheetRef],"pdf");},
+  printDocumentURL(refs){return NP._printURL("printDocument",refs,"pdf");}
 };
 
 
