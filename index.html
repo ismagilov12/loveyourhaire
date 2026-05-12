@@ -2445,7 +2445,7 @@ function OrdersListPage({orders,setOrders,products,user}){
     <div className="filter-pills" style={{marginBottom:16}}>
       {!isMgr&&<button className={`filter-pill${filter==="all"?' active':''}`} onClick={()=>setFilter("all")}>Всі ({counts.all})</button>}
       <button className={`filter-pill${filter==="new"?' active':''}`} onClick={()=>setFilter("new")}>Нові ({counts.new})</button>
-      {!isMgr&&<button className={`filter-pill${filter==="ttn"?' active':''}`} onClick={()=>setFilter("ttn")} title="НП-замовлення без ТТН (потрібно створити)">Потрібна ТТН ({counts.ttn})</button>}
+      <button className={`filter-pill${filter==="ttn"?' active':''}`} onClick={()=>setFilter("ttn")} title="НП-замовлення без ТТН (потрібно створити)">Потрібна ТТН ({counts.ttn})</button>
       <button className={`filter-pill${filter==="toSend"?' active':''}`} onClick={()=>setFilter("toSend")}>На відправку ({counts.toSend})</button>
       <button className={`filter-pill${filter==="shipped"?' active':''}`} onClick={()=>setFilter("shipped")}>Відправ. ({counts.shipped})</button>
       <button className={`filter-pill${filter==="atPost"?' active':''}`} onClick={()=>setFilter("atPost")} style={{color:filter==="atPost"?"#856404":""}}>На пошті ({counts.atPost})</button>
