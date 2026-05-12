@@ -2197,6 +2197,56 @@ function OrdersListPage({orders,setOrders,products,user}){
     // Keep selection cleared for successful ones, preserve for failed ones so user can retry
     const okIds=new Set(results.filter(x=>x.ok).map(x=>x.id));
     setSelectedIds(prev=>{const n=new Set(prev);okIds.forEach(id=>n.delete(id));return n;});
+    // ── Telegram admin notification ──
+    // Fire-and-forget: send a summary of created TTNs to @isulte via existing Edge Function.
+    try{
+      const okList=results.filter(r=>r.ok);
+      const failed=results.filter(r=>!r.ok);
+      if(okList.length){
+        const now=new Date();
+        const ts=now.toLocaleString("uk-UA",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"});
+        // Build per-order lines: ✓ Client — TTN (City №X, total ₴)
+        const orderById=new Map(list.map(o=>[o.id,o]));
+        const lines=okList.map(r=>{
+          const o=orderById.get(r.id)||{};
+          const city=o.city||"";
+          const branch=o.npBranch?(" №"+String(o.npBranch).replace(/^№/,"")):"";
+          const sum=o.total?(" · "+o.total+" ₴"):"";
+          return "✓ <b>"+escTg(r.client||"?")+"</b> — <code>"+escTg(r.ttn)+"</code>\n   "+escTg(city+branch)+sum;
+        });
+        const totalSum=okList.reduce((s,r)=>{const o=orderById.get(r.id);return s+(o&&o.total?Number(o.total)||0:0);},0);
+        let msg="📦 <b>Масове створення ТТН — "+ts+"</b>\n";
+        msg+="Створено: <b>"+okList.length+"</b> з "+results.length;
+        if(failed.length)msg+=" · ❌ помилок: "+failed.length;
+        msg+="\nСума: <b>"+totalSum+" ₴</b>\n\n";
+        msg+=lines.slice(0,30).join("\n\n");
+        if(lines.length>30)msg+="\n\n…і ще "+(lines.length-30);
+        if(failed.length){
+          msg+="\n\n❌ <b>Не створено:</b>\n";
+          msg+=failed.slice(0,10).map(r=>"• "+escTg(r.client||"?")+" — "+escTg(r.err||"")).join("\n");
+        }
+        // 1) Send summary text
+        notifyAdminTg(msg);
+        // 2) Send 100×100 marking PDF as a document — Telegram backend fetches the URL.
+        //    Resolves missing refs via getDocumentList if needed.
+        (async()=>{
+          try{
+            let refs=okList.map(r=>r.ref).filter(Boolean);
+            const need=okList.filter(r=>!r.ref).map(r=>r.ttn);
+            if(need.length){
+              const resolved=await NP.resolveRefs(need);
+              refs=[...refs,...resolved.map(r=>r.ref)];
+            }
+            if(refs.length){
+              const docUrl=NP.printMarking100x100URL(refs);
+              const cap="📦 Маркування 100×100 ("+refs.length+" наліп.)";
+              const name="markings_"+refs.length+"_"+now.getTime()+".pdf";
+              await sendAdminTgDoc(docUrl,cap,name);
+            }
+          }catch(e){console.warn("admin TG doc send failed",e);}
+        })();
+      }
+    }catch(e){console.warn("admin TG notify build failed",e);}
   };
   // Bulk delete — removes selected orders (any kind, including those with TTN)
   const bulkDeleteOrders=async()=>{
@@ -2991,6 +3041,40 @@ function normPhoneNP(p){
 }
 const NP_API_KEY="4299d316a302da241c2b62cd4171765b";
 const NP_API="https://api.novaposhta.ua/v2.0/json/";
+
+// ── Telegram admin notifications ──
+// Uses existing Supabase Edge Function `tg-send` (server-side bot token) and a
+// pre-existing conversation row for @isulte (id=30, telegram_user_id=1629594129).
+const TG_SEND_URL="https://fsihlzzjewhxpogvjapu.supabase.co/functions/v1/tg-send?secret=lyh2026send";
+const TG_ADMIN_CONV_ID=30;// @isulte
+// Escape text for Telegram HTML parse_mode (only &, <, > need escaping).
+function escTg(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
+async function notifyAdminTg(text){
+  if(!text||!String(text).trim())return{ok:false,err:"empty text"};
+  try{
+    const r=await fetch(TG_SEND_URL,{
+      method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({conversation_id:TG_ADMIN_CONV_ID,text:String(text).slice(0,3800),sent_by:null})
+    });
+    const j=await r.json().catch(()=>({}));
+    if(!r.ok||!j.success){console.warn("notifyAdminTg failed",r.status,j);return{ok:false,err:j&&j.error||("HTTP "+r.status)};}
+    return{ok:true};
+  }catch(e){console.warn("notifyAdminTg exception",e);return{ok:false,err:e.message||String(e)};}
+}
+// Send a document (file URL) to @isulte via the same Edge Function.
+// Telegram backend fetches the URL itself; up to 20MB.
+async function sendAdminTgDoc(documentUrl,caption,documentName){
+  if(!documentUrl)return{ok:false,err:"no document_url"};
+  try{
+    const r=await fetch(TG_SEND_URL,{
+      method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({conversation_id:TG_ADMIN_CONV_ID,document_url:documentUrl,document_name:documentName||"",caption:String(caption||"").slice(0,1000),sent_by:null})
+    });
+    const j=await r.json().catch(()=>({}));
+    if(!r.ok||!j.success){console.warn("sendAdminTgDoc failed",r.status,j);return{ok:false,err:j&&j.error||("HTTP "+r.status)};}
+    return{ok:true};
+  }catch(e){console.warn("sendAdminTgDoc exception",e);return{ok:false,err:e.message||String(e)};}
+}
 
 const NP={
   async call(model,method,props={}){
