@@ -2211,14 +2211,14 @@ function OrdersListPage({orders,setOrders,products,user}){
           const o=orderById.get(r.id)||{};
           const city=o.city||"";
           const branch=o.npBranch?(" №"+String(o.npBranch).replace(/^№/,"")):"";
-          const sum=o.total?(" · "+o.total+" ₴"):"";
-          return "✓ <b>"+escTg(r.client||"?")+"</b> — <code>"+escTg(r.ttn)+"</code>\n   "+escTg(city+branch)+sum;
+          const qtyTotal=(o.items||[]).reduce((s,it)=>s+(Number(it.qty)||1),0);
+          const qtyStr=qtyTotal>0?(" · "+qtyTotal+" тов."):"";
+          return "✓ <b>"+escTg(r.client||"?")+"</b> — <code>"+escTg(r.ttn)+"</code>\n   "+escTg(city+branch)+qtyStr;
         });
-        const totalSum=okList.reduce((s,r)=>{const o=orderById.get(r.id);return s+(o&&o.total?Number(o.total)||0:0);},0);
         let msg="📦 <b>Масове створення ТТН — "+ts+"</b>\n";
         msg+="Створено: <b>"+okList.length+"</b> з "+results.length;
         if(failed.length)msg+=" · ❌ помилок: "+failed.length;
-        msg+="\nСума: <b>"+totalSum+" ₴</b>\n\n";
+        msg+="\n\n";
         msg+=lines.slice(0,30).join("\n\n");
         if(lines.length>30)msg+="\n\n…і ще "+(lines.length-30);
         if(failed.length){
@@ -4518,3 +4518,4 @@ bootApp();
 </script>
 </body>
 </html>
+                                                               
