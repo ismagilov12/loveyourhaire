@@ -755,6 +755,485 @@ async function tgSendAdminDoc(documentUrl,caption){
   }catch(e){return false;}
 }
 
+
+// ─── Smart parser (v1-derived) ────────────────────────────────────────────────
+const ALIASES_V2={
+  'эмин':'eminem','эмін':'eminem','еминем':'eminem','эмигем':'eminem','ємин':'eminem','еміне':'eminem','еминему':'eminem','эминому':'eminem','eminem':'eminem',
+  'памел':'pamela','pamela':'pamela',
+  'бритн':'britney','брітн':'britney','britney':'britney',
+  'краш':'crush','crush':'crush','крэш':'crush',
+  'чувак':'beavis','бівіс':'beavis','бивис':'beavis','батхед':'beavis','beavis':'beavis',
+  'ліндсі':'lindsay','линдси':'lindsay','лохан':'lindsay','lindsay':'lindsay','lohan':'lindsay',
+  'снуп':'snoop','snoop':'snoop',
+  'продідж':'prodigy','продиджи':'prodigy','prodigy':'prodigy',
+  'плейбо':'playboy','плэйбо':'playboy','playboy':'playboy',
+  'love is':'love is','лав из':'love is','лав іс':'love is',
+  'мастурбац':'masturbation','masturbat':'masturbation',
+  'пам томм':'pam & tommy','памтомм':'pam & tommy','pam tommy':'pam & tommy','pam & tommy':'pam & tommy',
+  'why britney':'why britney shaped','побрит':'why britney shaped',
+  'soft rebel':'soft rebel','софт ребел':'soft rebel','рібел':'soft rebel','ребел':'soft rebel',
+  'giant pussy':'giant pussy','джаянт':'giant pussy',
+  'паста':'текстуруюча паста','текстур':'текстуруюча паста',
+  'спрей':'beach spray','біч':'beach spray','beach':'beach spray',
+  'кондиціонер':'hydration conditioner','кондиционер':'hydration conditioner','conditioner':'hydration conditioner',
+  'шампунь глиб':'deep clean','діп клін':'deep clean','deep clean':'deep clean',
+  'шампунь щод':'everyday shampoo','everyday shampoo':'everyday shampoo','щоденн':'everyday shampoo',
+  'крем гель':'curly cream gel','кьорлі':'curly cream gel','curly':'curly cream gel',
+  'spray':'beach spray','shampoo':'shampoo','gel':'curly cream gel',
+  // — Пояси —
+  'пояс лео черн':'пояс leo black','пояс лео блек':'пояс leo black','пояс leo black':'пояс leo black','пояс leo чорн':'пояс leo black',
+  'пояс лео красн':'пояс leo red','пояс лео черв':'пояс leo red','пояс leo red':'пояс leo red',
+  'пояс red':'пояс red сітка','пояс ред сетк':'пояс red сітка','пояс ред сітк':'пояс red сітка','пояс red сітка':'пояс red сітка','пояс червона сітк':'пояс red сітка',
+  'пояс black сітк':'пояс black сітка','пояс блек сетк':'пояс black сітка','пояс блек сітк':'пояс black сітка','пояс чорн сітк':'пояс black сітка',
+  // — Showgirl —
+  'шоугерл лео черн':'showgirl leopard/black','шоугерл лео блек':'showgirl leopard/black','showgirl leopard/black':'showgirl leopard/black','showgirl leopard black':'showgirl leopard/black','шоугерл leopard black':'showgirl leopard/black',
+  'шоугерл лео красн':'showgirl leopard/red','шоугерл лео червон':'showgirl leopard/red','showgirl leopard/red':'showgirl leopard/red','showgirl leopard red':'showgirl leopard/red',
+  'шоугерл коров':'showgirl cow/pink','шоугерл cow':'showgirl cow/pink','showgirl cow':'showgirl cow/pink','showgirl cow/pink':'showgirl cow/pink','шоугерл рожев':'showgirl cow/pink',
+  'showgirl':'showgirl','шоугерл':'showgirl',
+  // — Neck Pieces —
+  'неклес':'neck pieces','нек піс':'neck pieces','шийн':'neck pieces','чокер':'neck pieces','чокеры':'neck pieces','neck':'neck pieces','neck pieces':'neck pieces','neck piece':'neck pieces',
+  // — Bikinis —
+  'тенш':'tension','tension':'tension','теншн':'tension','напруг':'tension',
+  'soft bunny':'soft bunny','софт банні':'soft bunny','софт банни':'soft bunny','зайчик':'soft bunny','банни':'soft bunny','банні':'soft bunny',
+  'мікробікіні':'bikini','микробикини':'bikini','бікіні':'bikini','бикини':'bikini','bikini':'bikini',
+  // generic — поясы
+  'пояс':'пояс','ремінь':'пояс','ремень':'пояс'
+};
+function buildProdIndexV2(products){
+  return (products||[]).map(function(p){
+    var kws=[];var qm=p.name.match(/["“«](.*?)["”»]/);
+    if(qm){kws.push(qm[1].toLowerCase());qm[1].toLowerCase().split(/[\s&]+/).forEach(function(w){if(w.length>2)kws.push(w);});}
+    var cl=p.name.replace(/^футболка\s*/i,"").replace(/["“”«»—]/g,"").trim().toLowerCase();
+    if(cl.length>2)kws.push(cl);
+    kws.push(p.name.toLowerCase());
+    // Per-word kws for non-quoted product names (e.g. "Пояс LEO black", "Showgirl cow/pink straps")
+    cl.split(/[\s/]+/).forEach(function(w){if(w.length>=3&&w!=="футболка"&&w!=="straps"&&w!=="пояс")kws.push(w);});
+    return{product:p,kws:kws.filter(function(v,i,a){return a.indexOf(v)===i;})};
+  });
+}
+const QTY_WORDS_V2={'одна':1,'одну':1,'один':1,'одне':1,'два':2,'дві':2,'двi':2,'три':3,'чотири':4,'четыре':4};
+function findProdsV2(text,products){
+  var prodIndex=buildProdIndexV2(products);
+  function matchAlias(t){
+    t=t.toLowerCase();
+    for(var alias in ALIASES_V2){
+      if(t.indexOf(alias)!==-1){
+        var canon=ALIASES_V2[alias];
+        for(var k=0;k<prodIndex.length;k++){var pi=prodIndex[k];if(pi.kws.some(function(kw){return kw.indexOf(canon)!==-1;})||pi.product.name.toLowerCase().indexOf(canon)!==-1)return pi.product;}
+      }
+    }
+    return null;
+  }
+  var low=(text||'').toLowerCase().trim();
+  var segments=low.split(/[\n,]+|\s+(?:и|і|\+|та)\s+/).map(function(s){return s.trim();}).filter(Boolean);
+  var found=[];
+  for(var si=0;si<segments.length;si++){
+    var seg=segments[si];var qty=1;var cleanSeg=seg;
+    for(var qw in QTY_WORDS_V2){var qre=new RegExp('(?:^|\\s)'+qw+'(?:\\s|$)','i');if(qre.test(cleanSeg)){qty=QTY_WORDS_V2[qw];cleanSeg=cleanSeg.replace(qre,' ').trim();break;}}
+    var nM=cleanSeg.match(/^(\d+)\s+(.+)$/);if(nM&&Number(nM[1])<=20){qty=Number(nM[1]);cleanSeg=nM[2];}
+    var xM=cleanSeg.match(/^(.+?)\s*[xх](\d+)$/i);if(xM&&Number(xM[2])<=20){qty=Number(xM[2]);cleanSeg=xM[1].trim();}
+    var matched=false;
+    for(var ki=0;ki<prodIndex.length;ki++){var pi=prodIndex[ki];if(pi.kws.some(function(kw){return cleanSeg.indexOf(kw)!==-1;})&&!found.find(function(f){return f.productId===pi.product.id;})){found.push({productId:pi.product.id,name:pi.product.name,price:Number(pi.product.price),cost:Number(pi.product.cost||0),qty:qty,type:pi.product.type||"product"});matched=true;break;}}
+    if(!matched){var pa=matchAlias(cleanSeg);if(pa&&!found.find(function(f){return f.productId===pa.id;})){found.push({productId:pa.id,name:pa.name,price:Number(pa.price),cost:Number(pa.cost||0),qty:qty,type:pa.type||"product"});}}
+  }
+  for(var alias in ALIASES_V2){if(low.indexOf(alias)!==-1){var pa=matchAlias(alias);if(pa&&!found.find(function(f){return f.productId===pa.id;})){found.push({productId:pa.id,name:pa.name,price:Number(pa.price),cost:Number(pa.cost||0),qty:1,type:pa.type||"product"});}}}
+  return found;
+}
+function parsePayV2(text){
+  var low=(text||'').toLowerCase();
+  if(/полн(?:ая|а|ой)\s*(?:оплат|предоплат)?|повн(?:а|ої|истю)\s*(?:оплат|передоплат)?/i.test(low))return{type:'full',amount:0};
+  if(/бартер/i.test(low))return{type:'barter',amount:0};
+  var m=low.match(/(?:перед\s*оплат|передоплат|предоплат|предолат|предопо|передплат)[а-яіїєґё]*[ \t]*[—\-:]?[ \t]*(\d+)/i);
+  if(m)return{type:'prepaid',amount:Number(m[1])};
+  m=low.match(/(\d+)[ \t]*(?:грн?|гр|₴)?[ \t]*(?:перед\s*оплат|передоплат|предоплат|предолат|предопо|передплат)/i);
+  if(m)return{type:'prepaid',amount:Number(m[1])};
+  m=low.match(/(\d+)?\s*(?:оплач|опалч)/);
+  if(m){var amt=0;if(m[1])amt=Number(m[1]);else{var a2=low.match(/оплач\w*\s*(\d+)/);if(a2)amt=Number(a2[1]);}return{type:'paid',amount:amt};}
+  return null;
+}
+function parseDiscountV2(text){
+  var low=(text||'').toLowerCase();
+  var m=low.match(/(?:скидк|знижк|зніжк|discount)[а-яіїєґа]*\s*[—\-:]?\s*(\d+)\s*(%)?/i);
+  if(m)return{amount:Number(m[1]),percent:!!m[2]};
+  m=low.match(/(\d+)\s*(?:грн?|₴)?\s*(?:скидк|знижк)/i);
+  if(m)return{amount:Number(m[1]),percent:false};
+  return null;
+}
+function extractPhoneV2(text){
+  var m=(text||'').match(/(\+?3?8?)\s*(0[\s\.\-]?\d[\s\.\-]?\d[\s\.\-]?\d[\s\.\-]?\d[\s\.\-]?\d[\s\.\-]?\d[\s\.\-]?\d[\s\.\-]?\d[\s\.\-]?\d?)/);
+  if(m){var d=m[2].replace(/[\s\.\-]/g,'');if(d.length>=9)return{phone:'+38'+d,full:m[0]};}
+  m=(text||'').match(/(\+\d{1,3}\d{7,12})/);
+  if(m)return{phone:m[1],full:m[0]};
+  return null;
+}
+const KNOWN_CITIES_V2=["київ","киев","kyiv","харків","харьков","одеса","одесса","дніпро","днепр","львів","львов","запоріжжя","запорожье","миколаїв","николаев","маріуполь","мариуполь","вінниця","винница","херсон","полтава","чернігів","чернигов","черкаси","черкассы","суми","сумы","житомир","рівне","ровно","кропивницький","кировоград","тернопіль","тернополь","івано-франківськ","ивано-франковск","луцьк","луцк","ужгород","хмельницький","хмельницкий","чернівці","черновцы","біла церква","кременчук","кременчуг","бровари","бровары","краматорськ","краматорск","мелітополь","мелитополь","нікополь","никополь","бердянськ","бердянск","павлоград","кам'янське","олександрія","конотоп","умань","шостка","ізмаїл","измаил","новомосковськ","новомосковск","коростень","ніжин","нежин","прилуки","фастів","ірпінь","буча","обухів","васильків","бориспіль","вишневе"];
+
+// ─── parseClient v2 (line-by-line classification) ───
+function parseClient(text,products){
+  products=products||[];
+  var EMPTY={name:"",phone:"",city:"",npBranch:"",npType:"branch",payment:"control",prepayment:0,discount:0,discountPercent:false,products:[],paymentType:null};
+  var full=(text||'').trim();
+  if(!full)return EMPTY;
+  function uBoundary(token){var esc=token.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');return new RegExp('(^|[^a-zA-Zа-яіїєґА-ЯІЇЄҐёЁ])'+esc+'(?=[^a-zA-Zа-яіїєґА-ЯІЇЄҐёЁ]|$)','gi');}
+  var phone="",ph=extractPhoneV2(full);if(ph)phone=ph.phone;
+  var products_found=findProdsV2(full,products);
+  var prepayment=0,discount=0,discountPercent=false,payment="control",paymentType=null;
+  var payR=parsePayV2(full);
+  if(payR){if(payR.type==='full'){prepayment=0;paymentType='full';}else if(payR.type==='barter'){payment='barter';paymentType='barter';}else if(payR.type==='prepaid'){prepayment=payR.amount;paymentType='prepaid';}else if(payR.type==='paid'){prepayment=payR.amount;paymentType='paid';}}
+  var disc=parseDiscountV2(full);if(disc){discount=disc.amount;discountPercent=disc.percent;}
+  var rawLines=full.split(/\n/).map(function(l){return l.trim();}).filter(Boolean);
+  var classified=[];
+  var prodKwSet=[];
+  for(var i=0;i<products_found.length;i++){var pname=products_found[i].name;var qm=pname.match(/["“«](.*?)["”»]/);if(qm){prodKwSet.push(qm[1].toLowerCase());qm[1].toLowerCase().split(/[\s&]+/).forEach(function(w){if(w.length>2)prodKwSet.push(w);});}else prodKwSet.push(pname.toLowerCase());}
+  for(var alias in ALIASES_V2){var canon=ALIASES_V2[alias];if(products_found.some(function(p){return p.name.toLowerCase().indexOf(canon)!==-1;}))prodKwSet.push(alias);}
+  function isProductLine(low){for(var k=0;k<prodKwSet.length;k++){if(low.indexOf(prodKwSet[k])!==-1)return true;}return false;}
+  function isPaymentLine(low){return /перед\s*оплат|передоплат|предоплат|предолат|передплат|оплач|опалч|повн[а-яії]+\s*оплат|полн[а-яії]+\s*оплат|бартер/i.test(low);}
+  function isDiscountLine(low){return /скидк|знижк|зніжк|discount/i.test(low);}
+  for(var li=0;li<rawLines.length;li++){
+    var line=rawLines[li];var low=line.toLowerCase();var tag='text',meta={};
+    var phResult=extractPhoneV2(line);
+    if(phResult){tag='phone';}
+    else if(/(?:поштомат|почтомат|поштамт)\s*№?\s*\d{3,6}/i.test(line)){
+      var pm=line.match(/(?:поштомат|почтомат|поштамт)\s*№?\s*(\d{3,6})/i);
+      tag='postomat';meta.branch=pm[1];
+      var bIdx=line.toLowerCase().indexOf(pm[0].toLowerCase());
+      var cityCand=line.substring(0,bIdx).replace(/[,]/g,'').trim();
+      if(cityCand)meta.cityCand=cityCand;
+    }
+    else if(/(?:^|\s)(?:нп|нова[яї]?\s*пошт[аи]?|відділення|віддiлення|відд\.?|отделение|відд|отд\.?)\s*(?:нової\s*пошти\s*)?№?\s*(?:номер\s*)?№?\s*\d{1,4}/i.test(line)){
+      var bm=line.match(/(?:^|\s)((?:нп|нова[яї]?\s*пошт[аи]?|відділення|віддiлення|відд\.?|отделение|відд|отд\.?)\s*(?:нової\s*пошти\s*)?№?\s*(?:номер\s*)?№?\s*(\d{1,4}))/i);
+      tag='branch';meta.branch=bm[2];meta.fullMatch=bm[1];
+      var bIdx2=line.toLowerCase().indexOf(bm[1].toLowerCase());
+      var cityCand2=line.substring(0,bIdx2).replace(/[,]/g,'').trim();
+      if(cityCand2)meta.cityCand=cityCand2;
+    }
+    else if(/^([A-Za-zА-ЯІЇЄҐа-яіїєґ\s\-'`’]{3,})\s+(\d{1,5})\s*$/.test(line)){
+      var cbm=line.match(/^([A-Za-zА-ЯІЇЄҐа-яіїєґ\s\-'`’]{3,})\s+(\d{1,5})\s*$/);
+      tag='citybranch';meta.city=cbm[1].trim();meta.branch=cbm[2];
+      meta.npType=(cbm[2].length>=3?'postomat':'branch');
+    }
+    else if(/^№\s*\d{1,5}$/.test(line)){tag='branch';meta.branch=line.replace(/[№\s]/g,'');}
+    else if(isPaymentLine(low)){tag='payment';}
+    else if(isDiscountLine(low)){tag='discount';}
+    else if(isProductLine(low)){tag='product';}
+    else{tag='text';}
+    classified.push({line:line,low:low,tag:tag,meta:meta,idx:li});
+  }
+  var city="",branch="",npType="branch",branchLineIdx=-1,phoneLineIdx=-1;
+  for(var ci=0;ci<classified.length;ci++){var e=classified[ci];if(e.tag==='postomat'){branch=e.meta.branch;npType='postomat';branchLineIdx=e.idx;break;}if(e.tag==='branch'){branch=e.meta.branch;npType='branch';branchLineIdx=e.idx;break;}if(e.tag==='citybranch'){city=e.meta.city;branch=e.meta.branch;npType=e.meta.npType;branchLineIdx=e.idx;break;}}
+  for(var ci2=0;ci2<classified.length;ci2++){if(classified[ci2].tag==='phone'){phoneLineIdx=ci2;break;}}
+  function cleanText(line){return line.replace(/№/g,' ').replace(uBoundary('номер'),' ').replace(/\d+/g,' ').replace(/[,\/\|]+/g,' ').replace(/\s+/g,' ').trim();}
+  function isNameShape(line){var clean=cleanText(line);var ws=clean.split(/\s+/).filter(Boolean);if(ws.length<2||ws.length>5)return false;return ws.every(function(w){return /^[А-ЯІЇЄҐA-Z][а-яіїєґa-z'`\-’]{1,}$/.test(w);});}
+  var SURNAME_RE=/(?:енко|юк|чук|ський|цький|ська|цька|ова|ева|іна|ина|евич|ович|ук|ак|як|ин|ов|ев|ій|ний|ник|ишин|чин)$/i;
+  function hasSurnameWord(line){var clean=cleanText(line);var ws=clean.split(/\s+/).filter(Boolean);return ws.some(function(w){return w.length>=4 && SURNAME_RE.test(w);});}
+  var SETTLE_RE=/(?:івка|инка|енька|щина|щагівка|польщ|поль|град|горск|город|сько|ське|цьке|цька|ська|городок|кут|роща)$/i;
+  function hasSettleSuffix(line){var clean=cleanText(line);var ws=clean.split(/\s+/).filter(Boolean);return ws.some(function(w){return w.length>=4 && SETTLE_RE.test(w);});}
+  if(!city && branchLineIdx>=0){var bce=classified[branchLineIdx];if(bce.meta.cityCand)city=bce.meta.cityCand;}
+  if(!city && branchLineIdx>0){for(var pi=branchLineIdx-1;pi>=0;pi--){var pe=classified[pi];if(pe.tag==='text' && /^[A-Za-zА-ЯІЇЄҐа-яіїєґ\s\-'`’.,]+$/.test(pe.line)){var wcount=pe.line.split(/\s+/).filter(Boolean).length;if(wcount<=3 && !hasSurnameWord(pe.line)){city=pe.line.replace(/[,]/g,'').trim();classified[pi].tag='city';break;}}}}
+  if(!city){var lowFull=full.toLowerCase();for(var ki=0;ki<KNOWN_CITIES_V2.length;ki++){var kc=KNOWN_CITIES_V2[ki];var cre=new RegExp('(?:^|[\\s,/|\\n])('+kc.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')(?=[\\s,/|\\n]|$)','i');var cm=lowFull.match(cre);if(cm){var idx=lowFull.indexOf(cm[1],cm.index);city=full.substr(idx,kc.length);city=city.charAt(0).toUpperCase()+city.slice(1);for(var ci3=0;ci3<classified.length;ci3++){if(classified[ci3].line.toLowerCase().indexOf(kc)!==-1){classified[ci3].tag='city';break;}}break;}}}
+  if(!city){for(var ssi=0;ssi<classified.length;ssi++){var sse=classified[ssi];if(sse.tag!=='text')continue;if(hasSettleSuffix(sse.line) && !hasSurnameWord(sse.line)){city=sse.line.replace(/[,]/g,'').trim();classified[ssi].tag='city';break;}}}
+  city=city.replace(/^(?:м\.?\s*|місто\s+|село\s+|с\.\s*|смт\.?\s*|пгт\.?\s*|селище\s+)/i,'').trim();
+  if(city){city=city.split(/\s+/).map(function(w){return w?w.charAt(0).toUpperCase()+w.slice(1).toLowerCase():w;}).join(' ');}
+  var name='';var nameCandidates=[];
+  for(var ni=0;ni<classified.length;ni++){var ne=classified[ni];if(ne.tag!=='text')continue;var clean=cleanText(ne.line);if(!clean||clean===city)continue;nameCandidates.push({clean:clean,idx:ne.idx,line:ne.line});}
+  if(phoneLineIdx>=0){var beforePhone=nameCandidates.find(function(nc){return nc.idx===phoneLineIdx-1 && isNameShape(nc.line);});if(beforePhone)name=beforePhone.clean;}
+  if(!name){var bySurname=nameCandidates.find(function(nc){return hasSurnameWord(nc.line);});if(bySurname)name=bySurname.clean;}
+  if(!name){var byShape=nameCandidates.find(function(nc){return isNameShape(nc.line) && !hasSettleSuffix(nc.line);});if(byShape)name=byShape.clean;}
+  if(!name){var anyShape=nameCandidates.find(function(nc){return isNameShape(nc.line);});if(anyShape)name=anyShape.clean;}
+  if(!name && nameCandidates.length){name=nameCandidates.sort(function(a,b){return b.clean.length-a.clean.length;})[0].clean;}
+  if(!city){var leftover=nameCandidates.find(function(nc){return nc.clean!==name;});if(leftover){city=leftover.clean;}}
+  if(city){city=city.split(/\s+/).map(function(w){return w?w.charAt(0).toUpperCase()+w.slice(1).toLowerCase():w;}).join(' ');}
+  return{name:name,phone:phone,city:city,npBranch:branch,npType:npType,payment:payment,prepayment:prepayment,paymentType:paymentType,discount:discount,discountPercent:discountPercent,products:products_found};
+}
+
+// --- Bulk Order Parser v2 ---
+function parseBulkOrders(rawText,products){
+  var prodIndex=products.map(function(p){
+    var kws=[];
+    var qm=p.name.match(/["\u201C\u00AB](.*?)["\u201D\u00BB]/);
+    if(qm){kws.push(qm[1].toLowerCase());qm[1].toLowerCase().split(/[\s&]+/).forEach(function(w){if(w.length>2)kws.push(w);});}
+    var cl=p.name.replace(/^\u0444\u0443\u0442\u0431\u043E\u043B\u043A\u0430\s*/i,"").replace(/["\u201C\u201D\u00AB\u00BB\u2014]/g,"").trim().toLowerCase();
+    if(cl.length>2)kws.push(cl);
+    kws.push(p.name.toLowerCase());
+    return{product:p,kws:kws.filter(function(v,i,a){return a.indexOf(v)===i;})};
+  });
+
+  var ALIASES={
+    'еминем':'eminem','эминем':'eminem','эмигем':'eminem','єминем':'eminem','еміне':'eminem','эмине':'eminem',
+    'памела':'pamela','памел':'pamela',
+    'брітні':'britney','бритни':'britney','брітн':'britney','бритн':'britney',
+    'краш':'crush',
+    'чувак':'beavis','бівіс':'beavis','бивис':'beavis','батхед':'beavis',
+    'ліндсі':'lindsay','линдси':'lindsay','лохан':'lindsay',
+    'снуп':'snoop','снуп дог':'snoop',
+    'продіджі':'prodigy','продиджи':'prodigy',
+    'плейбой':'playboy',
+    'love is':'love is',
+    'мастурбац':'masturbation',
+    'пам томм':'pam & tommy','памтомм':'pam & tommy','pam tommy':'pam & tommy',
+    'why britney':'why britney shaped','побрит':'why britney shaped',
+    'soft rebel':'soft rebel','софт ребел':'soft rebel',
+    'giant pussy':'giant pussy','джаянт':'giant pussy',
+    'паста':'текстуруюча паста','текстур':'текстуруюча паста',
+    'спрей':'beach spray','біч':'beach spray','beach':'beach spray',
+    'кондиціонер':'hydration conditioner','кондиционер':'hydration conditioner',
+    'шампунь глиб':'deep clean shampoo','діп клін':'deep clean shampoo','deep clean':'deep clean shampoo',
+    'шампунь щод':'everyday shampoo','everyday shampoo':'everyday shampoo',
+    'крем гель':'curly cream gel','кьорлі':'curly cream gel','curly':'curly cream gel'
+  };
+
+  function matchAlias(text){
+    var t=text.toLowerCase();
+    for(var alias in ALIASES){
+      if(t.indexOf(alias)!==-1){
+        var canon=ALIASES[alias];
+        for(var k=0;k<prodIndex.length;k++){
+          var pi=prodIndex[k];
+          if(pi.kws.some(function(kw){return kw.indexOf(canon)!==-1;})||pi.product.name.toLowerCase().indexOf(canon)!==-1)return pi.product;
+        }
+      }
+    }
+    return null;
+  }
+
+  var QTY_WORDS={'одна':1,'одну':1,'один':1,'одне':1,'два':2,'дві':2,'двi':2,'три':3,'чотири':4,'четыре':4};
+
+  function findProds(text){
+    var low=text.toLowerCase().replace(/[^\u0000-\u2599\u2800-\uFDFF\uFF00-\uFFFF]/g,'').trim();
+    var segments=low.split(/\s+(?:и|і|\+)\s+/).map(function(s){return s.trim();}).filter(Boolean);
+    var found=[];var cups=[];
+    for(var si=0;si<segments.length;si++){
+      var seg=segments[si];
+      if(/чашк|кружк/i.test(seg)){cups.push(seg);continue;}
+      var qty=1;
+      var cleanSeg=seg;
+      for(var qw in QTY_WORDS){
+        var qre=new RegExp('(?:^|\\s)'+qw+'(?:\\s|$)','i');
+        if(qre.test(cleanSeg)){qty=QTY_WORDS[qw];cleanSeg=cleanSeg.replace(qre,' ').trim();break;}
+      }
+      var numQtyM=cleanSeg.match(/^(\d+)\s+(.+)$/);
+      if(numQtyM&&Number(numQtyM[1])<=20){qty=Number(numQtyM[1]);cleanSeg=numQtyM[2];}
+      var xQty=cleanSeg.match(/^(.+?)\s*[x\u0445](\d+)$/i);
+      if(xQty&&Number(xQty[2])<=20){qty=Number(xQty[2]);cleanSeg=xQty[1].trim();}
+      var matched=false;
+      for(var ki=0;ki<prodIndex.length;ki++){
+        var pi=prodIndex[ki];
+        if(pi.kws.some(function(kw){return cleanSeg.indexOf(kw)!==-1;})&&!found.find(function(f){return f.productId===pi.product.id;})){
+          found.push({productId:pi.product.id,name:pi.product.name,price:Number(pi.product.price),cost:Number(pi.product.cost||0),qty:qty,type:pi.product.type||"product"});matched=true;break;
+        }
+      }
+      if(!matched){
+        var p=matchAlias(cleanSeg);
+        if(p&&!found.find(function(f){return f.productId===p.id;})){
+          found.push({productId:p.id,name:p.name,price:Number(p.price),cost:Number(p.cost||0),qty:qty,type:p.type||"product"});matched=true;
+        }
+      }
+      if(!matched&&/чашк|кружк/i.test(seg)){cups.push(seg);}
+    }
+    for(var alias in ALIASES){
+      if(low.indexOf(alias)!==-1){
+        var pa=matchAlias(alias);
+        if(pa&&!found.find(function(f){return f.productId===pa.id;})){
+          found.push({productId:pa.id,name:pa.name,price:Number(pa.price),cost:Number(pa.cost||0),qty:1,type:pa.type||"product"});
+        }
+      }
+    }
+    return{products:found,cups:cups};
+  }
+
+  var CITIES_LIST=["київ","киев","харків","харьков","одеса","одесса","дніпро","днепр","львів","львов","запоріжжя","запорожье","полтава","вінниця","винница","херсон","чернігів","чернигов","суми","сумы","житомир","рівне","ровно","тернопіль","ужгород","хмельниц","чернівці","кривий ріг","бровари","кременчук","ізмаїл","шепетівка","ніжин","гельмязів","северинівка","берестин","красноград","кишинів","краматорськ","мелітополь","бердянськ","павлоград","конотоп","умань","біла церква","новомосковськ","нова каховка","олександрія","шостка","прилуки","коростень","нікополь","миколаїв","кропивницький","івано-франківськ","луцьк","маріуполь","черкаси","обухів","фастів","бориспіль","васильків","ірпінь","вишневе","буча","славутич"];
+  var INTL_COUNTRIES=["литва","lithuania","германия","germany","німеччина","deutschland","польща","polska","poland","чехія","czech","молдова","moldova","румунія","romania","естонія","estonia","латвія","latvia","італія","italy","іспанія","spain","франція","france","сша","usa","канада","canada","великобританія","uk","англія","england","туреччина","turkey","грузія","georgia","ізраїль","israel"];
+
+  function parsePay(low){
+    if(/полн(?:ая|а|ой)\s*(?:оплат|предоплат)?|повн(?:а|ої)\s*(?:оплат|передоплат)?/i.test(low))return{type:'full',amount:0};
+    if(/бартер/i.test(low))return{type:'barter',amount:0};
+    var m=low.match(/(\d+)\s*(?:грн?|гр)?\s*(?:предоплат|предолат|предопо)/);
+    if(m)return{type:'prepaid',amount:Number(m[1])};
+    m=low.match(/(?:предоплат|предолат|предопо)[а-яіїєґё]*\s*(\d+)/);
+    if(m)return{type:'prepaid',amount:Number(m[1])};
+    m=low.match(/(\d*)\s*(?:оплач|опалч)/);
+    if(m){
+      var amt=0;
+      if(m[1])amt=Number(m[1]);
+      else{var a2=low.match(/(\d+)/);if(a2)amt=Number(a2[1]);}
+      return{type:'paid',amount:amt};
+    }
+    return null;
+  }
+
+  function extractPhone(text){
+    var m=text.match(/(\+?3?8?)\s*(0[\s\.\-]?\d[\s\.\-]?\d[\s\.\-]?\d[\s\.\-]?\d[\s\.\-]?\d[\s\.\-]?\d[\s\.\-]?\d[\s\.\-]?\d[\s\.\-]?\d?)/);
+    if(m){var d=m[2].replace(/[\s\.\-]/g,'');if(d.length>=9)return{phone:'+38'+d,full:m[0]};}
+    m=text.match(/(\+\d{1,3}\d{7,12})/);
+    if(m)return{phone:m[1],full:m[0]};
+    return null;
+  }
+
+  function stripEmoji(text){
+    return text.replace(/[^\u0000-\u2599\u2800-\uFDFF\uFF00-\uFFFF]/g,'').trim();
+  }
+
+  function tryOneLiner(line){
+    var dashM=line.match(/^(.+?)\s*[-\u2013]\s*(.+)$/);
+    if(!dashM)return null;
+    var left=dashM[1].trim();
+    var right=dashM[2].trim();
+    var ph=extractPhone(left);
+    if(ph){
+      var r=findProds(right);
+      var amtM=right.match(/\s+(\d{3,4})\s*$/);
+      var prep=0;if(amtM&&Number(amtM[1])>=100&&Number(amtM[1])<=5000)prep=Number(amtM[1]);
+      if(r.products.length>0)return{phone:ph.phone,phoneName:left.replace(ph.full,'').trim(),items:r.products,prepaid:prep};
+    }
+    if(/^[a-zA-Z0-9_\.]+$/.test(left)||left.indexOf('@')!==-1){
+      var r2=findProds(right);
+      var amtM2=right.match(/\s+(\d{3,4})\s*$/);
+      var prep2=0;if(amtM2&&Number(amtM2[1])>=100&&Number(amtM2[1])<=5000)prep2=Number(amtM2[1]);
+      if(r2.products.length>0)return{instagram:left,items:r2.products,prepaid:prep2};
+    }
+    return null;
+  }
+
+  function parseBlock(block){
+    var lines=block.split('\n').map(function(l){return stripEmoji(l).trim();}).filter(function(l){return l&&l.length>1&&!/^(?:международка|міжнародка|международна)$/i.test(l);});
+    var name='',phone='',city='',branch='',prepaid=0,paid=false,barterFlag=false,items=[],notes=[],isInternational=false;
+
+    for(var oi=0;oi<lines.length;oi++){
+      var ol=tryOneLiner(lines[oi]);
+      if(ol){
+        if(ol.phone&&!phone)phone=ol.phone;
+        if(ol.phoneName&&ol.phoneName.length>2&&!name)name=ol.phoneName;
+        if(ol.instagram)notes.push('IG: '+ol.instagram);
+        if(ol.items)items=items.concat(ol.items);
+        if(ol.prepaid)prepaid=ol.prepaid;
+        lines.splice(oi,1);oi--;
+      }
+    }
+
+    for(var li=0;li<lines.length;li++){
+      var line=lines[li];
+      var low=line.toLowerCase();
+      if(!line||line.length<2)continue;
+
+      var complexM=line.match(/([А-ЯІЇЄҐа-яіїєґ]+)\s*,\s*(?:поштомат|почтомат)\s*(\d+)\s*,\s*([А-ЯІЇЄҐа-яіїєґ\s'\u2019]+?)\s*,\s*(\+?3?8?0\d{8,9})/i);
+      if(complexM){city=complexM[1];branch='\u043F\u043E\u0448\u0442\u043E\u043C\u0430\u0442 '+complexM[2];if(!name)name=complexM[3].trim();phone='+38'+complexM[4].replace(/^\+?3?8?/,'');continue;}
+
+      var intlHit=false;
+      for(var ci=0;ci<INTL_COUNTRIES.length;ci++){if(low.indexOf(INTL_COUNTRIES[ci])!==-1){isInternational=true;intlHit=true;if(!city)city=line;break;}}
+      if(intlHit)continue;
+
+      var hasProductHint=/еминем|эминем|эмигем|памела|бр[іи]тн|краш|crush|eminem|pamela|snoop|prodigy|футболк|чашк|паста|спрей|кондиц|шампунь|lohan|lindsay|playboy|beavis|love is|rebel|pussy|masturbat|tommy|curly|beach|deep clean|everyday/i.test(low);
+      if(!hasProductHint){
+        var payR=parsePay(low);
+        if(payR){
+          if(payR.type==='full'){paid=true;}
+          else if(payR.type==='barter'){barterFlag=true;}
+          else if(payR.type==='prepaid'){prepaid=payR.amount;}
+          else if(payR.type==='paid'){paid=true;if(payR.amount)prepaid=payR.amount;}
+          continue;
+        }
+      }
+
+      var prodResult=findProds(line);
+      var prods=prodResult.products;
+      var cups=prodResult.cups;
+      if(prods.length>0){
+        for(var pi2=0;pi2<prods.length;pi2++){
+          if(!items.find(function(ei){return ei.productId===prods[pi2].productId;}))items.push(prods[pi2]);
+        }
+        if(cups.length>0){for(var ci2=0;ci2<cups.length;ci2++)notes.push('\u0447\u0430\u0448\u043A\u0430: '+cups[ci2]);}
+        var trailM=low.match(/\s(\d{3,4})\s*$/);
+        if(trailM&&!prepaid){
+          var tAmt=Number(trailM[1]);
+          if(!prods.some(function(pp){return pp.price===tAmt;})&&tAmt>=100&&tAmt<=5000)prepaid=tAmt;
+        }
+        continue;
+      }
+      if(/чашк|кружк/i.test(low)){notes.push(line);continue;}
+
+      var phResult=extractPhone(line);
+      if(phResult&&phResult.phone.length>=10){
+        if(!phone)phone=phResult.phone;
+        var rest=line.replace(phResult.full,'').replace(/\+?380?\s*/g,'').replace(/Укр\.?\s*номер/gi,'').replace(/Молдав\w+\s*номер/gi,'').trim();
+        if(rest&&rest.length>3&&/^[А-ЯІЇЄҐа-яіїєґA-Za-z\s'\u2019`.\-]+$/.test(rest)&&!name)name=rest;
+        continue;
+      }
+      if(/^\+?\d[\d\s\.\-]{7,}$/.test(line.trim())){
+        var dd=line.replace(/[\s\.\-]/g,'');
+        if(!phone)phone=dd.charAt(0)==='+'?dd:(dd.charAt(0)==='0'?'+38'+dd:'+'+dd);
+        continue;
+      }
+
+      if(isInternational){
+        if(/^[A-Za-z\u0410-\u044F\u0406\u0407\u0404\u0490\u0456\u0457\u0454\u0491\s,.\-'\u20190-9\/]+$/.test(line)&&line.length>2){
+          if(!city)city=line;
+          else city=city+', '+line;
+        }
+        continue;
+      }
+
+      var poshtM=line.match(/(?:поштомат|почтомат)\s*(\d{4,6})/i);
+      if(poshtM){branch='\u043F\u043E\u0448\u0442\u043E\u043C\u0430\u0442 '+poshtM[1];
+        var before=line.substring(0,line.toLowerCase().indexOf(poshtM[0].toLowerCase())).replace(/[,]/g,'').trim();
+        if(before&&!city)city=before;
+        continue;
+      }
+
+      var brPatterns=[
+        /(?:нп|нова[яї]?\s*пошт[аи]?|відділення|відд|отделение|від)\s*(?:нової\s*пошти\s*)?#?\s*(?:номер\s*)?(\d{1,6})/i,
+        /(\d{1,5})\s*(?:відділення|отделение|від(?:\s|$))/i
+      ];
+      var brFound=false;
+      for(var bi=0;bi<brPatterns.length;bi++){
+        var brM=line.match(brPatterns[bi]);
+        if(brM&&!branch){branch=brM[1];
+          var bIdx=line.toLowerCase().indexOf(brM[0].toLowerCase());
+          var bBefore=line.substring(0,bIdx).trim();
+          if(bBefore){var bc=bBefore.replace(/^(?:м\.\s*|місто\s+|село\s+|с\.\s*|смт\.?\s*|пгт\.?\s*|селище\s+)/i,'').replace(/[,]/g,'').trim();if(bc&&!city&&/^[А-ЯІЇЄҐа-яіїєґ\s\-'\u2019]+$/i.test(bc))city=bc;}
+          brFound=true;break;
+        }
+      }
+      if(brFound)continue;
+
+      var isCity2=false;
+      for(var ci3=0;ci3<CITIES_LIST.length;ci3++){
+        if(low.indexOf(CITIES_LIST[ci3])!==-1){isCity2=true;
+          city=line.replace(/^(?:місто\s+|м\.?\s*)/i,'').trim();
+          var cRe=new RegExp(CITIES_LIST[ci3].replace(/\s/g,'\\s*')+'\\s+(\\d{1,5})');
+          var afterM=low.match(cRe);
+          if(afterM&&!branch){branch=afterM[1];city=city.replace(/\s+\d{1,5}/,'').trim();}
+          city=city.replace(/,?\s*(?:нова[яї]?\s*пошт\w*|новая\s*почта)\s*\d*/gi,'').replace(/(?:^|,)\s*\bгород\b\s*/gi,'').replace(/\(.*?\)/g,'').replace(/\s{2,}/g,' ').trim();
+          break;
+        }
+      }
+      if(isCity2)continue;
+      if(/обл\.?$|обл(?:\s|$)|область|район/i.test(low)){if(!city)city=line;else city=line+', '+city;continue;}
+      if(/^(?:м\.?\s*|місто\s+|село\s+|с\.\s*|смт\.?\s*|пгт\.?\s*|селище\s+)/i.test(line)&&line.length>3){city=line.replace(/^(?:місто\s+|м\.?\s*|село\s+|с\.\s*|смт\.?\s*|пгт\.?\s*|селище\s+)/i,'').trim();continue;}
+
+      var cbM=line.match(/^([А-ЯІЇЄҐа-яіїєґ'\u2019\-]+(?:\s+[А-ЯІЇЄҐа-яіїєґ'\u2019\-]+)*)\s+(\d{1,5})$/);
+      if(cbM&&!city){city=cbM[1].trim();if(!branch)branch=cbM[2];continue;}
+
+      if(/^[А-ЯІЇЄҐа-яіїєґA-Za-z\s'\u2019`.\-()]+$/.test(line)&&line.split(/\s+/).length>=2&&!name){
+        if(!/обл|район|область/i.test(line)){name=line.replace(/\(.*?\)/g,'').trim();continue;}
+      }
+
+      if(/^[А-ЯІЇЄҐа-яіїєґ'\u2019\-]+$/.test(line.trim())&&line.length>2){
+        if(!city)city=line;else if(!name)name=line;continue;
+      }
+
+      if(line.trim())notes.push(line);
+    }
+
+    var total=items.reduce(function(s,i){return s+i.price*i.qty;},0);
+    var payment=barterFlag?'barter':'control';
+    return{name:name,phone:phone,city:city,branch:branch,items:items,total:total,prepaid:prepaid,paid:paid,payment:payment,notes:notes};
+  }
+
+  var blocks=rawText.split(/\n\s*[\-_\u2014\u2015\u2500\u2550\u2501=]{3,}\s*(?:\n|$)/).map(function(b){return b.trim();}).filter(Boolean);
+  return blocks.map(parseBlock);
+}
+
+
 // ─── Icon component (lightweight SVG, lucide-style) ──────────────────────────
 const Icon=({name,size=16,className=""})=>{
   const s=size;
@@ -1573,6 +2052,7 @@ function OrderEditModal({order,products,onClose,onSave,onDelete,user,isMgr}){
   const[showForward,setShowForward]=useState(false);
   const[showCod,setShowCod]=useState(false);
   const[showReturn,setShowReturn]=useState(false);
+  const[showCreateTtn,setShowCreateTtn]=useState(false);
   const[showAudit,setShowAudit]=useState(false);
   const[saving,setSaving]=useState(false);
 
@@ -1666,6 +2146,13 @@ function OrderEditModal({order,products,onClose,onSave,onDelete,user,isMgr}){
                 <div className="action-btn-sub">Оформити в НП</div>
               </div>
             </button>
+            {!draft.ttn&&draft.deliveryType==="np"&&<button className="action-btn" onClick={()=>setShowCreateTtn(true)} style={{borderColor:"var(--pink)",background:"var(--pink-soft)"}}>
+              <div className="action-btn-icon" style={{background:"var(--pink)",color:"#fff"}}><Icon name="package" size={16}/></div>
+              <div className="action-btn-content">
+                <div className="action-btn-title">Створити ТТН</div>
+                <div className="action-btn-sub">Одна накладна в НП</div>
+              </div>
+            </button>}
           </div>
 
           {/* Current state callouts */}
@@ -1695,7 +2182,81 @@ function OrderEditModal({order,products,onClose,onSave,onDelete,user,isMgr}){
     {showCod&&<CodChangeModal order={draft} onClose={()=>setShowCod(false)} onSave={async(patch,opts)=>{setDraft(d=>({...d,...patch}));await onSave(order.id,{...draft,...patch},opts);}} user={user}/>}
     {showReturn&&<ReturnModal order={draft} onClose={()=>setShowReturn(false)} onSave={async(patch,opts)=>{setDraft(d=>({...d,...patch}));await onSave(order.id,{...draft,...patch},opts);}} user={user}/>}
     {showAudit&&<AuditLogModal orderId={order.id} onClose={()=>setShowAudit(false)}/>}
+    {showCreateTtn&&<CreateSingleTtnModal order={draft} onClose={()=>setShowCreateTtn(false)} onSave={async(patch,opts)=>{setDraft(d=>({...d,...patch}));await onSave(order.id,{...draft,...patch},opts);}} user={user}/>}
   </>;
+}
+
+// ─── CreateSingleTtnModal — create one TTN for a single order ───
+function CreateSingleTtnModal({order,onClose,onSave,user}){
+  const[loading,setLoading]=useState(false);
+  const[weight,setWeight]=useState("0.5");
+  const[desc,setDesc]=useState((order.items||[]).map(it=>it.name).filter(Boolean).slice(0,3).join(", ")||"Товари для волосся");
+  const[cost,setCost]=useState(String(Math.max(100,Math.round(order.total||300))));
+  const[codAmount,setCodAmount]=useState(order.payment==="control"?String(order.codAmount||order.total||0):"0");
+  const[error,setError]=useState("");
+
+  const create=async()=>{
+    setError("");setLoading(true);
+    try{
+      if(!order.city||!order.npBranch||!order.client||!order.phone){
+        setError("Заповніть місто, відділення, ПІБ та телефон у заказі");
+        setLoading(false);return;
+      }
+      const sender=await NP.getSenderInfo();
+      if(!sender||!sender.contact||!sender.address){setError("Немає даних відправника в НП");setLoading(false);return;}
+      const cities=await NP.searchCity(order.city);
+      const city=cities[0];
+      if(!city){setError("Місто не знайдено: "+order.city);setLoading(false);return;}
+      const whs=await NP.getWarehouses(city.ref);
+      const wh=whs.find(w=>String(w.num)===String(order.npBranch));
+      if(!wh){setError("Відділення №"+order.npBranch+" не знайдено в "+order.city);setLoading(false);return;}
+      const rec=await NP.createRecipient(order.client,order.phone,city.ref);
+      if(!rec.ok){setError((rec.errors||["Не вдалося створити отримувача"]).join(", "));setLoading(false);return;}
+      const cargoRef=await NP.getCargoDescriptionRef("одяг");
+      const today=new Date();
+      const dStr=String(today.getDate()).padStart(2,"0")+"."+String(today.getMonth()+1).padStart(2,"0")+"."+today.getFullYear();
+      const params={
+        PayerType:"Recipient",PaymentMethod:"Cash",DateTime:dStr,CargoType:"Parcel",
+        Weight:String(weight),ServiceType:"WarehouseWarehouse",SeatsAmount:"1",
+        Description:desc,Cost:String(cost),
+        CitySender:sender.address.cityRef,Sender:sender.ref,
+        SenderAddress:sender.address.ref,ContactSender:sender.contact.ref,
+        SendersPhone:sender.contact.phone||"0",
+        CityRecipient:city.ref,Recipient:rec.ref,RecipientAddress:wh.ref,
+        ContactRecipient:rec.contactRef,RecipientsPhone:normPhoneNP(order.phone)
+      };
+      if(cargoRef)params.CargoDescription=cargoRef;
+      const cod=Number(codAmount)||0;
+      if(cod>0)params.BackwardDeliveryData=[{PayerType:"Recipient",CargoType:"Money",RedeliveryString:String(cod)}];
+      const r=await NP.createTTN(params);
+      if(r.ok&&r.ttn){
+        await onSave({ttn:r.ttn,status:"toSend"},{audit:{action:"ttn_create",after:{ttn:r.ttn}}});
+        toast("ТТН створена: "+r.ttn,"success");
+        // open marking PDF in new tab
+        window.open(NP.markingURL(r.ttn),"_blank");
+        onClose();
+      }else{
+        setError((r.errors||["невідома помилка"]).join(", "));
+      }
+    }catch(e){setError(e.message);}
+    finally{setLoading(false);}
+  };
+
+  return<Modal open={true} onClose={onClose} title="Створити ТТН Нової Пошти" footer={
+    <>
+      <button className="btn btn-secondary" onClick={onClose}>Скасувати</button>
+      <button className="btn btn-primary" onClick={create} disabled={loading}>{loading?<span className="spinner"/>:<><Icon name="package" size={14}/>Створити ТТН</>}</button>
+    </>
+  }>
+    <div className="muted text-sm">Отримувач: <b>{order.client}</b>, {fmtPhone(order.phone)}<br/>Доставка: <b>{order.city}</b>, №{order.npBranch}</div>
+    <div className="grid grid-2">
+      <div><label className="label">Вага (кг)</label><input className="input" type="number" step="0.1" value={weight} onChange={e=>setWeight(e.target.value)}/></div>
+      <div><label className="label">Оголошена вартість (₴)</label><input className="input" type="number" value={cost} onChange={e=>setCost(e.target.value)}/></div>
+    </div>
+    <div><label className="label">Опис вкладення</label><input className="input" value={desc} onChange={e=>setDesc(e.target.value)}/></div>
+    <div><label className="label">Контроль оплати (₴, 0 = без)</label><input className="input" type="number" value={codAmount} onChange={e=>setCodAmount(e.target.value)}/></div>
+    {error&&<div style={{color:"var(--red)",fontSize:13,padding:8,background:"var(--red-soft)",borderRadius:6}}>{error}</div>}
+  </Modal>;
 }
 
 // ─── OrdersListPage ──────────────────────────────────────────────────────────
@@ -1738,15 +2299,21 @@ function OrdersListPage({orders,products,user,isMgr,updateOrder,removeOrder,setP
   const ttnReady=useMemo(()=>orders.filter(o=>o.status==="ttn"&&o.deliveryType==="np"&&!o.ttn&&o.client&&o.phone&&o.city&&o.npBranch),[orders]);
   const showBulkBanner=ttnReady.length>=5;
 
-  const handleBulkTtn=async()=>{
-    if(!ttnReady.length)return;
-    if(!await confirmDialog(`Створити ${ttnReady.length} ТТН та відправити в Telegram?`,{okLabel:"Створити"}))return;
+  const handleBulkTtnSelected=async()=>{
+    const sel=filtered.filter(o=>selected.has(o.id)&&o.status==="ttn"&&o.deliveryType==="np"&&!o.ttn&&o.client&&o.phone&&o.city&&o.npBranch);
+    if(sel.length===0){toast("Серед виділених немає готових до ТТН","warn");return;}
+    await runBulkTtn(sel);
+    setSelected(new Set());
+  };
+  const runBulkTtn=async(orders)=>{
+    if(!orders||!orders.length)return;
+    if(!await confirmDialog(`Створити ${orders.length} ТТН та відправити в Telegram?`,{okLabel:"Створити"}))return;
     setBulkRunning(true);
     try{
       const sender=await NP.getSenderInfo();
       if(!sender||!sender.contact||!sender.address){toast("Не вдалося отримати дані відправника НП","error");setBulkRunning(false);return;}
       const created=[];const refsForScan=[];let failedCount=0;const errors=[];
-      for(const o of ttnReady){
+      for(const o of orders){
         try{
           const cities=await NP.searchCity(o.city);
           const city=cities[0];
@@ -1797,6 +2364,10 @@ function OrdersListPage({orders,products,user,isMgr,updateOrder,removeOrder,setP
     }catch(e){console.error(e);toast("Помилка масового створення ТТН","error");}
     finally{setBulkRunning(false);}
   };
+  const handleBulkTtn=async()=>{
+    if(!ttnReady.length){toast("Немає замовлень, готових до ТТН","warn");return;}
+    await runBulkTtn(ttnReady);
+  };
 
   return<div className="col gap-12">
     {/* Bulk TTN banner */}
@@ -1809,6 +2380,14 @@ function OrdersListPage({orders,products,user,isMgr,updateOrder,removeOrder,setP
       <button onClick={handleBulkTtn}>📦 Створити {ttnReady.length} ТТН</button>
     </div>}
     {bulkRunning&&<div className="bulk-banner"><div className="bulk-banner-icon"><span className="spinner" style={{borderTopColor:"#fff"}}/></div><div className="bulk-banner-text"><div className="bulk-banner-title">Створюю ТТН…</div><div className="bulk-banner-sub">Не закривай вкладку</div></div></div>}
+
+    {/* Selection action bar */}
+    {selected.size>0&&<div className="card" style={{background:"#fffafb",borderColor:"var(--pink)",padding:"12px 16px",display:"flex",alignItems:"center",gap:12,flexWrap:"wrap"}}>
+      <span className="fw-700"><Icon name="check" size={14}/> Виділено: {selected.size}</span>
+      <span className="muted text-sm">з них готові до ТТН: {filtered.filter(o=>selected.has(o.id)&&o.status!=="ttn"?false:(o.status==="ttn"&&o.deliveryType==="np"&&!o.ttn&&o.client&&o.phone&&o.city&&o.npBranch)).length}</span>
+      <button className="btn btn-primary btn-sm" onClick={()=>handleBulkTtnSelected()} disabled={bulkRunning}><Icon name="package" size={14}/>Створити ТТН для виділених → TG</button>
+      <button className="btn btn-ghost btn-sm" onClick={()=>setSelected(new Set())}>Скинути виділення</button>
+    </div>}
 
     {/* Filter bar */}
     <div className="filter-bar">
@@ -1835,6 +2414,7 @@ function OrdersListPage({orders,products,user,isMgr,updateOrder,removeOrder,setP
         <table className="tbl">
           <thead>
             <tr>
+              <th style={{width:32}}><input type="checkbox" checked={selected.size>0&&filtered.every(o=>selected.has(o.id))} onChange={e=>{if(e.target.checked)setSelected(new Set(filtered.map(o=>o.id)));else setSelected(new Set());}}/></th>
               <th style={{width:60}}>#</th>
               <th>Клієнт</th>
               <th>Доставка</th>
@@ -1849,7 +2429,8 @@ function OrdersListPage({orders,products,user,isMgr,updateOrder,removeOrder,setP
           <tbody>
             {filtered.map(o=>{
               const tg=tgLink(o.phone);
-              return<tr key={o.id}>
+              return<tr key={o.id} className={selected.has(o.id)?"selected":""}>
+                <td><input type="checkbox" checked={selected.has(o.id)} onChange={e=>{const s=new Set(selected);if(e.target.checked)s.add(o.id);else s.delete(o.id);setSelected(s);}}/></td>
                 <td className="muted-2">#{String(o.id).slice(-4)}</td>
                 <td>
                   <div className="fw-700">{o.client||"—"}</div>
@@ -1886,6 +2467,7 @@ function OrdersListPage({orders,products,user,isMgr,updateOrder,removeOrder,setP
 
 // ─── NewOrderPage ────────────────────────────────────────────────────────────
 function NewOrderPage({products,addOrder,setPage,user}){
+  const[paste,setPaste]=useState("");
   const[form,setForm]=useState({
     client:"",phone:"",city:"",npBranch:"",cityRef:"",branchRef:"",
     deliveryType:"np",payment:"control",
@@ -1893,6 +2475,7 @@ function NewOrderPage({products,addOrder,setPage,user}){
     codAmount:null,prepayment:null,comment:""
   });
   const[saving,setSaving]=useState(false);
+  const[parsed,setParsed]=useState(false);
 
   const updField=(k,v)=>setForm(f=>({...f,[k]:v}));
   const updItem=(i,patch)=>setForm(f=>{const arr=[...f.items];arr[i]={...arr[i],...patch};return{...f,items:arr};});
@@ -1900,9 +2483,33 @@ function NewOrderPage({products,addOrder,setPage,user}){
   const total=form.items.reduce((s,it)=>s+(Number(it.price)||0)*(Number(it.qty)||1),0);
   const totalCost=form.items.reduce((s,it)=>s+(Number(it.cost)||0)*(Number(it.qty)||1),0);
 
-  const productByName=useMemo(()=>{
-    const m={};products.forEach(p=>m[p.name.toLowerCase()]=p);return m;
-  },[products]);
+  const productByName=useMemo(()=>{const m={};products.forEach(p=>m[p.name.toLowerCase()]=p);return m;},[products]);
+
+  // Parse pasted text → fill form
+  const doParse=()=>{
+    if(!paste.trim()){toast("Вставте текст замовлення","warn");return;}
+    try{
+      const r=parseClient(paste,products);
+      const items=(r.products||[]).map(p=>({name:p.name,qty:p.qty||1,price:p.price,cost:p.cost||0,productId:p.productId}));
+      setForm(f=>({
+        ...f,
+        client:r.name||f.client,
+        phone:r.phone?r.phone.replace(/\D/g,""):f.phone,
+        city:r.city||f.city,
+        npBranch:r.npBranch||f.npBranch,
+        payment:r.payment==="barter"?"prepaid":(r.paymentType==="prepaid"||r.paymentType==="paid"||r.paymentType==="full")?"prepaid":"control",
+        prepayment:r.prepayment||null,
+        items:items.length>0?items:f.items,
+        comment:paste
+      }));
+      setParsed(true);
+      const foundCount=[r.name?"ПІБ":null,r.phone?"телефон":null,r.city?"місто":null,r.npBranch?"відділення":null,items.length?items.length+" товар(ів)":null].filter(Boolean);
+      toast("Розпізнано: "+foundCount.join(", "),"success");
+    }catch(e){
+      console.error(e);
+      toast("Помилка парсингу: "+e.message,"error");
+    }
+  };
 
   const submit=async()=>{
     if(!form.client){toast("Введіть ПІБ клієнта","warn");return;}
@@ -1929,45 +2536,61 @@ function NewOrderPage({products,addOrder,setPage,user}){
   };
 
   return<div className="grid" style={{gridTemplateColumns:"minmax(0,1fr) 320px",gap:18}}>
-    <div className="card">
-      <div className="card-header"><Icon name="plus" size={18}/><div className="card-title">Нове замовлення</div></div>
-      <div className="col gap-14">
-        <div className="grid grid-2">
-          <div><label className="label">ПІБ *</label><input className="input" value={form.client} onChange={e=>updField("client",e.target.value)} autoFocus/></div>
-          <div><label className="label">Телефон</label><input className="input" value={form.phone} onChange={e=>updField("phone",e.target.value)} placeholder="+380…"/></div>
+    <div className="col gap-12">
+      {/* Paste parser */}
+      <div className="card" style={{borderColor:"var(--pink)",background:"#fffafb"}}>
+        <div className="card-header">
+          <Icon name="upload" size={18}/>
+          <div className="card-title">Швидка вставка тексту замовлення</div>
         </div>
-
-        <div className="grid grid-2">
-          <div><label className="label">Доставка</label><select className="select" value={form.deliveryType} onChange={e=>updField("deliveryType",e.target.value)}><option value="np">Нова Пошта</option><option value="studio">Студія (самовивіз)</option></select></div>
-          <div><label className="label">Оплата</label><select className="select" value={form.payment} onChange={e=>updField("payment",e.target.value)}><option value="control">Контроль оплати</option><option value="cod">Накладений платіж</option><option value="prepaid">Передоплата</option></select></div>
+        <textarea className="textarea" rows={5} value={paste} onChange={e=>setPaste(e.target.value)} placeholder="Вставте сюди текст з Direct/чату — система розпізнає ПІБ, телефон, місто, відділення, товари…"/>
+        <div className="row gap-8 mt-12">
+          <button className="btn btn-primary" onClick={doParse}><Icon name="check" size={14}/>Розпізнати</button>
+          {parsed&&<span className="badge badge-green"><Icon name="check" size={12}/>Розпізнано</span>}
+          {paste&&<button className="btn btn-ghost btn-sm" onClick={()=>{setPaste("");setParsed(false);}}>Очистити</button>}
         </div>
+      </div>
 
-        {form.deliveryType==="np"&&<div className="grid grid-2">
-          <div><label className="label">Місто</label><NPCityPicker value={form.city} onChange={c=>setForm(f=>({...f,city:c.name,cityRef:c.ref}))}/></div>
-          <div><label className="label">Відділення</label><NPWarehousePicker cityRef={form.cityRef} value={form.npBranch?"№"+form.npBranch:""} onChange={w=>setForm(f=>({...f,npBranch:w.number,branchRef:w.ref}))}/></div>
-        </div>}
+      <div className="card">
+        <div className="card-header"><Icon name="plus" size={18}/><div className="card-title">Дані замовлення</div></div>
+        <div className="col gap-14">
+          <div className="grid grid-2">
+            <div><label className="label">ПІБ *</label><input className="input" value={form.client} onChange={e=>updField("client",e.target.value)} autoFocus/></div>
+            <div><label className="label">Телефон</label><input className="input" value={form.phone} onChange={e=>updField("phone",e.target.value)} placeholder="+380…"/></div>
+          </div>
 
-        <div className="col gap-8">
-          <label className="label">Товари</label>
-          {form.items.map((it,i)=>
-            <div key={i} className="row gap-6">
-              <input list="prod-list" className="input flex-1" value={it.name} placeholder="Назва товару" onChange={e=>{
-                const name=e.target.value;
-                const p=productByName[name.toLowerCase()];
-                updItem(i,p?{name:p.name,price:Number(p.price)||0,cost:Number(p.cost)||0}:{name});
-              }}/>
-              <input className="input" style={{width:60}} type="number" value={it.qty} onChange={e=>updItem(i,{qty:Number(e.target.value)||1})}/>
-              <input className="input" style={{width:100}} type="number" value={it.price} placeholder="Ціна" onChange={e=>updItem(i,{price:Number(e.target.value)||0})}/>
-              <button className="btn-icon" onClick={()=>setForm(f=>({...f,items:f.items.filter((_,j)=>j!==i)}))}><Icon name="x" size={14}/></button>
-            </div>
-          )}
-          <button className="btn btn-secondary btn-sm" onClick={()=>setForm(f=>({...f,items:[...f.items,{name:"",qty:1,price:0,cost:0}]}))}><Icon name="plus" size={14}/>Додати товар</button>
-          <datalist id="prod-list">{products.map(p=><option key={p.id} value={p.name}/>)}</datalist>
+          <div className="grid grid-2">
+            <div><label className="label">Доставка</label><select className="select" value={form.deliveryType} onChange={e=>updField("deliveryType",e.target.value)}><option value="np">Нова Пошта</option><option value="studio">Студія (самовивіз)</option></select></div>
+            <div><label className="label">Оплата</label><select className="select" value={form.payment} onChange={e=>updField("payment",e.target.value)}><option value="control">Контроль оплати</option><option value="cod">Накладений платіж</option><option value="prepaid">Передоплата</option></select></div>
+          </div>
+
+          {form.deliveryType==="np"&&<div className="grid grid-2">
+            <div><label className="label">Місто</label><NPCityPicker value={form.city} onChange={c=>setForm(f=>({...f,city:c.name,cityRef:c.ref}))}/></div>
+            <div><label className="label">Відділення</label><NPWarehousePicker cityRef={form.cityRef} value={form.npBranch?"№"+form.npBranch:""} onChange={w=>setForm(f=>({...f,npBranch:w.number,branchRef:w.ref}))}/></div>
+          </div>}
+
+          <div className="col gap-8">
+            <label className="label">Товари</label>
+            {form.items.map((it,i)=>
+              <div key={i} className="row gap-6">
+                <input list="prod-list" className="input flex-1" value={it.name} placeholder="Назва товару" onChange={e=>{
+                  const name=e.target.value;
+                  const p=productByName[name.toLowerCase()];
+                  updItem(i,p?{name:p.name,price:Number(p.price)||0,cost:Number(p.cost)||0}:{name});
+                }}/>
+                <input className="input" style={{width:60}} type="number" value={it.qty} onChange={e=>updItem(i,{qty:Number(e.target.value)||1})}/>
+                <input className="input" style={{width:100}} type="number" value={it.price} placeholder="Ціна" onChange={e=>updItem(i,{price:Number(e.target.value)||0})}/>
+                <button className="btn-icon" onClick={()=>setForm(f=>({...f,items:f.items.filter((_,j)=>j!==i)}))}><Icon name="x" size={14}/></button>
+              </div>
+            )}
+            <button className="btn btn-secondary btn-sm" onClick={()=>setForm(f=>({...f,items:[...f.items,{name:"",qty:1,price:0,cost:0}]}))}><Icon name="plus" size={14}/>Додати товар</button>
+            <datalist id="prod-list">{products.map(p=><option key={p.id} value={p.name}/>)}</datalist>
+          </div>
+
+          {form.payment==="prepaid"&&<div><label className="label">Передоплата (сума)</label><input className="input" type="number" value={form.prepayment??""} onChange={e=>updField("prepayment",e.target.value===""?null:Number(e.target.value))}/></div>}
+
+          <div><label className="label">Коментар</label><textarea className="textarea" rows={2} value={form.comment} onChange={e=>updField("comment",e.target.value)}/></div>
         </div>
-
-        {form.payment==="prepaid"&&<div><label className="label">Передоплата (сума)</label><input className="input" type="number" value={form.prepayment??""} onChange={e=>updField("prepayment",e.target.value===""?null:Number(e.target.value))}/></div>}
-
-        <div><label className="label">Коментар</label><textarea className="textarea" rows={2} value={form.comment} onChange={e=>updField("comment",e.target.value)}/></div>
       </div>
     </div>
 
@@ -1983,6 +2606,10 @@ function NewOrderPage({products,addOrder,setPage,user}){
         <button className="btn btn-primary w-full" onClick={submit} disabled={saving} style={{justifyContent:"center"}}>
           {saving?<span className="spinner"/>:<><Icon name="check" size={16}/>Створити замовлення</>}
         </button>
+      </div>
+      <div className="card" style={{background:"var(--surface-2)",borderStyle:"dashed"}}>
+        <div className="text-sm fw-700 mb-8">💡 Порада</div>
+        <div className="text-sm muted">Вставте в верхнє поле повідомлення з Direct/чату — парсер автоматично виділить ПІБ, телефон, місто, № відділення та товари.</div>
       </div>
     </div>
   </div>;
@@ -2141,32 +2768,57 @@ function ChatPage({user,orders}){
 function ProductsPage({products,setProducts}){
   const[editing,setEditing]=useState(null);
   const[search,setSearch]=useState("");
-  const filtered=products.filter(p=>!search||(p.name||"").toLowerCase().includes(search.toLowerCase()));
+  const[catFilter,setCatFilter]=useState("");
+  const categories=useMemo(()=>{
+    const s=new Set();products.forEach(p=>{if(p.category)s.add(p.category);});
+    return Array.from(s).sort();
+  },[products]);
+  const filtered=products.filter(p=>{
+    if(catFilter&&p.category!==catFilter)return false;
+    if(search&&!(p.name||"").toLowerCase().includes(search.toLowerCase())&&!(p.sku||"").toLowerCase().includes(search.toLowerCase()))return false;
+    return true;
+  });
   return<div className="col gap-12">
-    <div className="row gap-8">
+    <div className="row gap-8" style={{flexWrap:"wrap"}}>
       <div className="search-input" style={{maxWidth:340}}>
         <Icon name="search" size={16}/>
-        <input className="input" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Пошук товару"/>
+        <input className="input" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Пошук: назва, SKU"/>
       </div>
-      <button className="btn btn-primary btn-sm" onClick={()=>setEditing({id:Date.now(),name:"",sku:"",category:"",cost:0,price:0,stock:0,type:"product",photo:""})}><Icon name="plus" size={14}/>Додати</button>
+      <select className="select" style={{maxWidth:200}} value={catFilter} onChange={e=>setCatFilter(e.target.value)}>
+        <option value="">Усі категорії</option>
+        {categories.map(c=><option key={c} value={c}>{c}</option>)}
+      </select>
+      <div className="flex-1"/>
+      <button className="btn btn-primary" onClick={()=>setEditing({id:Date.now(),name:"",sku:"",category:categories[0]||"",cost:0,price:0,stock:0,type:"product",photo:""})}>
+        <Icon name="plus" size={14}/>Додати товар
+      </button>
     </div>
-    <div className="card" style={{padding:0}}>
-      <table className="tbl">
-        <thead><tr><th>Назва</th><th>SKU</th><th>Категорія</th><th style={{textAlign:"right"}}>Собівартість</th><th style={{textAlign:"right"}}>Ціна</th><th style={{textAlign:"right"}}>Залишок</th><th style={{width:50}}></th></tr></thead>
-        <tbody>
-          {filtered.map(p=><tr key={p.id}>
-            <td><span className="fw-700">{p.name}</span></td>
-            <td className="muted-2 text-sm">{p.sku}</td>
-            <td className="text-sm">{p.category}</td>
-            <td className="text-right">{fmt(p.cost)}</td>
-            <td className="text-right fw-700">{fmt(p.price)}</td>
-            <td className="text-right">{p.type==="service"?<span className="muted">—</span>:<span className={p.stock<=3?"badge badge-red":"fw-600"}>{p.stock}</span>}</td>
-            <td><button className="btn-icon" onClick={()=>setEditing(p)}><Icon name="edit" size={14}/></button></td>
-          </tr>)}
-        </tbody>
-      </table>
+    <div className="muted text-sm">Всього: {filtered.length} з {products.length}</div>
+    <div className="grid" style={{gridTemplateColumns:"repeat(auto-fill,minmax(260px,1fr))",gap:14}}>
+      {filtered.map(p=>
+        <div key={p.id} className="card" style={{padding:14,cursor:"pointer"}} onClick={()=>setEditing(p)}>
+          <div style={{aspectRatio:"4/3",background:"var(--surface-2)",borderRadius:8,marginBottom:10,overflow:"hidden",display:"flex",alignItems:"center",justifyContent:"center"}}>
+            {p.photo?<img src={p.photo} alt={p.name} style={{width:"100%",height:"100%",objectFit:"cover"}}/>:<Icon name="box" size={32} className=""/>}
+          </div>
+          <div className="row" style={{justifyContent:"space-between",alignItems:"flex-start"}}>
+            <div style={{flex:1,minWidth:0}}>
+              <div className="fw-700 truncate" title={p.name}>{p.name||"(без назви)"}</div>
+              <div className="muted-2 text-sm">{p.sku||""}{p.category?" · "+p.category:""}</div>
+            </div>
+            {p.type==="service"?<span className="badge badge-pink">Послуга</span>:(p.stock<=3?<span className="badge badge-red">{p.stock} шт</span>:<span className="badge badge-neutral">{p.stock} шт</span>)}
+          </div>
+          <div className="row mt-8" style={{justifyContent:"space-between"}}>
+            <span className="muted text-sm">{fmt(p.cost)}</span>
+            <span className="fw-700">{fmt(p.price)}</span>
+          </div>
+        </div>
+      )}
     </div>
-    {editing&&<ProductEditModal product={editing} onClose={()=>setEditing(null)} onSave={async p=>{
+    {filtered.length===0&&<div className="card empty">
+      <div className="empty-icon"><Icon name="box" size={20}/></div>
+      <div>Товарів не знайдено</div>
+    </div>}
+    {editing&&<ProductEditModal product={editing} categories={categories} isNew={!products.find(x=>x.id===editing.id)} onClose={()=>setEditing(null)} onSave={async p=>{
       await DB.upsert("products",p);
       setProducts(list=>{const idx=list.findIndex(x=>x.id===p.id);if(idx>=0){const c=[...list];c[idx]=p;return c;}return[p,...list];});
       setEditing(null);toast("Збережено","success");
@@ -2179,23 +2831,74 @@ function ProductsPage({products,setProducts}){
   </div>;
 }
 
-function ProductEditModal({product,onClose,onSave,onDelete}){
+function ProductEditModal({product,categories,isNew,onClose,onSave,onDelete}){
   const[p,setP]=useState(product);
-  return<Modal open={true} onClose={onClose} title={p.id&&products?.some?.(x=>x.id===p.id)?"Редагувати товар":"Новий товар"} footer={
-    <><button className="btn btn-danger" onClick={()=>onDelete(p.id)}>Видалити</button><button className="btn btn-secondary" onClick={onClose}>Скасувати</button><button className="btn btn-primary" onClick={()=>onSave(p)}>Зберегти</button></>
+  const[uploading,setUploading]=useState(false);
+  const fileInputRef=useRef(null);
+
+  const handleFile=async(file)=>{
+    if(!file)return;
+    if(!supabase){toast("Немає з'єднання з базою","error");return;}
+    if(file.size>5*1024*1024){toast("Файл більше 5 МБ","error");return;}
+    setUploading(true);
+    try{
+      // Generate filename: productId_timestamp.ext
+      const ext=(file.name.split(".").pop()||"jpg").toLowerCase();
+      const fileName=`${p.id}_${Date.now()}.${ext}`;
+      const{data,error}=await supabase.storage.from("product-photos").upload(fileName,file,{cacheControl:"3600",upsert:true});
+      if(error){
+        if(error.message&&error.message.includes("not found")){
+          toast("Bucket 'product-photos' не створено. Запустіть SQL з migration_v2_1.sql","error");
+        }else{
+          toast("Помилка завантаження: "+error.message,"error");
+        }
+        setUploading(false);return;
+      }
+      const{data:urlData}=supabase.storage.from("product-photos").getPublicUrl(fileName);
+      const photoUrl=urlData.publicUrl;
+      setP({...p,photo:photoUrl});
+      toast("Фото завантажено","success");
+    }catch(e){
+      console.error(e);toast("Помилка: "+e.message,"error");
+    }finally{setUploading(false);}
+  };
+
+  return<Modal open={true} onClose={onClose} title={isNew?"Новий товар":"Редагувати товар"} size="lg" footer={
+    <>
+      {!isNew&&<button className="btn btn-danger" onClick={()=>onDelete(p.id)}><Icon name="trash" size={14}/>Видалити</button>}
+      <button className="btn btn-secondary" onClick={onClose}>Скасувати</button>
+      <button className="btn btn-primary" onClick={()=>{if(!p.name){toast("Назва обов'язкова","warn");return;}onSave(p);}}><Icon name="check" size={14}/>Зберегти</button>
+    </>
   }>
-    <div className="grid grid-2">
-      <div><label className="label">Назва</label><input className="input" value={p.name||""} onChange={e=>setP({...p,name:e.target.value})}/></div>
-      <div><label className="label">SKU</label><input className="input" value={p.sku||""} onChange={e=>setP({...p,sku:e.target.value})}/></div>
-    </div>
-    <div className="grid grid-2">
-      <div><label className="label">Категорія</label><input className="input" value={p.category||""} onChange={e=>setP({...p,category:e.target.value})}/></div>
-      <div><label className="label">Тип</label><select className="select" value={p.type||"product"} onChange={e=>setP({...p,type:e.target.value})}><option value="product">Товар</option><option value="service">Послуга</option></select></div>
-    </div>
-    <div className="grid grid-3">
-      <div><label className="label">Собівартість</label><input className="input" type="number" value={p.cost||0} onChange={e=>setP({...p,cost:Number(e.target.value)})}/></div>
-      <div><label className="label">Ціна</label><input className="input" type="number" value={p.price||0} onChange={e=>setP({...p,price:Number(e.target.value)})}/></div>
-      <div><label className="label">Залишок</label><input className="input" type="number" value={p.stock||0} onChange={e=>setP({...p,stock:Number(e.target.value)})}/></div>
+    <div className="grid" style={{gridTemplateColumns:"200px 1fr",gap:16}}>
+      {/* Photo block */}
+      <div className="col gap-8">
+        <div style={{aspectRatio:"1",background:"var(--surface-2)",borderRadius:10,overflow:"hidden",display:"flex",alignItems:"center",justifyContent:"center",border:"1px dashed var(--border-strong)"}}>
+          {p.photo?<img src={p.photo} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/>:<Icon name="box" size={40}/>}
+        </div>
+        <input ref={fileInputRef} type="file" accept="image/*" style={{display:"none"}} onChange={e=>handleFile(e.target.files[0])}/>
+        <button className="btn btn-secondary btn-sm" onClick={()=>fileInputRef.current?.click()} disabled={uploading}>
+          {uploading?<span className="spinner"/>:<><Icon name="upload" size={14}/>Завантажити фото</>}
+        </button>
+        {p.photo&&<button className="btn btn-ghost btn-sm" onClick={()=>setP({...p,photo:""})}><Icon name="x" size={14}/>Прибрати фото</button>}
+        <div className="muted-2 text-sm">або вставте URL:</div>
+        <input className="input input-sm" value={p.photo||""} onChange={e=>setP({...p,photo:e.target.value})} placeholder="https://…"/>
+      </div>
+      {/* Fields */}
+      <div className="col gap-12">
+        <div><label className="label">Назва *</label><input className="input" value={p.name||""} onChange={e=>setP({...p,name:e.target.value})} autoFocus/></div>
+        <div className="grid grid-2">
+          <div><label className="label">SKU</label><input className="input" value={p.sku||""} onChange={e=>setP({...p,sku:e.target.value})}/></div>
+          <div><label className="label">Тип</label><select className="select" value={p.type||"product"} onChange={e=>setP({...p,type:e.target.value})}><option value="product">Товар</option><option value="service">Послуга</option></select></div>
+        </div>
+        <div><label className="label">Категорія</label><input list="cat-list" className="input" value={p.category||""} onChange={e=>setP({...p,category:e.target.value})}/><datalist id="cat-list">{(categories||[]).map(c=><option key={c} value={c}/>)}</datalist></div>
+        <div className="grid grid-3">
+          <div><label className="label">Собівартість</label><input className="input" type="number" value={p.cost||0} onChange={e=>setP({...p,cost:Number(e.target.value)})}/></div>
+          <div><label className="label">Ціна</label><input className="input" type="number" value={p.price||0} onChange={e=>setP({...p,price:Number(e.target.value)})}/></div>
+          <div><label className="label">Залишок</label><input className="input" type="number" value={p.stock||0} onChange={e=>setP({...p,stock:Number(e.target.value)})}/></div>
+        </div>
+        {p.cost>0&&p.price>0&&<div className="muted text-sm">Маржа: <b>{Math.round((p.price-p.cost)/p.price*100)}%</b> · Прибуток з шт: <b>{fmt(p.price-p.cost)}</b></div>}
+      </div>
     </div>
   </Modal>;
 }
