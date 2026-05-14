@@ -29,6 +29,7 @@ tr.error{background:#3d0a0a}
 .summary{background:#0c2118;border:1px solid #145f3b;padding:10px 12px;border-radius:8px;color:#9fefa4;margin:12px 0;font-size:13px}
 .summary.warn{background:#1f1c0a;border-color:#6b5800;color:#ffd966}
 .bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:10px;background:#1a1d24;border-radius:8px;margin-bottom:10px}
+.preset{font-size:11px;padding:6px 10px}
 </style>
 </head><body>
 <h2>TTN Recovery — Love Your Haire</h2>
@@ -39,8 +40,13 @@ tr.error{background:#3d0a0a}
 </div>
 
 <div class="bar">
-  <label>Період з: <input type="date" id="from" value="2026-04-01"></label>
-  <label>по: <input type="date" id="to" value="2026-04-28"></label>
+  <label>Період з: <input type="date" id="from"></label>
+  <label>по: <input type="date" id="to"></label>
+  <button class="btn btn-secondary preset" data-preset="7">7 днів</button>
+  <button class="btn btn-secondary preset" data-preset="14">14 днів</button>
+  <button class="btn btn-secondary preset" data-preset="30">30 днів</button>
+  <button class="btn btn-secondary preset" data-preset="60">60 днів</button>
+  <button class="btn btn-secondary preset" data-preset="90">90 днів</button>
   <button class="btn btn-primary" id="scanBtn">Сканувати</button>
   <button class="btn btn-success" id="applyAllBtn" disabled>Застосувати все</button>
   <button class="btn btn-secondary" id="clearBtn">Очистити</button>
@@ -51,6 +57,26 @@ tr.error{background:#3d0a0a}
 <div id="log"></div>
 
 <script>
+// Динамічні дефолти: останні 14 днів — і пресети для швидкого вибору.
+(function(){
+  const iso=d=>d.toISOString().slice(0,10);
+  const today=new Date();
+  const fromEl=document.getElementById("from");
+  const toEl=document.getElementById("to");
+  function setRange(days){
+    const back=new Date(today.getTime()-days*86400000);
+    fromEl.value=iso(back);
+    toEl.value=iso(today);
+  }
+  setRange(14);
+  // Дозволяємо вибирати будь-яку минулу дату; обмежуємо лише майбутнім
+  fromEl.max=iso(today);
+  toEl.max=iso(today);
+  document.querySelectorAll('button[data-preset]').forEach(b=>{
+    b.onclick=()=>setRange(parseInt(b.dataset.preset,10));
+  });
+})();
+
 const NP_API="https://api.novaposhta.ua/v2.0/json/";
 const NP_KEY="4299d316a302da241c2b62cd4171765b";
 const SB_URL="https://fsihlzzjewhxpogvjapu.supabase.co";
@@ -217,4 +243,16 @@ async function applyOne(i){
 
 document.getElementById("applyAllBtn").onclick=async()=>{
   if(!MATCHES.length)return;
-  if(!confirm("Застосувати "+MATCHES.length+" оновлень? Дані буде змінено в
+  if(!confirm("Застосувати "+MATCHES.length+" оновлень? Дані буде змінено в Supabase."))return;
+  document.getElementById("applyAllBtn").disabled=true;
+  for(let i=0;i<MATCHES.length;i++){
+    await applyOne(i);
+    await new Promise(r=>setTimeout(r,80));
+  }
+  log("Готово.");
+  document.getElementById("applyAllBtn").disabled=false;
+};
+
+document.getElementById("clearBtn").onclick=()=>{clearLog();document.getElementById("results").innerHTML="";document.getElementById("summary").innerHTML="";MATCHES=[];};
+</script>
+</body></html>
