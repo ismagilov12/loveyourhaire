@@ -344,10 +344,19 @@ function initSupabase(){
     const create=sb.createClient||(sb.default&&sb.default.createClient);
     if(!create)return false;
     supabase=create(window.SUPABASE_URL,window.SUPABASE_KEY);
+    window.__sb=supabase;
+    console.log("Supabase v2 init OK");
     return true;
   }catch(e){console.error("Supabase init:",e);return false;}
 }
-initSupabase();
+// Try immediately, then retry up to 30 times with 100ms delay (3s total)
+if(!initSupabase()){
+  let tries=0;
+  const t=setInterval(()=>{
+    tries++;
+    if(initSupabase()||tries>30){clearInterval(t);if(!supabase)console.error("Supabase failed to init after "+tries+" tries");}
+  },100);
+}
 
 // ─── LocalStorage helper ──────────────────────────────────────────────────────
 const LS={
@@ -824,7 +833,13 @@ function LoginPage({onLogin}){
   const submit=async e=>{
     e.preventDefault();
     setErr("");setLoading(true);
-    if(!supabase){setErr("Немає з'єднання з базою");setLoading(false);return;}
+    if(!supabase)initSupabase();
+    if(!supabase){
+      // wait briefly and retry once more
+      await new Promise(r=>setTimeout(r,500));
+      initSupabase();
+    }
+    if(!supabase){setErr("Немає з'єднання з базою. Перезавантажте сторінку.");setLoading(false);return;}
     const{data,error}=await supabase.from("app_users").select("*").eq("login",login.trim()).eq("password",pwd).maybeSingle();
     setLoading(false);
     if(error||!data){setErr("Невірний логін або пароль");return;}
