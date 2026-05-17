@@ -2104,6 +2104,8 @@ function OrdersListPage({orders,setOrders,products,user}){
   };
   // Direct save to Supabase for single-field updates
   const saveOrderField=(id,fields)=>{
+    // CRITICAL: never write to a tombstoned order — UPDATE no-ops in DB but the bulk effect could resurrect it.
+    if(Tombstones.has(id)){console.warn("saveOrderField: skipping tombstoned order "+id);return;}
     // Immediately patch LS so the next page load has the latest values even if DB update fails
     try{const arr=LS.get("orders",[]);const idx=arr.findIndex(o=>o.id===id);if(idx>=0){arr[idx]={...arr[idx],...fields};LS.set("orders",arr);}}catch(e){console.error("LS patch err",e);}
     // Try DB update; if client not ready, mark pending so the next sync flushes it
@@ -3021,8 +3023,8 @@ const ClearedTTNs={
 // DB helper for CRUD
 const DB={
   async loadAll(table){if(!supabase)return null;const{data,error}=await supabase.from(table).select("*");if(error){console.error("DB load "+table,error);return null;}return data;},
-  async upsert(table,row){if(!supabase){PendingSync.mark(table);return;}const{error}=await supabase.from(table).upsert(row,{onConflict:"id"});if(error){console.error("DB upsert "+table,error);PendingSync.mark(table);}},
-  async upsertMany(table,rows){if(!rows.length)return;if(!supabase){PendingSync.mark(table);return;}const{error}=await supabase.from(table).upsert(rows,{onConflict:"id"});if(error){console.error("DB upsertMany "+table,error);PendingSync.mark(table);}},
+  async upsert(table,row){if(!supabase){PendingSync.mark(table);return;}if(table==="orders"&&row&&row.id!=null&&Tombstones.has(row.id)){console.warn("DB.upsert: skipping tombstoned order "+row.id);return;}const{error}=await supabase.from(table).upsert(row,{onConflict:"id"});if(error){console.error("DB upsert "+table,error);PendingSync.mark(table);}},
+  async upsertMany(table,rows){if(!rows.length)return;if(!supabase){PendingSync.mark(table);return;}if(table==="orders"){const tomb=Tombstones.ids();if(tomb.size){const before=rows.length;rows=rows.filter(r=>!(r&&r.id!=null&&tomb.has(String(r.id))));if(rows.length!==before)console.warn("DB.upsertMany: filtered "+(before-rows.length)+" tombstoned order(s)");if(!rows.length)return;}}const{error}=await supabase.from(table).upsert(rows,{onConflict:"id"});if(error){console.error("DB upsertMany "+table,error);PendingSync.mark(table);}},
   async remove(table,id){if(!supabase){PendingSync.mark(table);return;}const{error}=await supabase.from(table).delete().eq("id",id);if(error){console.error("DB delete "+table,error);PendingSync.mark(table);}},
 };
 
@@ -4350,6 +4352,14 @@ function App(){
       }
       else{
         const row=mapper?mapper(payload.new):payload.new;
+        // CRITICAL: ignore RT INSERT/UPDATE for orders we deleted locally — Tombstones win.
+        // Without this, another tab or a stale bulk upsert can resurrect a deleted order.
+        if(payload.table==="orders"&&row&&row.id!=null&&Tombstones.has(row.id)){
+          console.warn("RT "+payload.eventType+" for tombstoned order "+row.id+" — ignoring and re-deleting from DB");
+          try{supabase.from("orders").delete().eq("id",row.id).then(r=>{if(r&&r.error)console.error("RT tombstone re-delete err",r.error);});}catch(e){console.error("RT tombstone re-delete throw",e);}
+          setTimeout(()=>{fromRT.current=false;},100);
+          return;
+        }
         // If DB confirms ttn is now empty, drop the cleared-TTN marker for this order.
         if(payload.table==="orders"&&row&&row.id!=null&&(!row.ttn||String(row.ttn).trim()==="")){try{ClearedTTNs.remove(row.id);}catch{}}
         setter(prev=>{const idx=prev.findIndex(x=>x.id===row.id);let next;if(idx>=0){next=[...prev];next[idx]=row;}else{next=[...prev,row];}return next;});
@@ -4515,8 +4525,7 @@ function bootApp(){
 }
 if(typeof ensureKharkivSender==="function"){try{ensureKharkivSender(true);}catch(e){}}
 bootApp();
-// v19 — pin SDK to 2.33.0 + defensive realtime setup
+// v20 — tombstone guards in DB.upsert/upsertMany/saveOrderField/rtUpdate (prevent deleted orders from reappearing)
 </script>
 </body>
 </html>
-                                                               
