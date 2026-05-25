@@ -303,7 +303,7 @@ const INIT_PRODUCTS=[
   {id:397556579912,name:"Tension",sku:"BIK-TEN",category:"Bikinis",cost:0,price:1800,stock:0,type:"product",photo:""},
   {id:577681468562,name:"Soft bunny",sku:"BIK-SBN",category:"Bikinis",cost:0,price:2500,stock:0,type:"product",photo:""},
 ];
-const CATEGORIES=["Все","Oversize футболки","Косметика для волосся","Пояси","Showgirl","Bikinis","Neck Pieces"];
+const CATEGORIES=["Все","icons","crop","long","belt","soft-rebel","Стрижки"];
 const MONTHS=["Січень","Лютий","Березень","Квітень","Травень","Червень","Липень","Серпень","Вересень","Жовтень","Листопад","Грудень"];
 const DAYS=["Пн","Вт","Ср","Чт","Пт","Сб","Нд"];
 const STATUSES={new:"Новий",ttn:"ТТН",toSend:"На відправку",shipped:"Відправлено",atPost:"На пошті",received:"Отримано",refused:"Відмова",delivered:"Доставлено",studio:"Студія"};
@@ -479,7 +479,7 @@ const KNOWN_CITIES_V2=["київ","киев","kyiv","харків","харько
 
 // ─── parseClient v2 (line-by-line classification) ───
 function parseClient(text,products){
-  products=products||[];
+  products=(products||[]).filter(function(p){return p.is_active!==false;});
   var EMPTY={name:"",phone:"",city:"",npBranch:"",npType:"branch",payment:"control",prepayment:0,discount:0,discountPercent:false,products:[],paymentType:null};
   var full=(text||'').trim();
   if(!full)return EMPTY;
@@ -557,6 +557,7 @@ function parseClient(text,products){
 
 // --- Bulk Order Parser v2 ---
 function parseBulkOrders(rawText,products){
+  products=(products||[]).filter(function(p){return p.is_active!==false;});
   var prodIndex=products.map(function(p){
     var kws=[];
     var qm=p.name.match(/["\u201C\u00AB](.*?)["\u201D\u00BB]/);
@@ -1188,7 +1189,7 @@ function DashboardPage({orders,products,expenses,dateRange,setDateRange}){
         {/* Low stock */}
         <div style={{background:"#fff",borderRadius:16,border:"1px solid var(--border)",padding:16}}>
           <div style={{fontSize:12,fontWeight:700,color:"var(--text2)",marginBottom:10,textTransform:"uppercase"}}>{"\Н\и\з\ь\к\и\й \з\а\л\и\ш\о\к"}</div>
-          {products.filter(p=>p.type==="product"&&p.stock<20).map(p=><div key={p.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"4px 0",fontSize:12}}><span>{p.name}</span><span className={`badge ${p.stock<10?"badge-red":"badge-amber"}`}>{p.stock}</span></div>)}
+          {products.filter(p=>p.type==="product"&&p.is_active!==false&&p.stock<20).map(p=><div key={p.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"4px 0",fontSize:12}}><span>{p.name}</span><span className={`badge ${p.stock<10?"badge-red":"badge-amber"}`}>{p.stock}</span></div>)}
         </div>
         {/* Expenses by cat */}
         {expByCat.length>0&&<div style={{background:"#fff",borderRadius:16,border:"1px solid var(--border)",padding:16,marginTop:12}}>
@@ -1399,7 +1400,7 @@ function NPWarehousePicker({cityRef,value,onChange}){
 const TTN_STATUS_MAP={"1":"Нова","2":"Видалена","3":"Немає даних","4":"В дорозі","5":"На складі міста","6":"В місті","7":"На відділенні","8":"Видано","9":"Отримано","10":"Повернення","11":"Повернено","100":"Отримано","102":"Відмова","103":"Повернення","104":"Зміна адреси"};
 const TTN_STATUS_CLS={"4":"badge-blue","5":"badge-blue","6":"badge-blue","7":"badge-amber","9":"badge-green","100":"badge-green","8":"badge-green","102":"badge-red","103":"badge-red","10":"badge-amber","11":"badge-red"};
 
-function TTNStatus({ttn,orderId,orderStatus,onStatusCode}){
+function TTNStatus({ttn,orderId,orderStatus,onAutoStatus,onStatusCode}){
   const[info,setInfo]=useState(null);
   const[loading,setLoading]=useState(false);
   const track=async()=>{
@@ -1410,8 +1411,12 @@ function TTNStatus({ttn,orderId,orderStatus,onStatusCode}){
     setLoading(false);
     // Report raw NP status code back to parent for precise filtering (e.g. "На відправку" = draft only)
     if(r&&r.statusCode&&onStatusCode&&orderId!=null)onStatusCode(orderId,String(r.statusCode));
-    // v73: auto-overwrite of order.status DISABLED — was causing status flicker on every row mount.
-    // Use the "Оновити ТТН" bulk button to sync NP -> order status explicitly.
+    // Rule: map NP code -> order status. Skip if order in manual-terminal state (paid/studio).
+    if(r&&r.statusCode&&onAutoStatus&&orderId!=null){
+      const mapped=TTN_TO_ORDER_STATUS[String(r.statusCode)];
+      const locked=orderStatus==="studio";
+      if(mapped&&!locked&&mapped!==orderStatus)onAutoStatus(orderId,mapped);
+    }
   };
   useEffect(()=>{if(ttn&&ttn.length>=10)track();},[ttn]);
   if(!ttn)return null;
@@ -1880,7 +1885,7 @@ function NewOrderPage({orders,setOrders,products,setProducts,clients,setClients,
           {CATEGORIES.filter(c=>c!=="Все").map(cat=>(
             <div key={cat}>
               <div style={{padding:"8px 12px",fontSize:11,fontWeight:700,color:"var(--text2)",background:"var(--bg)",borderBottom:"1px solid var(--border)",position:"sticky",top:0,zIndex:1}}>{cat}</div>
-              {products.filter(p=>p.category===cat).map(p=>{
+              {products.filter(p=>p.category===cat&&p.is_active!==false).map(p=>{
                 const inCart=items.find(i=>i.productId===p.id);
                 const isShirt=p.category==="Oversize футболки";const sz=isShirt&&prodSize==="long";
                 const price=sz?2500:p.price;
@@ -2464,7 +2469,7 @@ function OrdersListPage({orders,setOrders,products,user}){
         <span style={{fontSize:11,color:"var(--text2)",fontWeight:600}}>{"Товар:"}</span>
         <select value={productFilter} onChange={e=>setProductFilter(e.target.value)} style={{padding:"6px 10px",borderRadius:8,border:"1px solid var(--border)",fontSize:12,background:"#fff",cursor:"pointer",maxWidth:240}}>
           <option value="all">{"Всі товари"}</option>
-          {products.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}
+          {products.filter(p=>p.is_active!==false).map(p=>(<option key={p.id} value={p.id}>{p.name}</option>))}
         </select>
         {productFilter!=="all"&&<button onClick={()=>setProductFilter("all")} style={{background:"none",border:"none",fontSize:14,cursor:"pointer",opacity:.6,padding:"2px 4px"}} title="Скинути фільтр товару">{"×"}</button>}
       </div>
@@ -2495,7 +2500,7 @@ function OrdersListPage({orders,setOrders,products,user}){
           <td style={{fontSize:11}}>{o.deliveryType==="np"?`${o.city}${o.npBranch?` №${o.npBranch}`:""}`:<span style={{color:"var(--pink2)"}}>Студія</span>}</td>
           <td style={{fontWeight:700}}>{fmt(o.total)}</td>
           <td><input type="number" min="0" defaultValue={o.prepayment||""} placeholder="0" onBlur={e=>inlinePrepay(o.id,e.target.value)} onKeyDown={e=>{if(e.key==="Enter")e.target.blur();}} style={{width:70,padding:"4px 6px",borderRadius:6,border:"1px solid var(--border)",fontSize:12,textAlign:"right",background:o.prepayment>=o.total&&o.total>0?"var(--green-light)":"#fff"}}/>{o.prepayment>0&&o.prepayment<o.total&&<div style={{fontSize:9,color:"var(--gold)",marginTop:2}}>{"зал "}{fmt(o.total-(o.prepayment||0))}</div>}{o.prepayment>=o.total&&o.total>0&&<div style={{fontSize:9,color:"var(--green)",fontWeight:700,marginTop:2}}>ОПЛАЧ</div>}</td>
-          <td>{o.ttn?<div><span className="ttn-value" onClick={()=>{navigator.clipboard.writeText(o.ttn).catch(()=>{})}} title="Копіювати">{o.ttn}</span><TTNStatus ttn={o.ttn} orderId={o.id} orderStatus={o.status} onStatusCode={(id,code)=>updNpCode(id,code)}/></div>:o.deliveryType==="np"?<span style={{fontSize:11,color:"var(--text2)"}}>{"—"}</span>:"—"}</td>
+          <td>{o.ttn?<div><span className="ttn-value" onClick={()=>{navigator.clipboard.writeText(o.ttn).catch(()=>{})}} title="Копіювати">{o.ttn}</span><TTNStatus ttn={o.ttn} orderId={o.id} orderStatus={o.status} onAutoStatus={(id,st)=>updSt(id,st)} onStatusCode={(id,code)=>updNpCode(id,code)}/></div>:o.deliveryType==="np"?<span style={{fontSize:11,color:"var(--text2)"}}>{"—"}</span>:"—"}</td>
           <td><select value={o.status} onChange={e=>updSt(o.id,e.target.value)} style={{padding:"4px 6px",borderRadius:6,border:"1px solid var(--border)",fontSize:11,fontWeight:600,cursor:"pointer",background:"#fff"}}>{Object.entries(STATUSES).map(([k,v])=><option key={k} value={k}>{v}</option>)}</select></td>
           <td><div style={{display:"flex",gap:3,flexWrap:"wrap"}}>
             {o.deliveryType==="np"&&!o.ttn&&<button className="btn btn-np btn-xs" onClick={()=>setCreateTTNOrder(o)} title="Створити ТТН через НП">{I.send}</button>}
@@ -2520,7 +2525,7 @@ function OrdersListPage({orders,setOrders,products,user}){
             {o.deliveryType==="np"&&<span className="badge badge-blue" style={{fontSize:9}}>Контр</span>}
           </div>
           <div className="mob-oc-items">{o.items.map(i=>`${i.name} ×${i.qty}`).join(", ")}</div>
-          {o.ttn&&<div style={{fontSize:11,marginBottom:6,display:"flex",alignItems:"center",gap:6}}><span className="ttn-value" onClick={e=>{e.stopPropagation();navigator.clipboard.writeText(o.ttn).catch(()=>{})}}>{o.ttn}</span><TTNStatus ttn={o.ttn} orderId={o.id} orderStatus={o.status} onStatusCode={(id,code)=>updNpCode(id,code)}/></div>}
+          {o.ttn&&<div style={{fontSize:11,marginBottom:6,display:"flex",alignItems:"center",gap:6}}><span className="ttn-value" onClick={e=>{e.stopPropagation();navigator.clipboard.writeText(o.ttn).catch(()=>{})}}>{o.ttn}</span><TTNStatus ttn={o.ttn} orderId={o.id} orderStatus={o.status} onAutoStatus={(id,st)=>updSt(id,st)} onStatusCode={(id,code)=>updNpCode(id,code)}/></div>}
           {o.comment&&<div style={{fontSize:11,color:"var(--text2)",marginBottom:6,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{o.comment}</div>}
           <div className="mob-oc-bottom">
             <div><span className="mob-oc-total">{fmt(o.total)}</span>{o.prepayment>0&&<span style={{fontSize:10,color:"var(--green)",marginLeft:6}}>передопл {fmt(o.prepayment)}</span>}{o.prepayment>0&&o.prepayment<o.total&&<span style={{fontSize:10,color:"var(--gold)",marginLeft:4}}>зал {fmt(o.total-(o.prepayment||0))}</span>}{o.prepayment>=o.total&&<span style={{fontSize:10,color:"var(--green)",marginLeft:4,fontWeight:700}}>ОПЛАЧ</span>}</div>
@@ -2644,7 +2649,7 @@ function OrdersListPage({orders,setOrders,products,user}){
         </div>)}
         {/* Add product */}
         <div style={{display:"flex",gap:6,alignItems:"flex-end",padding:"10px 0",borderTop:"1px dashed var(--border)",flexWrap:"wrap"}}>
-          <div style={{flex:"1 1 140px"}}><label style={{fontSize:10,fontWeight:700,color:"var(--text2)"}}>Додати товар</label><select className="form-input" value={addProdId} onChange={e=>{setAddProdId(e.target.value);const p=products.find(x=>x.id===Number(e.target.value));if(p)setAddProdPrice(String(p.price));}} style={{fontSize:12,padding:"6px 8px"}}><option value="">Обрати...</option>{products.filter(p=>p.type==="product").map(p=><option key={p.id} value={p.id}>{p.name} ({fmt(p.price)})</option>)}</select></div>
+          <div style={{flex:"1 1 140px"}}><label style={{fontSize:10,fontWeight:700,color:"var(--text2)"}}>Додати товар</label><select className="form-input" value={addProdId} onChange={e=>{setAddProdId(e.target.value);const p=products.find(x=>x.id===Number(e.target.value));if(p)setAddProdPrice(String(p.price));}} style={{fontSize:12,padding:"6px 8px"}}><option value="">Обрати...</option>{products.filter(p=>p.type==="product"&&p.is_active!==false).map(p=>(<option key={p.id} value={p.id}>{p.name} ({fmt(p.price)})</option>))}</select></div>
           <div style={{width:52}}><label style={{fontSize:10,fontWeight:700,color:"var(--text2)"}}>К-сть</label><input type="number" min="1" value={addProdQty} onChange={e=>setAddProdQty(Math.max(1,Number(e.target.value)))} style={{width:52,padding:"6px 8px",borderRadius:6,border:"1px solid var(--border)",fontSize:12,textAlign:"center"}}/></div>
           <div style={{width:72}}><label style={{fontSize:10,fontWeight:700,color:"var(--text2)"}}>Ціна</label><input type="number" min="0" value={addProdPrice} onChange={e=>setAddProdPrice(e.target.value)} style={{width:72,padding:"6px 8px",borderRadius:6,border:"1px solid var(--border)",fontSize:12,textAlign:"right"}}/></div>
           <button className="btn btn-primary btn-xs" onClick={addEditItem} disabled={!addProdId} style={{padding:"7px 12px",fontSize:12,whiteSpace:"nowrap"}}>+ Додати</button>
@@ -2747,7 +2752,9 @@ function AdminPage({products,setProducts}){
   const[showM,setShowM]=useState(false);
   const[editP,setEditP]=useState(null);
   const[form,setForm]=useState({name:"",sku:"",category:"Стрижки",cost:"",price:"",stock:"",type:"service",photo:"",version:"oversize"});
-  const filtered=filter==="Все"?products:products.filter(p=>p.category===filter);
+  const[showArchived,setShowArchived]=useState(false);
+  const base=showArchived?products:products.filter(p=>p.is_active!==false);
+  const filtered=filter==="Все"?base:base.filter(p=>p.category===filter);
 
   const openNew=()=>{setEditP(null);setForm({name:"",sku:"",category:"Стрижки",cost:"",price:"",stock:"999",type:"service",photo:"",version:"oversize"});setShowM(true);};
   const openEdit=p=>{setEditP(p);setForm({name:p.name,sku:p.sku,category:p.category,cost:String(p.cost),price:String(p.price),stock:String(p.stock),type:p.type,photo:p.photo||"",version:p.version||"oversize"});setShowM(true);};
@@ -2766,11 +2773,15 @@ function AdminPage({products,setProducts}){
     setShowM(false);
   };
   const remove=id=>{if(confirm("Видалити?")){DB.remove("products",id);setProducts(products.filter(p=>p.id!==id));}};
+  const toggleArch=p=>{const upd={...p,is_active:p.is_active===false};setProducts(products.map(x=>x.id===p.id?upd:x));DB.upsert("products",upd);};
 
   return(<div>
     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14,flexWrap:"wrap",gap:8}}>
       <div className="filter-pills">{CATEGORIES.map(c=><button key={c} className={`filter-pill${filter===c?' active':''}`} onClick={()=>setFilter(c)}>{c}</button>)}</div>
-      <button className="btn btn-primary" onClick={openNew}>{I.plus} Додати</button>
+      <div style={{display:"flex",gap:8,alignItems:"center"}}>
+        <label style={{display:"flex",alignItems:"center",gap:6,fontSize:12,color:"var(--text2)",cursor:"pointer"}}><input type="checkbox" checked={showArchived} onChange={e=>setShowArchived(e.target.checked)}/> Архівні</label>
+        <button className="btn btn-primary" onClick={openNew}>{I.plus} Додати</button>
+      </div>
     </div>
     <div className="card" style={{padding:0,overflowX:"auto"}}>
       <table className="tbl"><thead><tr><th style={{width:44}}></th><th>Назва</th><th>SKU</th><th>Кат.</th><th>Версія</th><th>Собів.</th><th>Ціна</th><th>Зал.</th><th>Маржа</th><th style={{width:80}}></th></tr></thead><tbody>
@@ -3519,7 +3530,7 @@ function BulkImportPage({orders,setOrders,products,clients,setClients}){
         <div style={{display:"flex",gap:4,marginTop:6,alignItems:"center"}}>
           <select className="form-input" value={addProd[idx]||''} onChange={e=>setAddProd(p=>({...p,[idx]:e.target.value}))} style={{fontSize:11,padding:"4px 6px",flex:1}}>
             <option value="">+ Додати товар...</option>
-            {products.map(p=><option key={p.id} value={p.id}>{p.name} — {fmt(Number(p.price))}</option>)}
+            {products.filter(p=>p.is_active!==false).map(p=>(<option key={p.id} value={p.id}>{p.name} — {fmt(Number(p.price))}</option>))}
           </select>
           <button className="btn btn-secondary btn-xs" onClick={()=>addItemTo(idx)} disabled={!addProd[idx]}>+</button>
         </div>
@@ -4521,7 +4532,7 @@ function bootApp(){
 }
 if(typeof ensureKharkivSender==="function"){try{ensureKharkivSender(true);}catch(e){}}
 bootApp();
-// v73 — disable TTNStatus auto-status overwrite (fix: status column jumping on filter switch/mount)
+// v20 — tombstone guards in DB.upsert/upsertMany/saveOrderField/rtUpdate (prevent deleted orders from reappearing)
 </script>
 </body>
 </html>
