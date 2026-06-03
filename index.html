@@ -312,11 +312,11 @@ const INIT_PRODUCTS=[
 const CATEGORIES=["Все","icons","crop","long","belt","soft-rebel","Стрижки","Showgirl","Neck Pieces","Bikinis","Косметика для волосся"];
 const MONTHS=["Січень","Лютий","Березень","Квітень","Травень","Червень","Липень","Серпень","Вересень","Жовтень","Листопад","Грудень"];
 const DAYS=["Пн","Вт","Ср","Чт","Пт","Сб","Нд"];
-const STATUSES={new:"Новий",ttn:"ТТН",toSend:"На відправку",shipped:"Відправлено",atPost:"На пошті",received:"Отримано",refused:"Відмова",delivered:"Доставлено",studio:"Студія"};
-const STCLS={new:"status-new",ttn:"status-ttn",toSend:"status-shipped",shipped:"status-shipped",atPost:"status-atpost",received:"status-received",refused:"status-refused",delivered:"status-delivered",studio:"status-studio"};
+const STATUSES={new:"Новий",ttn:"ТТН",toSend:"На відправку",shipped:"Відправлено",atPost:"На пошті",received:"Отримано",refused:"Відмова",delivered:"Доставлено",studio:"Студія",ttnDeleted:"ТТН видалено"};
+const STCLS={new:"status-new",ttn:"status-ttn",toSend:"status-shipped",shipped:"status-shipped",atPost:"status-atpost",received:"status-received",refused:"status-refused",delivered:"status-delivered",studio:"status-studio",ttnDeleted:"status-refused"};
 // Rule: Nova Poshta TTN status code -> internal order status (auto-applied when TTN tracked).
 // 4=В дорозi, 5=На складi мiста, 6=В мiстi, 7=На вiддiленнi, 8=Видано, 9/100=Отримано, 10/11/102/103=Повернення/Вiдмова
-const TTN_TO_ORDER_STATUS={"2":"new","4":"shipped","5":"shipped","6":"shipped","7":"atPost","8":"received","9":"received","100":"received","10":"refused","11":"refused","102":"refused","103":"refused"};
+const TTN_TO_ORDER_STATUS={"2":"ttnDeleted","4":"shipped","5":"shipped","6":"shipped","7":"atPost","8":"received","9":"received","100":"received","10":"refused","11":"refused","102":"refused","103":"refused"};
 const EXPENSE_CATS=["Оренда студії","Податки","Закупівля товару","Зарплата","Реклама","Інше"];
 
 const fmt=n=>n.toLocaleString("uk-UA")+" ₴";
@@ -2078,7 +2078,7 @@ function OrdersListPage({orders,setOrders,products,user}){
   // Funnels — predicates declared above (isAwaitingTtn, isReadyToShip, isNew). Counts use same predicates.
   const awaitingTtn=searched.filter(isAwaitingTtn);
   const readyToShip=searched.filter(isReadyToShip);
-  const counts={all:searched.length,new:searched.filter(isNew).length,ttn:awaitingTtn.length,toSend:readyToShip.length,shipped:searched.filter(o=>o.status==="shipped").length,atPost:searched.filter(o=>o.status==="atPost").length,received:searched.filter(o=>o.status==="received").length,refused:searched.filter(o=>o.status==="refused").length,delivered:searched.filter(o=>o.status==="delivered").length,studio:searched.filter(o=>o.status==="studio").length,dupes:dupeCount,deleted:deletedOrders.length};
+  const counts={all:searched.length,new:searched.filter(isNew).length,ttn:awaitingTtn.length,toSend:readyToShip.length,shipped:searched.filter(o=>o.status==="shipped").length,atPost:searched.filter(o=>o.status==="atPost").length,received:searched.filter(o=>o.status==="received").length,refused:searched.filter(o=>o.status==="refused").length,delivered:searched.filter(o=>o.status==="delivered").length,studio:searched.filter(o=>o.status==="studio").length,ttnDeleted:searched.filter(o=>o.status==="ttnDeleted").length,dupes:dupeCount,deleted:deletedOrders.length};
   const openTtn=o=>{setTtnM(o);setTtnV(o.ttn||"");};
   const saveTtn=async()=>{
     if(!ttnM)return;
@@ -2322,13 +2322,12 @@ function OrdersListPage({orders,setOrders,products,user}){
       if(!mapped)continue;
       if(locked.has(o.status))continue;
       if(o.status===mapped)continue;
-      // Special: code 2 (Видалена) → ТТН was deleted on NP side, clear it in CRM so a new one can be made.
+      // Special: code 2 (Видалена) → ТТН was deleted on NP side. Move the order to its own
+      // "ТТН видалено" funnel (keep the dead TTN for reference) instead of dumping it into "Новий".
       if(code==="2"){
-        console.warn("NP code 2 (Видалена) for TTN "+r.ttn+" order "+o.id+" — clearing TTN in CRM");
-        try{ClearedTTNs.add(o.id,r.ttn);}catch{}
-        nextOrders=nextOrders.map(x=>x.id===o.id?{...x,ttn:"",status:"new",npStatusCode:"",npStatusText:""}:x);
-        try{saveOrderField(o.id,{ttn:"",status:"new",np_status_code:"",np_status_text:""});}catch(e){}
-        try{TTNRefCache.remove(r.ttn);}catch(e){}
+        console.warn("NP code 2 (Видалена) for TTN "+r.ttn+" order "+o.id+" — moving to ТТН видалено funnel");
+        nextOrders=nextOrders.map(x=>x.id===o.id?{...x,status:"ttnDeleted",npStatusCode:code,npStatusText:r.status||"Видалено"}:x);
+        try{saveOrderField(o.id,{status:"ttnDeleted",np_status_code:code,np_status_text:r.status||"Видалено"});}catch(e){}
         updated++;
         continue;
       }
@@ -2467,6 +2466,7 @@ function OrdersListPage({orders,setOrders,products,user}){
       {!isMgr&&<button className={`filter-pill${filter==="received"?' active':''}`} onClick={()=>setFilter("received")} style={{color:filter==="received"?"var(--green)":""}}>Отримано ({counts.received})</button>}
       {!isMgr&&<button className={`filter-pill${filter==="refused"?' active':''}`} onClick={()=>setFilter("refused")} style={{color:filter==="refused"?"var(--red)":""}}>Відмова ({counts.refused})</button>}
       {!isMgr&&<button className={`filter-pill${filter==="studio"?' active':''}`} onClick={()=>setFilter("studio")}>Студія ({counts.studio})</button>}
+      {!isMgr&&<button className={`filter-pill${filter==="ttnDeleted"?' active':''}`} onClick={()=>setFilter("ttnDeleted")} style={{color:filter==="ttnDeleted"?"#fff":"var(--np-red)",background:filter==="ttnDeleted"?"var(--np-red)":"",borderColor:"var(--np-red)",fontWeight:700}} title="НП видалила ТТН — потрібно переоформити">ТТН видалено ({counts.ttnDeleted})</button>}
       {!isMgr&&<button className={`filter-pill${filter==="deleted"?' active':''}`} onClick={()=>{setFilter("deleted");loadDeleted();}} style={{color:filter==="deleted"?"#fff":"var(--text2)",background:filter==="deleted"?"var(--text2)":"",borderColor:"var(--text2)",fontWeight:700}} title="Видалені замовлення — можна відновити">{"\uD83D\uDDD1 Видалені ("+counts.deleted+")"}</button>}
       {!isMgr&&dupeCount>0&&<button className={`filter-pill${filter==="dupes"?' active':''}`} onClick={()=>setFilter("dupes")} style={{color:filter==="dupes"?"#fff":"var(--red)",background:filter==="dupes"?"var(--red)":"",borderColor:"var(--red)",fontWeight:700}} title="Замовлення від одного клієнта в межах 7 днів">⚠ Дублі ({dupeCount})</button>}
       {!isMgr&&<><button className="filter-pill" onClick={doSyncTTN} disabled={!!(ttnSync&&ttnSync.running)} style={{color:"var(--np-red)",borderColor:"var(--np-red)",fontWeight:700}} title="Запитати статуси ТТН у Нової Пошти і застосувати правило воронки">
@@ -3215,8 +3215,10 @@ const NP={
   async createTTN(params){
     // Sanitize free-text fields so NP doesn't reject the TTN on bad characters
     if(params){
-      if(params.Description!=null){const d=NP._sanitizeNPText(params.Description).slice(0,255);params.Description=d||"Одяг";}
-      if(params.AdditionalInformation!=null){params.AdditionalInformation=NP._sanitizeNPText(params.AdditionalInformation).slice(0,99);}
+      // Never leak the site's bundle-discount tag (e.g. "[discount: bundle−20% · subtotal=1790 → total=1790]") to NP
+      const _stripDisc=t=>String(t==null?"":t).replace(/\s*\[\s*discount:[^\]]*\]\s*/gi," ").replace(/\s+/g," ").trim();
+      if(params.Description!=null){const d=NP._sanitizeNPText(_stripDisc(params.Description)).slice(0,255);params.Description=d||"Одяг";}
+      if(params.AdditionalInformation!=null){params.AdditionalInformation=NP._sanitizeNPText(_stripDisc(params.AdditionalInformation)).slice(0,99);}
     }
     const r=await NP.call("InternetDocument","save",params);
     if(!r.success)return{ok:false,errors:r.errors};
