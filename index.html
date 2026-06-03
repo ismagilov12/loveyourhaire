@@ -2021,6 +2021,10 @@ function OrdersListPage({orders,setOrders,products,user}){
       }catch(e){console.warn("wfp detach failed",e);}
     }
   };
+  const[deletedOrders,setDeletedOrders]=useState([]);
+  const loadDeleted=async()=>{try{if(!(supabase&&typeof supabase.from==="function"))return;const{data,error}=await supabase.from("orders").select("*").not("deleted_at","is",null).order("deleted_at",{ascending:false});if(!error&&data)setDeletedOrders(data.map(mapOrderFromDB));}catch(e){console.warn("load deleted orders failed",e);}};
+  useEffect(()=>{loadDeleted();},[]);
+  const restoreOrder=async(id)=>{const ord=deletedOrders.find(o=>o.id===id);setDeletedOrders(prev=>prev.filter(o=>o.id!==id));if(ord){setOrders(prev=>prev.find(o=>o.id===id)?prev:[{...ord,deletedAt:null},...prev]);}saveOrderField(id,{deleted_at:null});};
   const searched=useMemo(()=>{
     if(!search.trim())return orders;
     const q=search.trim().toLowerCase();
@@ -2036,6 +2040,7 @@ function OrdersListPage({orders,setOrders,products,user}){
     });
   },[orders,search]);
   const dupeMap=useMemo(()=>findDuplicates(orders),[orders]);
+  const searchedDeleted=useMemo(()=>{if(!search.trim())return deletedOrders;const q=search.trim().toLowerCase();return deletedOrders.filter(o=>(o.client&&o.client.toLowerCase().includes(q))||(o.phone&&String(o.phone).includes(q))||(o.ttn&&String(o.ttn).includes(q))||String(o.id).includes(q));},[deletedOrders,search]);
   const hasTtn=o=>o.ttn&&String(o.ttn).trim().length>0;
   // Apply product filter to searched results
   const byProduct=productFilter==="all"?searched:searched.filter(o=>(o.items||[]).some(it=>String(it.productId)===String(productFilter)||it.name===productFilter));
@@ -2060,10 +2065,12 @@ function OrdersListPage({orders,setOrders,products,user}){
   const isReadyToShip=o=>{if(!hasTtn(o))return false;if(o.npStatusCode)return o.npStatusCode==="1";return o.status==="toSend";};
   // "Нові" — NP orders with status=new, no TTN, NOT yet ready for TTN (so they don't show twice).
   const isNew=o=>o.deliveryType==="np"&&o.status==="new"&&!hasTtn(o)&&!isReadyForTTN(o);
-  const filtered=filter==="dupes"?byProduct.filter(o=>dupeMap.has(o.id)):(filter==="all"?byProduct:(filter==="ttn"?byProduct.filter(isAwaitingTtn):(filter==="toSend"?byProduct.filter(isReadyToShip):(filter==="new"?byProduct.filter(isNew):byProduct.filter(o=>o.status===filter)))));
+  const filtered=filter==="deleted"?searchedDeleted:(filter==="dupes"?byProduct.filter(o=>dupeMap.has(o.id)):(filter==="all"?byProduct:(filter==="ttn"?byProduct.filter(isAwaitingTtn):(filter==="toSend"?byProduct.filter(isReadyToShip):(filter==="new"?byProduct.filter(isNew):byProduct.filter(o=>o.status===filter))))));
   // Sort: when showing dupes — group by duplicate key then by date desc; otherwise use sortDir
   const dateSort=(a,b)=>{const d=new Date(b.date)-new Date(a.date);return sortDir==="asc"?-d:d;};
-  const sorted=filter==="dupes"
+  const sorted=filter==="deleted"
+    ?[...filtered].sort((a,b)=>new Date(b.deletedAt||0)-new Date(a.deletedAt||0))
+    :filter==="dupes"
     ?[...filtered].sort((a,b)=>{const ka=dupeMap.get(a.id)?.key||"";const kb=dupeMap.get(b.id)?.key||"";if(ka!==kb)return ka.localeCompare(kb);return dateSort(a,b);})
     :[...filtered].sort(dateSort);
   const np=searched.filter(o=>o.deliveryType==="np");
@@ -2071,7 +2078,7 @@ function OrdersListPage({orders,setOrders,products,user}){
   // Funnels — predicates declared above (isAwaitingTtn, isReadyToShip, isNew). Counts use same predicates.
   const awaitingTtn=searched.filter(isAwaitingTtn);
   const readyToShip=searched.filter(isReadyToShip);
-  const counts={all:searched.length,new:searched.filter(isNew).length,ttn:awaitingTtn.length,toSend:readyToShip.length,shipped:searched.filter(o=>o.status==="shipped").length,atPost:searched.filter(o=>o.status==="atPost").length,received:searched.filter(o=>o.status==="received").length,refused:searched.filter(o=>o.status==="refused").length,delivered:searched.filter(o=>o.status==="delivered").length,studio:searched.filter(o=>o.status==="studio").length,dupes:dupeCount};
+  const counts={all:searched.length,new:searched.filter(isNew).length,ttn:awaitingTtn.length,toSend:readyToShip.length,shipped:searched.filter(o=>o.status==="shipped").length,atPost:searched.filter(o=>o.status==="atPost").length,received:searched.filter(o=>o.status==="received").length,refused:searched.filter(o=>o.status==="refused").length,delivered:searched.filter(o=>o.status==="delivered").length,studio:searched.filter(o=>o.status==="studio").length,dupes:dupeCount,deleted:deletedOrders.length};
   const openTtn=o=>{setTtnM(o);setTtnV(o.ttn||"");};
   const saveTtn=async()=>{
     if(!ttnM)return;
@@ -2262,22 +2269,20 @@ function OrdersListPage({orders,setOrders,products,user}){
   const bulkDeleteOrders=async()=>{
     const ids=[...selectedIds];
     if(!ids.length)return;
-    if(!confirm("Видалити "+ids.length+" замовл."+(ids.length===1?"ення":(ids.length<5?"ення":"ень"))+"? Цю дію не можна скасувати."))return;
-    // Tombstone everything first so a stale sync cannot resurrect deleted rows
-    for(const id of ids){try{Tombstones.add(id);}catch{}}
-    // Optimistic local state update
+    if(!confirm("Перемістити "+ids.length+" замовл. у «Видалені»? Їх можна відновити."))return;
+    // Soft-delete: mark deleted_at, move from active list into the "Видалені" funnel.
+    const ts=new Date().toISOString();
     const idSet=new Set(ids);
+    const moved=orders.filter(o=>idSet.has(o.id)).map(o=>({...o,deletedAt:ts}));
+    setDeletedOrders(prev=>[...moved,...prev.filter(o=>!idSet.has(o.id))]);
     setOrders(prev=>prev.filter(o=>!idSet.has(o.id)));
     setSelectedIds(new Set());
-    // Delete from DB in parallel; failures fall back to PendingSync via DB.remove
     try{
       if(supabase&&typeof supabase.from==="function"){
-        const r=await supabase.from("orders").delete().in("id",ids);
-        if(r&&r.error){console.error("bulk delete err",r.error);PendingSync.mark("orders");}
-      }else{
-        for(const id of ids)await DB.remove("orders",id);
-      }
-    }catch(e){console.error("bulk delete throw",e);PendingSync.mark("orders");}
+        const r=await supabase.from("orders").update({deleted_at:ts,updated_at:ts}).in("id",ids);
+        if(r&&r.error){console.error("bulk soft-delete err",r.error);PendingSync.mark("orders");}
+      }else{PendingSync.mark("orders");}
+    }catch(e){console.error("bulk soft-delete throw",e);PendingSync.mark("orders");}
   };
   const toggleSelect=(id)=>{setSelectedIds(prev=>{const n=new Set(prev);if(n.has(id))n.delete(id);else n.add(id);return n;});};
   const toggleSelectAll=()=>{const all=sorted.map(o=>o.id);const allSelected=all.length>0&&all.every(id=>selectedIds.has(id));setSelectedIds(prev=>{const n=new Set(prev);if(allSelected)all.forEach(id=>n.delete(id));else all.forEach(id=>n.add(id));return n;});};
@@ -2462,6 +2467,7 @@ function OrdersListPage({orders,setOrders,products,user}){
       {!isMgr&&<button className={`filter-pill${filter==="received"?' active':''}`} onClick={()=>setFilter("received")} style={{color:filter==="received"?"var(--green)":""}}>Отримано ({counts.received})</button>}
       {!isMgr&&<button className={`filter-pill${filter==="refused"?' active':''}`} onClick={()=>setFilter("refused")} style={{color:filter==="refused"?"var(--red)":""}}>Відмова ({counts.refused})</button>}
       {!isMgr&&<button className={`filter-pill${filter==="studio"?' active':''}`} onClick={()=>setFilter("studio")}>Студія ({counts.studio})</button>}
+      {!isMgr&&<button className={`filter-pill${filter==="deleted"?' active':''}`} onClick={()=>{setFilter("deleted");loadDeleted();}} style={{color:filter==="deleted"?"#fff":"var(--text2)",background:filter==="deleted"?"var(--text2)":"",borderColor:"var(--text2)",fontWeight:700}} title="Видалені замовлення — можна відновити">{"\uD83D\uDDD1 Видалені ("+counts.deleted+")"}</button>}
       {!isMgr&&dupeCount>0&&<button className={`filter-pill${filter==="dupes"?' active':''}`} onClick={()=>setFilter("dupes")} style={{color:filter==="dupes"?"#fff":"var(--red)",background:filter==="dupes"?"var(--red)":"",borderColor:"var(--red)",fontWeight:700}} title="Замовлення від одного клієнта в межах 7 днів">⚠ Дублі ({dupeCount})</button>}
       {!isMgr&&<><button className="filter-pill" onClick={doSyncTTN} disabled={!!(ttnSync&&ttnSync.running)} style={{color:"var(--np-red)",borderColor:"var(--np-red)",fontWeight:700}} title="Запитати статуси ТТН у Нової Пошти і застосувати правило воронки">
         {ttnSync&&ttnSync.running?`⟳ ${ttnSync.done}/${ttnSync.total}`:(ttnSync&&!ttnSync.running?`✓ оновлено ${ttnSync.updated}`:"⟳ Оновити ТТН")}
@@ -2493,7 +2499,7 @@ function OrdersListPage({orders,setOrders,products,user}){
     {filter==="dupes"&&dupeCount>0&&<div style={{background:"#fef3c7",border:"1px solid #f59e0b",borderRadius:10,padding:"10px 14px",marginBottom:12,fontSize:12,color:"#78350f"}}>
       ⚠ Знайдено {dupeCount} можливих дублі ({new Set(Array.from(dupeMap.values()).map(v=>v.key)).size} груп). Показані замовлення, у яких той самий телефон або ім'я зустрічається більше одного разу протягом 7 днів. Перевірте їх перед відправкою ТТН.
     </div>}
-    {sorted.length===0?<div className="empty-state"><p>Немає замовлень</p></div>:<>
+    {sorted.length===0?<div className="empty-state"><p>{filter==="deleted"?"Немає видалених замовлень":"Немає замовлень"}</p></div>:<>
     {/* Desktop table */}
     <div className="desktop-tbl card" style={{padding:0,overflowX:"auto"}}>
       <table className="tbl"><thead><tr><th style={{width:32,textAlign:"center"}}><input type="checkbox" title="Виділити всі видимі" checked={sorted.length>0&&sorted.every(o=>selectedIds.has(o.id))} onChange={toggleSelectAll} style={{cursor:"pointer"}}/></th><th>Дата</th><th>Клієнт</th><th>Тел</th><th>Товари</th><th>Доставка</th><th>Сума</th><th>Передопл</th><th>ТТН</th><th>Статус</th><th></th></tr></thead><tbody>
@@ -2509,7 +2515,8 @@ function OrdersListPage({orders,setOrders,products,user}){
           <td>{o.ttn?<div><span className="ttn-value" onClick={()=>{navigator.clipboard.writeText(o.ttn).catch(()=>{})}} title="Копіювати">{o.ttn}</span><TTNStatus ttn={o.ttn} orderId={o.id} orderStatus={o.status} onAutoStatus={(id,st)=>updSt(id,st)} onStatusCode={(id,code)=>updNpCode(id,code)}/></div>:o.deliveryType==="np"?<span style={{fontSize:11,color:"var(--text2)"}}>{"—"}</span>:"—"}</td>
           <td><select value={o.status} onChange={e=>updSt(o.id,e.target.value)} style={{padding:"4px 6px",borderRadius:6,border:"1px solid var(--border)",fontSize:11,fontWeight:600,cursor:"pointer",background:"#fff"}}>{Object.entries(STATUSES).map(([k,v])=><option key={k} value={k}>{v}</option>)}</select></td>
           <td><div style={{display:"flex",gap:3,flexWrap:"wrap"}}>
-            {o.deliveryType==="np"&&!o.ttn&&<button className="btn btn-np btn-xs" onClick={()=>setCreateTTNOrder(o)} title="Створити ТТН через НП">{I.send}</button>}
+            {filter==="deleted"&&<button className="btn btn-secondary btn-xs" onClick={()=>restoreOrder(o.id)} title="Відновити замовлення" style={{fontWeight:700}}>{"\u21A9 Відновити"}</button>}
+            {filter!=="deleted"&&o.deliveryType==="np"&&!o.ttn&&<button className="btn btn-np btn-xs" onClick={()=>setCreateTTNOrder(o)} title="Створити ТТН через НП">{I.send}</button>}
             {o.deliveryType==="np"&&o.ttn&&<button className="btn btn-np btn-xs" onClick={()=>openTtn(o)}>ТТН</button>}
             <button className="btn btn-secondary btn-xs" onClick={()=>openEdit(o)}>{I.edit}</button>
           </div></td>
@@ -2536,7 +2543,8 @@ function OrdersListPage({orders,setOrders,products,user}){
           <div className="mob-oc-bottom">
             <div><span className="mob-oc-total">{fmt(o.total)}</span>{o.prepayment>0&&<span style={{fontSize:10,color:"var(--green)",marginLeft:6}}>передопл {fmt(o.prepayment)}</span>}{o.prepayment>0&&o.prepayment<o.total&&<span style={{fontSize:10,color:"var(--gold)",marginLeft:4}}>зал {fmt(o.total-(o.prepayment||0))}</span>}{o.prepayment>=o.total&&<span style={{fontSize:10,color:"var(--green)",marginLeft:4,fontWeight:700}}>ОПЛАЧ</span>}</div>
             <div className="mob-oc-actions" onClick={e=>e.stopPropagation()}>
-              <button className="btn btn-gold" style={{padding:"5px 10px",fontSize:11}} onClick={()=>openPrepay(o)}>₴ Передопл</button>
+              {filter==="deleted"&&<button className="btn btn-secondary" style={{padding:"5px 10px",fontSize:11,fontWeight:700}} onClick={()=>restoreOrder(o.id)}>{"\u21A9 Відновити"}</button>}
+              {filter!=="deleted"&&<button className="btn btn-gold" style={{padding:"5px 10px",fontSize:11}} onClick={()=>openPrepay(o)}>₴ Передопл</button>}
               {o.deliveryType==="np"&&!o.ttn&&<button className="btn btn-np" style={{padding:"6px 12px",fontSize:11,fontWeight:700}} onClick={()=>setCreateTTNOrder(o)}>ТТН</button>}
               {o.deliveryType==="np"&&o.ttn&&o.status==="toSend"&&<button className="btn btn-secondary" style={{padding:"5px 10px",fontSize:11}} onClick={()=>updSt(o.id,"shipped")}>Відпр</button>}
               {o.status==="shipped"&&<button className="btn btn-secondary" style={{padding:"5px 10px",fontSize:11}} onClick={()=>updSt(o.id,"delivered")}>Дост</button>}
@@ -2687,7 +2695,7 @@ function OrdersListPage({orders,setOrders,products,user}){
         <button className="btn btn-np" onClick={doInlineTTN} disabled={ttnCreating||ttnSenderLoading} style={{width:"100%",padding:"10px",fontSize:14,fontWeight:700}}>{ttnCreating?"Створюю ТТН...":"Оформити ТТН"}</button>
       </div>}
       <div style={{display:"flex",gap:8,justifyContent:"flex-end",flexWrap:"wrap"}}>
-        <button className="btn btn-danger" onClick={()=>{if(confirm("Видалити замовлення?")){Tombstones.add(editO.id);DB.remove("orders",editO.id);setOrders(orders.filter(o=>o.id!==editO.id));setEditO(null);}}}>Видалити</button>
+        <button className="btn btn-danger" onClick={()=>{if(confirm("Перемістити замовлення у «Видалені»? Його можна відновити.")){const ts=new Date().toISOString();setDeletedOrders(prev=>[{...editO,deletedAt:ts},...prev.filter(o=>o.id!==editO.id)]);setOrders(orders.filter(o=>o.id!==editO.id));saveOrderField(editO.id,{deleted_at:ts});setEditO(null);}}}>Видалити</button>
         <button className="btn btn-secondary" onClick={()=>setEditO(null)}>Скасувати</button>
         <button className="btn btn-primary" style={{padding:"8px 20px",fontSize:13}} onClick={saveEdit}>Зберегти</button>
       </div>
@@ -2975,7 +2983,7 @@ if(!initSupabase()){
 }
 
 // Helper: map DB row (snake_case) → app object (camelCase) for orders
-const mapOrderFromDB=r=>({id:r.id,client:r.client,phone:r.phone,city:r.city,npBranch:r.np_branch,payment:r.payment,deliveryType:r.delivery_type,items:r.items,total:Number(r.total),totalCost:Number(r.total_cost),date:r.date,status:r.status,ttn:r.ttn,codAmount:r.cod_amount!=null?Number(r.cod_amount):null,prepayment:r.prepayment!=null?Number(r.prepayment):null,comment:r.comment||"",npStatusCode:r.np_status_code||"",npStatusText:r.np_status_text||""});
+const mapOrderFromDB=r=>({id:r.id,client:r.client,phone:r.phone,city:r.city,npBranch:r.np_branch,payment:r.payment,deliveryType:r.delivery_type,items:r.items,total:Number(r.total),totalCost:Number(r.total_cost),date:r.date,status:r.status,ttn:r.ttn,codAmount:r.cod_amount!=null?Number(r.cod_amount):null,prepayment:r.prepayment!=null?Number(r.prepayment):null,comment:r.comment||"",npStatusCode:r.np_status_code||"",npStatusText:r.np_status_text||"",deletedAt:r.deleted_at||null});
 const mapOrderToDB=o=>({id:o.id,client:o.client,phone:o.phone||"",city:o.city||"",np_branch:o.npBranch||"",payment:o.payment||"control",delivery_type:o.deliveryType||"np",items:o.items,total:o.total,total_cost:o.totalCost,date:o.date,status:o.status,ttn:o.ttn||"",cod_amount:o.codAmount!=null?o.codAmount:null,prepayment:o.prepayment!=null?o.prepayment:null,comment:o.comment||"",np_status_code:o.npStatusCode||null,np_status_text:o.npStatusText||null});
 
 const mapClientFromDB=r=>({id:r.id,name:r.name,phone:r.phone,city:r.city,npBranch:r.np_branch,created:r.created});
@@ -2997,13 +3005,16 @@ const PendingSync={
 const Tombstones={
   KEY:"lyh_tombstones_orders",
   TTL:7*24*60*60*1000,
-  _read(){try{return JSON.parse(localStorage.getItem(Tombstones.KEY)||"{}");}catch{return{};}},
-  _write(o){try{localStorage.setItem(Tombstones.KEY,JSON.stringify(o));}catch{}},
-  prune(){const o=Tombstones._read();const now=Date.now();let changed=false;for(const k in o){if(now-o[k]>Tombstones.TTL){delete o[k];changed=true;}}if(changed)Tombstones._write(o);return o;},
-  add(id){const o=Tombstones.prune();o[String(id)]=Date.now();Tombstones._write(o);},
-  remove(id){const o=Tombstones._read();if(o[String(id)]!=null){delete o[String(id)];Tombstones._write(o);}},
-  has(id){const o=Tombstones.prune();return o[String(id)]!=null;},
-  ids(){return new Set(Object.keys(Tombstones.prune()));}
+  // NEUTRALIZED (v80): orders now use soft-delete (deleted_at column) + "Видалені" funnel.
+  // Hard-delete + tombstone resurrection-guard machinery is disabled so deleted orders are
+  // never removed from the DB and can be restored. All methods are inert no-ops.
+  _read(){return {};},
+  _write(o){},
+  prune(){return {};},
+  add(id){},
+  remove(id){},
+  has(id){return false;},
+  ids(){return new Set();}
 };
 
 // ─── TTN Ref cache: NP API needs the Ref UUID to delete a TTN, but our orders only
@@ -4268,7 +4279,9 @@ function App(){
         // Drop any DB rows that we recently deleted locally — DB.remove may still be in flight,
         // or the row may persist if the delete request was lost. Tombstones prevent resurrection.
         const tombstoneIds=Tombstones.ids();
-        const liveData=tombstoneIds.size?oData.filter(r=>!tombstoneIds.has(String(r.id))):oData;
+        // Soft-delete: keep deleted_at rows OUT of the active orders list (they live in the "Видалені" funnel).
+        const deletedIdSet=new Set(oData.filter(r=>r.deleted_at).map(r=>String(r.id)));
+        const liveData=oData.filter(r=>!r.deleted_at);
         // Best-effort retry: re-issue DELETE for any tombstoned row that is still in DB.
         if(tombstoneIds.size&&supabase){
           const stillThere=oData.filter(r=>tombstoneIds.has(String(r.id))).map(r=>r.id);
@@ -4278,9 +4291,9 @@ function App(){
         // Merge:
         //  - Local-only orders (id not in DB) → keep + retry push
         //  - Orders in both: prefer local if local has TTN/toSend-status that DB lacks (save didn't persist)
-        const cached=LS.get("orders",[]).filter(o=>!tombstoneIds.has(String(o.id)));
+        const cached=LS.get("orders",[]).filter(o=>!tombstoneIds.has(String(o.id))&&!deletedIdSet.has(String(o.id)));
         const dbById=new Map(mapped.map(o=>[o.id,o]));
-        const localOnly=cached.filter(o=>!dbById.has(o.id));
+        const localOnly=cached.filter(o=>!dbById.has(o.id)&&!deletedIdSet.has(String(o.id)));
         const conflicts=[];// orders where local wins over DB
         const clearedMap=ClearedTTNs.all();
         const ttnReclears=[]; // orders we need to re-push as cleared because DB still has the TTN
@@ -4392,6 +4405,8 @@ function App(){
           setTimeout(()=>{fromRT.current=false;},100);
           return;
         }
+        // Soft-delete: if a realtime row is now deleted_at, remove it from the active list.
+        if(payload.table==="orders"&&row&&row.id!=null&&row.deletedAt){setter(prev=>prev.filter(x=>x.id!==row.id));setTimeout(()=>{fromRT.current=false;},100);return;}
         // If DB confirms ttn is now empty, drop the cleared-TTN marker for this order.
         if(payload.table==="orders"&&row&&row.id!=null&&(!row.ttn||String(row.ttn).trim()==="")){try{ClearedTTNs.remove(row.id);}catch{}}
         setter(prev=>{const idx=prev.findIndex(x=>x.id===row.id);let next;if(idx>=0){next=[...prev];next[idx]=row;}else{next=[...prev,row];}return next;});
@@ -4556,6 +4571,7 @@ function bootApp(){
   }
 }
 if(typeof ensureKharkivSender==="function"){try{ensureKharkivSender(true);}catch(e){}}
+try{localStorage.removeItem('lyh_tombstones_orders');}catch(e){}
 bootApp();
 // v20 — tombstone guards in DB.upsert/upsertMany/saveOrderField/rtUpdate (prevent deleted orders from reappearing)
 </script>
