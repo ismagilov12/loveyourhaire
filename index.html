@@ -1443,6 +1443,77 @@ function TTNStatus({ttn,orderId,orderStatus,onAutoStatus,onStatusCode}){
 }
 
 // ─── Create TTN Modal ───
+// ── Переадресація відправлення НП (заявка orderRedirecting по існуючій ТТН) ──
+function RedirectTTNModal({order,onClose,onDone}){
+  const[checking,setChecking]=useState(true);
+  const[checkErr,setCheckErr]=useState("");
+  const[info,setInfo]=useState(null);
+  const[rCity,setRCity]=useState("");
+  const[rCityRef,setRCityRef]=useState("");
+  const[whNum,setWhNum]=useState("");
+  const[whRef,setWhRef]=useState("");
+  const[contactName,setContactName]=useState(order.client||"");
+  const[phone,setPhone]=useState(order.phone||"");
+  const[payerType,setPayerType]=useState("Recipient");
+  const[note,setNote]=useState("Переадресація відправлення");
+  const[busy,setBusy]=useState(false);
+  const[err,setErr]=useState("");
+  const[result,setResult]=useState(null);
+  useEffect(()=>{
+    NP.checkRedirect(order.ttn).then(r=>{
+      if(r.ok){
+        setInfo(r.info);
+        if(r.info.RecipientName)setContactName(r.info.RecipientName);
+        if(r.info.PhoneRecipient)setPhone(r.info.PhoneRecipient);
+      }else setCheckErr(r.error||"Переадресація недоступна");
+      setChecking(false);
+    }).catch(e=>{setCheckErr("Помилка: "+(e.message||e));setChecking(false);});
+  },[]);
+  const doRedirect=async()=>{
+    if(!whRef){setErr("Оберіть нове місто та відділення");return;}
+    if(!confirm("Переадресувати ТТН "+order.ttn+" на: "+(rCity||"?")+", "+(whNum||"?")+"?\nНП створить заявку, стара ТТН закриється і буде сформована нова."))return;
+    setBusy(true);setErr("");
+    try{
+      const r=await NP.redirectTTN({ttn:order.ttn,info,warehouseRef:whRef,contactName,phone,payerType,note});
+      setBusy(false);
+      if(!r.ok){setErr(r.error||"Помилка НП");return;}
+      setResult(r);
+      if(onDone)onDone({city:rCity,branch:whNum,number:r.number});
+    }catch(e){setBusy(false);setErr("Помилка: "+(e.message||e));}
+  };
+  return(<Modal title={"Переадресація — ТТН "+(order.ttn||"")} onClose={onClose} wide>
+    {checking?<div style={{textAlign:"center",padding:20,color:"var(--text2)"}}>{"Перевіряю можливість переадресації..."}</div>
+    :checkErr?<div style={{textAlign:"center",padding:20}}><div style={{color:"var(--red)",fontWeight:600}}>{checkErr}</div><div style={{marginTop:12}}><button className="btn btn-secondary" onClick={onClose}>{"Закрити"}</button></div></div>
+    :result?<div style={{textAlign:"center",padding:20}}>
+      <div style={{fontSize:18,fontWeight:800,color:"var(--green)",marginBottom:8}}>{"Заявку на переадресацію створено!"}</div>
+      {result.number&&<div style={{fontSize:22,fontWeight:800,color:"var(--np-red)",background:"var(--np-light)",padding:"10px 18px",borderRadius:12,display:"inline-block"}}>{"№ "+result.number}</div>}
+      <div style={{marginTop:10,fontSize:12,color:"var(--text2)"}}>{"НП обробить заявку та сформує нову ТТН. Новий номер зʼявиться в кабінеті НП — оновіть його в замовленні, коли отримаєте."}</div>
+      {result.cost&&<div style={{marginTop:4,fontSize:12,color:"var(--text2)"}}>{"Вартість переадресації: "}{result.cost}{" грн"}</div>}
+      <div style={{marginTop:16}}><button className="btn btn-primary" onClick={onClose}>{"Закрити"}</button></div>
+    </div>
+    :<div>
+      <div style={{background:"var(--np-light)",borderRadius:10,padding:12,marginBottom:12,fontSize:12}}>
+        <div><strong>{"Зараз: "}</strong>{(info&&(info.CityRecipientDescription||info.SettlementRecipientDescription))||order.city||"—"}{info&&info.WarehouseDescription?", "+info.WarehouseDescription:(order.npBranch?", №"+order.npBranch:"")}</div>
+        <div style={{marginTop:2}}><strong>{"Отримувач: "}</strong>{(info&&info.RecipientName)||order.client||"—"}{" | "}{(info&&info.PhoneRecipient)||order.phone||"—"}</div>
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}>
+        <div><div style={{fontSize:10,fontWeight:700,color:"var(--text2)",marginBottom:2}}>{"Нове місто"}</div><NPCityPicker value={rCity} onChange={v=>{setRCity(v);setErr("");}} onCityRef={r=>{setRCityRef(r);setErr("");}}/></div>
+        <div><div style={{fontSize:10,fontWeight:700,color:"var(--text2)",marginBottom:2}}>{"Нове відділення"}</div><NPWarehousePicker cityRef={rCityRef} value={whNum} onChange={(n,d,r)=>{setWhNum(d||n);setWhRef(r);setErr("");}}/></div>
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10,marginBottom:10}}>
+        <div className="form-group" style={{marginBottom:0}}><label style={{fontSize:10,fontWeight:700,color:"var(--text2)"}}>{"ПІБ отримувача"}</label><input className="form-input" value={contactName} onChange={e=>setContactName(e.target.value)} style={{fontSize:12}}/></div>
+        <div className="form-group" style={{marginBottom:0}}><label style={{fontSize:10,fontWeight:700,color:"var(--text2)"}}>{"Телефон"}</label><input className="form-input" value={phone} onChange={e=>setPhone(e.target.value)} style={{fontSize:12}}/></div>
+        <div className="form-group" style={{marginBottom:0}}><label style={{fontSize:10,fontWeight:700,color:"var(--text2)"}}>{"Платник переадр."}</label><select className="form-input" value={payerType} onChange={e=>setPayerType(e.target.value)} style={{fontSize:12}}><option value="Recipient">{"Отримувач"}</option><option value="Sender">{"Відправник"}</option></select></div>
+      </div>
+      <div className="form-group" style={{marginBottom:10}}><label style={{fontSize:10,fontWeight:700,color:"var(--text2)"}}>{"Примітка"}</label><input className="form-input" value={note} onChange={e=>setNote(e.target.value)} style={{fontSize:12}}/></div>
+      {err&&<div style={{color:"var(--red)",fontSize:12,fontWeight:600,marginBottom:8}}>{err}</div>}
+      <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}>
+        <button className="btn btn-secondary" onClick={onClose} disabled={busy}>{"Скасувати"}</button>
+        <button className="btn btn-np" onClick={doRedirect} disabled={busy||!whRef}>{busy?"Створюю заявку...":"Переадресувати"}</button>
+      </div>
+    </div>}
+  </Modal>);
+}
 function CreateTTNModal({order,onClose,onCreated}){
   const savedSW=LS.get("np_sender_wh")||{};
   const[senderInfo,setSenderInfo]=useState(null);
@@ -1939,6 +2010,9 @@ function OrdersListPage({orders,setOrders,products,user}){
   const[sortDir,setSortDir]=useState("desc");// "desc" (newest first) or "asc" (oldest first)
   const[ttnM,setTtnM]=useState(null);
   const[ttnV,setTtnV]=useState("");
+  const[codV,setCodV]=useState("");// нова сума наложки в ТТН-модалці
+  const[codBusy,setCodBusy]=useState(false);
+  const[redirO,setRedirO]=useState(null);// замовлення для переадресації
   const[editO,setEditO]=useState(null);// editing order copy
   const[addProdId,setAddProdId]=useState("");
   const[addProdQty,setAddProdQty]=useState(1);
@@ -2079,7 +2153,23 @@ function OrdersListPage({orders,setOrders,products,user}){
   const awaitingTtn=searched.filter(isAwaitingTtn);
   const readyToShip=searched.filter(isReadyToShip);
   const counts={all:searched.length,new:searched.filter(isNew).length,ttn:awaitingTtn.length,toSend:readyToShip.length,shipped:searched.filter(o=>o.status==="shipped").length,atPost:searched.filter(o=>o.status==="atPost").length,received:searched.filter(o=>o.status==="received").length,refused:searched.filter(o=>o.status==="refused").length,delivered:searched.filter(o=>o.status==="delivered").length,studio:searched.filter(o=>o.status==="studio").length,ttnDeleted:searched.filter(o=>o.status==="ttnDeleted").length,dupes:dupeCount,deleted:deletedOrders.length};
-  const openTtn=o=>{setTtnM(o);setTtnV(o.ttn||"");};
+  const openTtn=o=>{setTtnM(o);setTtnV(o.ttn||"");setCodV(String(o.codAmount!=null?o.codAmount:Math.max(0,(o.total||0)-(o.prepayment||0))));};
+  // Зміна/зняття наложки через заявку НП orderChangeEW. amount=0 → зняти.
+  const doChangeCOD=async(amount)=>{
+    if(!ttnM||!ttnM.ttn)return;
+    const amt=Math.max(0,Math.round(Number(amount)||0));
+    if(!confirm(amt>0?("Змінити наложку по ТТН "+ttnM.ttn+" на "+amt+" грн?"):("Прибрати наложку з ТТН "+ttnM.ttn+"?\nОтримувач платитиме лише за доставку.")))return;
+    setCodBusy(true);
+    try{
+      const r=await NP.changeCOD(ttnM.ttn,amt);
+      setCodBusy(false);
+      if(!r.ok){alert("НП відмовила: "+r.error);return;}
+      setOrders(orders.map(o=>o.id===ttnM.id?{...o,codAmount:amt}:o));
+      saveOrderField(ttnM.id,{cod_amount:amt});
+      alert((amt>0?"Заявку на зміну наложки створено":"Заявку на зняття наложки створено")+(r.number?" (№ "+r.number+")":"")+". НП обробить її протягом кількох хвилин.");
+      setTtnM(null);
+    }catch(e){setCodBusy(false);alert("Помилка: "+(e.message||e));}
+  };
   const saveTtn=async()=>{
     if(!ttnM)return;
     const t=ttnV.trim();
@@ -2565,6 +2655,16 @@ function OrdersListPage({orders,setOrders,products,user}){
       </div>
       <div style={{fontSize:12,color:"var(--text2)",marginBottom:10}}>Товари: {ttnM.items.map(i=>`${i.name} ×${i.qty}`).join(", ")}</div>
       <div className="form-group"><label className="form-label">Номер ТТН</label><input className="form-input" placeholder="59000000000000" value={ttnV} onChange={e=>setTtnV(e.target.value)} style={{fontFamily:"monospace",fontSize:16,letterSpacing:1}}/></div>
+      {String(ttnM.ttn||"").trim()&&<div style={{background:"#f8fafc",border:"1px solid var(--border)",borderRadius:10,padding:12,marginBottom:12}}>
+        <div style={{fontSize:11,fontWeight:700,color:"var(--text2)",marginBottom:8}}>{"ДІЇ З ВІДПРАВЛЕННЯМ (заявки НП)"}</div>
+        <div style={{display:"flex",gap:8,alignItems:"flex-end",flexWrap:"wrap",marginBottom:8}}>
+          <div style={{flex:"0 0 110px"}}><div style={{fontSize:10,fontWeight:700,color:"var(--text2)",marginBottom:2}}>{"Наложка, грн"}</div><input className="form-input" type="number" min="0" value={codV} onChange={e=>setCodV(e.target.value)} style={{fontSize:13}}/></div>
+          <button className="btn btn-secondary btn-xs" disabled={codBusy} onClick={()=>doChangeCOD(codV)} style={{padding:"8px 10px"}}>{codBusy?"...":"₴ Змінити наложку"}</button>
+          <button className="btn btn-secondary btn-xs" disabled={codBusy} onClick={()=>doChangeCOD(0)} style={{padding:"8px 10px",color:"var(--red)"}}>{codBusy?"...":"✕ Прибрати наложку"}</button>
+          <button className="btn btn-np btn-xs" disabled={codBusy} onClick={()=>{setRedirO(ttnM);setTtnM(null);}} style={{padding:"8px 10px"}}>{"→ Переадресувати"}</button>
+        </div>
+        <div style={{fontSize:10,color:"var(--text2)"}}>{"Зміни оформлюються як заявки в НП і обробляються не миттєво. Переадресація створює нову ТТН."}</div>
+      </div>}
       <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}><button className="btn btn-secondary" onClick={()=>setTtnM(null)}>Скасувати</button><button className="btn btn-np" onClick={saveTtn}>{I.truck} Зберегти</button></div>
     </Modal>}
     {/* Quick Prepayment Modal */}
@@ -2700,6 +2800,14 @@ function OrdersListPage({orders,setOrders,products,user}){
         <button className="btn btn-primary" style={{padding:"8px 20px",fontSize:13}} onClick={saveEdit}>Зберегти</button>
       </div>
     </Modal>}
+    {redirO&&<RedirectTTNModal order={redirO} onClose={()=>setRedirO(null)} onDone={({city,branch,number})=>{
+      // Оновлюємо адресу в CRM + фіксуємо номер заявки в коментарі
+      const numMatch=String(branch||"").match(/№?\s*(\d+)/);
+      const branchNum=numMatch?numMatch[1]:String(branch||"");
+      const newComment=((redirO.comment||"")+" | Переадресація НП"+(number?" №"+number:"")+" → "+(city||"")+(branch?", "+branch:"")).replace(/^ \| /,"").trim();
+      setOrders(orders.map(o=>o.id===redirO.id?{...o,city:city||o.city,npBranch:branchNum||o.npBranch,comment:newComment}:o));
+      saveOrderField(redirO.id,{city:city||redirO.city,np_branch:branchNum||redirO.npBranch,comment:newComment});
+    }}/>}
     {createTTNOrder&&<CreateTTNModal order={createTTNOrder} onClose={()=>setCreateTTNOrder(null)} onCreated={ttn=>{setOrders(orders.map(o=>o.id===createTTNOrder.id?{...o,ttn,status:"toSend"}:o));saveOrderField(createTTNOrder.id,{ttn,status:"toSend"});setCreateTTNOrder(null);}}/>}
     {bulkResults&&(()=>{
       const okItems=bulkResults.done.filter(x=>x.ok&&(x.ref||x.ttn));
@@ -3250,6 +3358,68 @@ const NP={
     const dr=await NP.call("InternetDocument","delete",{DocumentRefs:[ref]});
     if(dr&&dr.success){try{TTNRefCache.remove(ttnNumber);}catch{}return{ok:true};}
     return{ok:false,error:(dr&&dr.errors||["Невідома помилка НП"]).join(", ")};
+  },
+  // ── Заявки НП по існуючій ТТН: зміна/зняття наложки, переадресація ──
+  // Перевірка можливості зміни даних ТТН (модель AdditionalService, CheckPossibilityChangeEW).
+  async checkChangeEW(ttn){
+    const r=await NP.call("AdditionalService","CheckPossibilityChangeEW",{IntDocNumber:String(ttn)});
+    if(!r||!r.success||!r.data||!r.data[0])return{ok:false,error:((r&&r.errors)||["зміна даних недоступна для цієї ТТН"]).join(", ")};
+    return{ok:true,info:r.data[0]};
+  },
+  // Змінити або зняти наложку. amount=0 → зняти. CRM створює ТТН з контролем оплати
+  // (AfterpaymentOnGoodsCost), тому пріоритет — CanChangeAfterpaymentType; fallback —
+  // грошовий переказ (BackwardDeliveryData/Money) для старих ТТН.
+  async changeCOD(ttn,amount){
+    if(!ttn)return{ok:false,error:"немає номера ТТН"};
+    const chk=await NP.checkChangeEW(ttn);
+    if(!chk.ok)return chk;
+    const d=chk.info;
+    const amt=String(Math.max(0,Math.round(Number(amount)||0)));
+    const props={
+      IntDocNumber:String(ttn),
+      OrderType:"orderChangeEW",
+      PayerType:d.PayerType||"Recipient",
+      PaymentMethod:d.PaymentMethod||"Cash"
+    };
+    if(d.CanChangeAfterpaymentType){
+      props.AfterpaymentOnGoodsCost=amt; // "0" знімає контроль оплати
+      props.BackwardDeliveryData=[];
+    }else if(d.CanChangeBackwardDeliveryMoney){
+      props.BackwardDeliveryData=Number(amt)>0?[{PayerType:"Recipient",CargoType:"Money",RedeliveryString:amt}]:[];
+    }else{
+      return{ok:false,error:"НП не дозволяє змінити наложку для цієї ТТН (посилка вже їде/видана або вже є активна заявка)"};
+    }
+    const r=await NP.call("AdditionalService","save",props);
+    if(r&&r.success&&r.data&&r.data[0])return{ok:true,number:r.data[0].Number||r.data[0].OrderNumber||"",ref:r.data[0].Ref||""};
+    return{ok:false,error:((r&&r.errors)||["Невідома помилка НП"]).join(", ")};
+  },
+  // Перевірка можливості переадресації (модель AdditionalServiceGeneral).
+  // Повертає info з CounterpartyRecipientRef, RecipientName, PhoneRecipient тощо.
+  async checkRedirect(ttn){
+    const r=await NP.call("AdditionalServiceGeneral","checkPossibilityForRedirecting",{Number:String(ttn)});
+    if(!r||!r.success||!r.data||!r.data[0])return{ok:false,error:((r&&r.errors)||["переадресація недоступна для цієї ТТН"]).join(", ")};
+    return{ok:true,info:r.data[0]};
+  },
+  // Створити заявку на переадресацію на інше відділення (warehouseRef обовʼязковий).
+  async redirectTTN({ttn,info,warehouseRef,contactName,phone,payerType,note}){
+    if(!ttn)return{ok:false,error:"немає номера ТТН"};
+    if(!warehouseRef)return{ok:false,error:"не обрано нове відділення"};
+    const props={
+      OrderType:"orderRedirecting",
+      IntDocNumber:String(ttn),
+      Customer:"Sender",
+      ServiceType:"WarehouseWarehouse",
+      RecipientWarehouse:warehouseRef,
+      Recipient:(info&&info.CounterpartyRecipientRef)||"",
+      RecipientContactName:NP._sanitizeNPText(contactName||(info&&info.RecipientName)||""),
+      RecipientPhone:normPhoneNP(phone||(info&&info.PhoneRecipient)||""),
+      PayerType:payerType||"Recipient",
+      PaymentMethod:"Cash",
+      Note:NP._sanitizeNPText(note||"Переадресація відправлення").slice(0,99)
+    };
+    const r=await NP.call("AdditionalServiceGeneral","save",props);
+    if(r&&r.success&&r.data&&r.data[0])return{ok:true,number:r.data[0].Number||r.data[0].OrderNumber||"",ref:r.data[0].Ref||"",cost:r.data[0].DeliveryCost||"",estimated:r.data[0].EstimatedDeliveryDate||""};
+    return{ok:false,error:((r&&r.errors)||["Невідома помилка НП"]).join(", ")};
   },
   // Cache for CargoDescription ref lookup (НП категорія вантажу, напр. "Одяг")
   _cargoRefCache:null,
