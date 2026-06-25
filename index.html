@@ -915,20 +915,21 @@ function DashboardPage({orders,products,expenses,dateRange,setDateRange}){
   const refusedRev=refusedOrders.reduce((s,o)=>s+(Number(o.total)||0),0);
   const refusalRate=fOrders.length>0?Math.round(refusedOrders.length/fOrders.length*100):0;
 
-  // Revenue & cost breakdown (excluding refused)
-  const rev=effOrders.reduce((s,o)=>s+o.items.reduce((a,i)=>a+(Number(i.price)||0)*(Number(i.qty)||0),0),0);
+  // Revenue & cost breakdown (excluding refused). Barter = no revenue, cost stays as expense.
+  const saleOrders=effOrders.filter(o=>!o.barter);
+  const rev=saleOrders.reduce((s,o)=>s+o.items.reduce((a,i)=>a+(Number(i.price)||0)*(Number(i.qty)||0),0),0);
   const totalCost=effOrders.reduce((s,o)=>s+o.items.reduce((a,i)=>a+(Number(i.cost)||0)*(Number(i.qty)||0),0),0);
   const expTotal=fExpenses.reduce((s,x)=>s+x.amount,0);
   const grossProfit=rev-totalCost;
   const netProfit=grossProfit-expTotal;
   const margin=rev>0?Math.round(netProfit/rev*100):0;
-  const avgCheck=effOrders.length>0?Math.round(rev/effOrders.length):0;
+  const avgCheck=saleOrders.length>0?Math.round(rev/saleOrders.length):0;
   const cnt=effOrders.length;
 
   // Top products (effective orders only)
   const topProds=useMemo(()=>{
     const m={};
-    effOrders.forEach(o=>o.items.forEach(it=>{
+    saleOrders.forEach(o=>o.items.forEach(it=>{
       const k=it.name;
       if(!m[k])m[k]={name:k,qty:0,rev:0,profit:0,cost:0};
       m[k].qty+=it.qty;m[k].rev+=it.price*it.qty;m[k].profit+=(it.price-it.cost)*it.qty;m[k].cost+=it.cost*it.qty;
@@ -940,7 +941,7 @@ function DashboardPage({orders,products,expenses,dateRange,setDateRange}){
   // Top clients (effective orders only)
   const topClients=useMemo(()=>{
     const m={};
-    effOrders.forEach(o=>{
+    saleOrders.forEach(o=>{
       const k=o.client;
       if(!m[k])m[k]={name:k,orders:0,total:0};
       m[k].orders++;m[k].total+=o.total;
@@ -960,7 +961,8 @@ function DashboardPage({orders,products,expenses,dateRange,setDateRange}){
       const d=new Date(cur);
       const dk=d.toLocaleDateString("uk-UA",{day:"numeric",month:"short"});
       const dayO=effOrders.filter(o=>{const od=new Date(o.date);return od.getFullYear()===d.getFullYear()&&od.getMonth()===d.getMonth()&&od.getDate()===d.getDate();});
-      const r=dayO.reduce((s,o)=>s+o.items.reduce((a,i)=>a+(Number(i.price)||0)*(Number(i.qty)||0),0),0);
+      const daySale=dayO.filter(o=>!o.barter);
+      const r=daySale.reduce((s,o)=>s+o.items.reduce((a,i)=>a+(Number(i.price)||0)*(Number(i.qty)||0),0),0);
       const c=dayO.reduce((s,o)=>s+o.items.reduce((a,i)=>a+(Number(i.cost)||0)*(Number(i.qty)||0),0),0);
       const dayProds={};
       dayO.forEach(o=>o.items.forEach(it=>{dayProds[it.name]=(dayProds[it.name]||0)+it.qty;}));
@@ -1830,7 +1832,7 @@ function NewOrderPage({orders,setOrders,products,setProducts,clients,setClients,
     const _fullyPaid=(parsed.paymentType==="full"||parsed.paymentType==="paid"||(prepay!==""&&total>0&&Number(prepay)>=total));
     const _finalPayment=deliv==="np"?(_fullyPaid?"prepaid":parsed.payment):"cash";
     const _finalPrepay=prepay!==""?Number(prepay):(_fullyPaid?total:null);
-    const order={id:Date.now(),client:cn,phone:parsed.phone,city:deliv==="np"?parsed.city:"",npBranch:deliv==="np"?parsed.npBranch:"",payment:_finalPayment,deliveryType:deliv,items:[...items],total,totalCost,date:new Date().toISOString(),status:ttn?"toSend":(deliv==="np"?"new":"studio"),ttn:ttn,codAmount:codAmount!==""?Number(codAmount):null,prepayment:_finalPrepay,discount:discount!==""?Number(discount):null,comment:comment};
+    const order={id:Date.now(),client:cn,phone:parsed.phone,city:deliv==="np"?parsed.city:"",npBranch:deliv==="np"?parsed.npBranch:"",payment:_finalPayment,deliveryType:deliv,items:[...items],total,totalCost,date:new Date().toISOString(),status:ttn?"toSend":(deliv==="np"?"new":"studio"),ttn:ttn,codAmount:codAmount!==""?Number(codAmount):null,prepayment:_finalPrepay,discount:discount!==""?Number(discount):null,comment:comment,barter:false};
     setProducts(products.map(p=>{const it=items.find(i=>i.productId===p.id);return it&&p.type==="product"?{...p,stock:p.stock-it.qty}:p;}));
     setOrders([...orders,order]);
     const cPhone=parsed.phone||cn;
@@ -2596,7 +2598,7 @@ function OrdersListPage({orders,setOrders,products,user}){
         {sorted.map(o=>{const dupe=dupeMap.get(o.id);const dupeOthers=dupe?dupe.groupIds.filter(x=>x!==o.id):[];const canSel=true;const noPay=needsSitePrepayment(o);return(<tr key={o.id} style={{...(noPay?{background:"#fff1e6",boxShadow:"inset 3px 0 0 #ea580c"}:null),...(dupe?{background:"#fef3c7"}:null),...(selectedIds.has(o.id)?{background:"#fce7f3"}:null)}}>
           <td style={{textAlign:"center"}}>{canSel?<input type="checkbox" checked={selectedIds.has(o.id)} onChange={()=>toggleSelect(o.id)} style={{cursor:"pointer"}}/>:<span style={{fontSize:14,opacity:.3}}>{"·"}</span>}</td>
           <td style={{whiteSpace:"nowrap",fontSize:12}}>{new Date(o.date).toLocaleDateString("uk-UA")}</td>
-          <td><div style={{fontWeight:600,display:"flex",alignItems:"center",gap:4,flexWrap:"wrap"}}>{o.client}{noPay&&<span title={"Сайт-передоплата без отриманого платежу — перевірити WayForPay"} style={{background:"#ea580c",color:"#fff",fontSize:9,padding:"2px 6px",borderRadius:8,fontWeight:700,whiteSpace:"nowrap"}}>{"\u26A0 ОЧІКУЄ ОПЛАТУ"}</span>}{dupe&&<span title={`Можливий дубль — ще ${dupeOthers.length} замовл. від цього клієнта за останні 7 днів`} style={{background:"var(--red)",color:"#fff",fontSize:9,padding:"2px 6px",borderRadius:8,fontWeight:700,whiteSpace:"nowrap"}}>⚠ ДУБЛЬ ×{dupe.groupIds.length}</span>}</div>{o.comment&&<div style={{fontSize:10,color:"var(--text2)",maxWidth:160,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}} title={o.comment}>{o.comment}</div>}</td>
+          <td><div style={{fontWeight:600,display:"flex",alignItems:"center",gap:4,flexWrap:"wrap"}}>{o.client}{noPay&&<span title={"Сайт-передоплата без отриманого платежу — перевірити WayForPay"} style={{background:"#ea580c",color:"#fff",fontSize:9,padding:"2px 6px",borderRadius:8,fontWeight:700,whiteSpace:"nowrap"}}>{"\u26A0 ОЧІКУЄ ОПЛАТУ"}</span>}{dupe&&<span title={`Можливий дубль — ще ${dupeOthers.length} замовл. від цього клієнта за останні 7 днів`} style={{background:"var(--red)",color:"#fff",fontSize:9,padding:"2px 6px",borderRadius:8,fontWeight:700,whiteSpace:"nowrap"}}>⚠ ДУБЛЬ ×{dupe.groupIds.length}</span>}{o.barter&&<span title="Бартер — без виручки" style={{background:"#9333ea",color:"#fff",fontSize:9,padding:"2px 6px",borderRadius:8,fontWeight:700,whiteSpace:"nowrap"}}>{"\uD83E\uDD1D БАРТЕР"}</span>}</div>{o.comment&&<div style={{fontSize:10,color:"var(--text2)",maxWidth:160,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}} title={o.comment}>{o.comment}</div>}</td>
           <td style={{fontSize:12,color:"var(--text2)"}}>{o.phone||"—"}</td>
           <td style={{fontSize:11,maxWidth:200}}>{o.items.map((it,i)=><span key={i}>{it.name}{it.qty>1?` ×${it.qty}`:""}{i<o.items.length-1?", ":""}</span>)}</td>
           <td style={{fontSize:11}}>{o.deliveryType==="np"?`${o.city}${o.npBranch?` №${o.npBranch}`:""}`:<span style={{color:"var(--pink2)"}}>Студія</span>}</td>
@@ -2619,7 +2621,7 @@ function OrdersListPage({orders,setOrders,products,user}){
         <div key={o.id} className={`mob-order-card${dupe?' dupe-highlight':''}`} style={selectedIds.has(o.id)?{outline:"2px solid var(--np-red)",background:"#fce7f3"}:(noPay?{outline:"2px solid #ea580c",background:"#fff1e6"}:null)} onClick={()=>openEdit(o)}>
           <div className="mob-oc-top">
             <div className="mob-oc-name" style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>{canSel&&<input type="checkbox" checked={selectedIds.has(o.id)} onClick={e=>e.stopPropagation()} onChange={()=>toggleSelect(o.id)} style={{cursor:"pointer",width:18,height:18}}/>}{o.client||"Без імені"}{noPay&&<span title={"Сайт-передоплата без отриманого платежу — перевірити WayForPay"} style={{background:"#ea580c",color:"#fff",fontSize:9,padding:"1px 5px",borderRadius:6,fontWeight:700,verticalAlign:"middle"}}>{"\u26A0 ОЧІКУЄ ОПЛАТУ"}</span>}{dupe&&<span style={{background:"var(--red)",color:"#fff",fontSize:9,padding:"1px 5px",borderRadius:6,fontWeight:700,verticalAlign:"middle"}}>ДУБЛЬ</span>}</div>
-            <div className="mob-oc-badge"><span className={`badge ${STCLS[o.status]}`}>{STATUSES[o.status]}</span></div>
+            <div className="mob-oc-badge">{o.barter&&<span style={{background:"#9333ea",color:"#fff",fontSize:9,padding:"2px 6px",borderRadius:8,fontWeight:800,marginRight:4}}>{"\uD83E\uDD1D БАРТЕР"}</span>}<span className={`badge ${STCLS[o.status]}`}>{STATUSES[o.status]}</span></div>
           </div>
           <div className="mob-oc-info">
             <span>{new Date(o.date).toLocaleDateString("uk-UA",{day:"numeric",month:"short"})}</span>
@@ -2717,6 +2719,7 @@ function OrdersListPage({orders,setOrders,products,user}){
         </select></div>
         <div className="form-group" style={{marginBottom:0}}><label className="form-label">Коментар</label><input className="form-input" value={editO.comment||""} onChange={e=>setEditO({...editO,comment:e.target.value})}/></div>
       </div>
+      <label style={{display:"flex",alignItems:"center",gap:8,marginBottom:14,cursor:"pointer",fontSize:13,fontWeight:700,color:editO.barter?"#9333ea":"var(--text2)",background:editO.barter?"#f3e8ff":"#f8fafc",border:"1.5px solid "+(editO.barter?"#9333ea":"var(--border)"),borderRadius:10,padding:"10px 12px"}}><input type="checkbox" checked={!!editO.barter} onChange={e=>setEditO({...editO,barter:e.target.checked})} style={{width:18,height:18,cursor:"pointer"}}/><span>{"\uD83E\uDD1D Бартер"}</span><span style={{fontWeight:500,fontSize:11,color:"var(--text2)"}}>{" — без виручки, собівартість у витрати"}</span></label>
       {/* Prepayment & COD editing */}
       <div style={{background:"var(--pink-pale)",borderRadius:10,padding:"10px 12px",marginBottom:14}}>
         <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",color:"var(--text2)",marginBottom:8}}>Контроль оплати</div>
@@ -3091,8 +3094,8 @@ if(!initSupabase()){
 }
 
 // Helper: map DB row (snake_case) → app object (camelCase) for orders
-const mapOrderFromDB=r=>({id:r.id,client:r.client,phone:r.phone,city:r.city,npBranch:r.np_branch,payment:r.payment,deliveryType:r.delivery_type,items:r.items,total:Number(r.total),totalCost:Number(r.total_cost),date:r.date,status:r.status,ttn:r.ttn,codAmount:r.cod_amount!=null?Number(r.cod_amount):null,prepayment:r.prepayment!=null?Number(r.prepayment):null,comment:r.comment||"",npStatusCode:r.np_status_code||"",npStatusText:r.np_status_text||"",deletedAt:r.deleted_at||null});
-const mapOrderToDB=o=>({id:o.id,client:o.client,phone:o.phone||"",city:o.city||"",np_branch:o.npBranch||"",payment:o.payment||"control",delivery_type:o.deliveryType||"np",items:o.items,total:o.total,total_cost:o.totalCost,date:o.date,status:o.status,ttn:o.ttn||"",cod_amount:o.codAmount!=null?o.codAmount:null,prepayment:o.prepayment!=null?o.prepayment:null,comment:o.comment||"",np_status_code:o.npStatusCode||null,np_status_text:o.npStatusText||null});
+const mapOrderFromDB=r=>({id:r.id,client:r.client,phone:r.phone,city:r.city,npBranch:r.np_branch,payment:r.payment,deliveryType:r.delivery_type,items:r.items,total:Number(r.total),totalCost:Number(r.total_cost),date:r.date,status:r.status,ttn:r.ttn,codAmount:r.cod_amount!=null?Number(r.cod_amount):null,prepayment:r.prepayment!=null?Number(r.prepayment):null,comment:r.comment||"",npStatusCode:r.np_status_code||"",npStatusText:r.np_status_text||"",deletedAt:r.deleted_at||null,barter:!!r.barter});
+const mapOrderToDB=o=>({id:o.id,client:o.client,phone:o.phone||"",city:o.city||"",np_branch:o.npBranch||"",payment:o.payment||"control",delivery_type:o.deliveryType||"np",items:o.items,total:o.total,total_cost:o.totalCost,date:o.date,status:o.status,ttn:o.ttn||"",cod_amount:o.codAmount!=null?o.codAmount:null,prepayment:o.prepayment!=null?o.prepayment:null,comment:o.comment||"",np_status_code:o.npStatusCode||null,np_status_text:o.npStatusText||null,barter:!!o.barter});
 
 const mapClientFromDB=r=>({id:r.id,name:r.name,phone:r.phone,city:r.city,npBranch:r.np_branch,created:r.created});
 const mapClientToDB=c=>({id:c.id,name:c.name,phone:c.phone||"",city:c.city||"",np_branch:c.npBranch||"",created:c.created});
