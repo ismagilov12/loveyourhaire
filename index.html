@@ -4632,7 +4632,7 @@ function App(){
                 return false;
               }
             }
-            return p.status!==o.status||p.ttn!==o.ttn||p.payment!==o.payment||p.client!==o.client||p.phone!==o.phone||p.npBranch!==o.npBranch||p.city!==o.city||p.total!==o.total||p.totalCost!==o.totalCost||p.npStatusCode!==o.npStatusCode||p.npStatusText!==o.npStatusText||p.codAmount!==o.codAmount||p.prepayment!==o.prepayment||p.comment!==o.comment||JSON.stringify(p.items||[])!==JSON.stringify(o.items||[]);
+            return p.status!==o.status||p.ttn!==o.ttn||p.payment!==o.payment||p.client!==o.client||p.phone!==o.phone||p.npBranch!==o.npBranch||p.city!==o.city||p.total!==o.total||p.totalCost!==o.totalCost||p.npStatusCode!==o.npStatusCode||p.npStatusText!==o.npStatusText||p.codAmount!==o.codAmount||p.prepayment!==o.prepayment||p.comment!==o.comment||p.barter!==o.barter||JSON.stringify(p.items||[])!==JSON.stringify(o.items||[]);
           });
         }
         if(changed.length>0)DB.upsertMany("orders",changed.map(mapOrderToDB));
