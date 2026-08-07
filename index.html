@@ -2225,12 +2225,16 @@ function OrdersListPage({orders,setOrders,products,user}){
   // Bulk TTN creation — processes selected orders sequentially, resolves city/warehouse, creates TTN, saves ttn+status
   const bulkCreateTTN=async()=>{
     const savedSW=LS.get("np_sender_wh")||{};
-    const sender=await NP.getSenderInfo();
-    if(!sender){alert("Не вдалося завантажити дані відправника НП. Перевірте API ключ.");return;}
-    if(!savedSW.whRef&&!sender.address?.ref){alert("Спочатку створіть один ТТН вручну, щоб зафіксувати відділення відправника.");return;}
+    // Open the progress modal immediately so the click is never a silent no-op,
+    // even if the very first NP request stalls or times out.
+    setBulkRunning(true);setBulkResults({total:0,done:[]});
+    const bail=m=>{setBulkRunning(false);setBulkResults(null);alert(m);};
+    let sender=null;
+    try{sender=await NP.getSenderInfo();}catch(e){console.error("bulk getSenderInfo",e);}
+    if(!sender){bail("Не вдалося завантажити дані відправника НП — немає відповіді від Нової Пошти. Оновіть сторінку і спробуйте ще раз.");return;}
+    if(!savedSW.whRef&&!sender.address?.ref){bail("Спочатку створіть один ТТН вручну, щоб зафіксувати відділення відправника.");return;}
     const list=orders.filter(o=>selectedIds.has(o.id)&&o.deliveryType==="np"&&!o.ttn&&o.city&&o.npBranch&&o.client&&o.phone);
-    if(!list.length){alert("Серед виділених немає замовлень, придатних до створення ТТН (потрібно: НП, без ТТН, є місто/відділення/ПІБ/телефон).");return;}
-    setBulkRunning(true);
+    if(!list.length){bail("Серед виділених немає замовлень, придатних до створення ТТН (потрібно: НП, без ТТН, є місто/відділення/ПІБ/телефон).");return;}
     setBulkResults({total:list.length,done:[]});
     let cargoRef="";try{cargoRef=await NP.getCargoDescriptionRef("одяг");}catch(e){}
     const results=[];
@@ -3432,16 +3436,32 @@ async function sendAdminTgDoc(documentUrl,caption,documentName){
   }catch(e){console.warn("sendAdminTgDoc exception",e);return{ok:false,err:e.message||String(e)};}
 }
 
+// ── NP request gate: max N concurrent + hard timeout.
+// Without it hundreds of row-level tracking calls saturate the browser's
+// per-host connection pool and any later request (bulk TTN creation) hangs
+// forever with no error and no UI feedback.
+const NP_MAX_CONCURRENT=4,NP_TIMEOUT_MS=25000;
+let _npActive=0;const _npWaiters=[];
+function _npAcquire(){if(_npActive<NP_MAX_CONCURRENT){_npActive++;return Promise.resolve();}return new Promise(res=>_npWaiters.push(res));}
+function _npRelease(){const w=_npWaiters.shift();if(w)w();else _npActive=Math.max(0,_npActive-1);}
 const NP={
   async call(model,method,props={}){
+    await _npAcquire();
+    const ctl=(typeof AbortController!=="undefined")?new AbortController():null;
+    const tm=setTimeout(()=>{try{ctl&&ctl.abort();}catch(e){}},NP_TIMEOUT_MS);
     try{
       const r=await fetch(NP_API,{method:"POST",headers:{"Content-Type":"application/json"},
+        signal:ctl?ctl.signal:undefined,
         body:JSON.stringify({apiKey:NP_API_KEY,modelName:model,calledMethod:method,methodProperties:props})
       });
       const j=await r.json();
       if(!j.success)console.warn("NP API error:",j.errors);
       return j;
-    }catch(e){console.error("NP fetch error:",e);return{success:false,data:[],errors:[e.message]};}
+    }catch(e){
+      const msg=(e&&e.name==="AbortError")?("Нова Пошта не відповіла за "+Math.round(NP_TIMEOUT_MS/1000)+"с"):(e&&e.message||String(e));
+      console.error("NP fetch error:",msg);
+      return{success:false,data:[],errors:[msg]};
+    }finally{clearTimeout(tm);_npRelease();}
   },
   // Russian/Ukrainian typos -> canonical Ukrainian form used by NP
   _ruToUa:{"киев":"київ","харьков":"харків","одесса":"одеса","львов":"львів","днепр":"дніпро","запорожье":"запоріжжя","николаев":"миколаїв","винница":"вінниця","черкассы":"черкаси","чернигов":"чернігів","тернополь":"тернопіль","ровно":"рівне","кременчуг":"кременчук","хмельницкий":"хмельницький","луцк":"луцьк","кировоград":"кропивницький","черновцы":"чернівці","ивано-франковск":"івано-франківськ","белая церковь":"біла церква","никополь":"нікополь","бердянск":"бердянськ","краматорск":"краматорськ","мариуполь":"маріуполь","мелитополь":"мелітополь","измаил":"ізмаїл","александрия":"олександрія","ахтырка":"охтирка","славянск":"словянськ","луганск":"луганськ","донецк":"донецьк","сумы":"суми","полтава":"полтава","херсон":"херсон","житомир":"житомир","бровары":"бровари","сімферополь":"сімферополь","симферополь":"сімферополь","севастополь":"севастополь","горловка":"горлівка","макеевка":"макіївка","павлоград":"павлоград","алчевск":"алчевськ","северодонецк":"сєвєродонецьк","каменец-подольский":"кам\"янець-подільський","конотоп":"конотоп","умань":"умань","шостка":"шостка","ужгород":"ужгород","борисполь":"бориспіль","ирпень":"ірпінь","буча":"буча","вышгород":"вишгород","каменское":"кам\"янське","мукачево":"мукачево","стрый":"стрий","коломыя":"коломия"},
@@ -3496,12 +3516,35 @@ const NP={
     }
     return arr.map(w=>({ref:w.Ref,num:w.Number,desc:w.Description,shortAddr:w.ShortAddress,type:w.TypeOfWarehouse,cityDesc:w.CityDescription}));
   },
-  async trackTTN(ttn){
-    if(!ttn)return null;
-    const r=await NP.call("TrackingDocument","getStatusDocuments",{Documents:[{DocumentNumber:ttn}]});
-    if(!r.success||!r.data||!r.data[0])return null;
-    const d=r.data[0];
-    return{status:d.Status,statusCode:d.StatusCode,city:d.CitySender+" → "+d.CityRecipient,weight:d.DocumentWeight,cost:d.DocumentCost,deliveryCost:d.CostOnSite,scheduledDate:d.ScheduledDeliveryDate,actualDate:d.ActualDeliveryDate,warehouseRecipient:d.WarehouseRecipient,redeliverySum:d.RedeliverySum};
+  _trackRow(d){return{status:d.Status,statusCode:d.StatusCode,city:d.CitySender+" → "+d.CityRecipient,weight:d.DocumentWeight,cost:d.DocumentCost,deliveryCost:d.CostOnSite,scheduledDate:d.ScheduledDeliveryDate,actualDate:d.ActualDeliveryDate,warehouseRecipient:d.WarehouseRecipient,redeliverySum:d.RedeliverySum};},
+  _trackQ:[],_trackTimer:null,_trackCache:new Map(),
+  clearTrackCache(){NP._trackCache.clear();},
+  async _flushTrack(){
+    NP._trackTimer=null;
+    const q=NP._trackQ.splice(0,NP._trackQ.length);
+    if(!q.length)return;
+    const uniq=Array.from(new Set(q.map(x=>x.ttn)));
+    const byTtn=new Map();
+    try{
+      for(let i=0;i<uniq.length;i+=100){
+        const chunk=uniq.slice(i,i+100);
+        const r=await NP.call("TrackingDocument","getStatusDocuments",{Documents:chunk.map(t=>({DocumentNumber:t}))});
+        if(r&&r.success&&Array.isArray(r.data)){for(const d of r.data){if(d&&d.Number)byTtn.set(String(d.Number),NP._trackRow(d));}}
+      }
+    }catch(e){console.warn("track batch failed",e);}
+    for(const w of q){const v=byTtn.get(w.ttn)||null;if(v)NP._trackCache.set(w.ttn,{t:Date.now(),v});try{w.resolve(v);}catch(e){}}
+  },
+  // Batched single-TTN tracking: collects calls in a 300ms window and sends one
+  // getStatusDocuments request per 100 TTNs instead of one request per table row.
+  trackTTN(ttn){
+    if(!ttn)return Promise.resolve(null);
+    const key=String(ttn);
+    const c=NP._trackCache.get(key);
+    if(c&&Date.now()-c.t<300000)return Promise.resolve(c.v);
+    return new Promise(resolve=>{
+      NP._trackQ.push({ttn:key,resolve});
+      if(!NP._trackTimer)NP._trackTimer=setTimeout(()=>{NP._flushTrack();},300);
+    });
   },
   // Bulk track up to 100 TTNs per call. Returns [{ttn, statusCode, status}, ...] (successful rows only).
   async trackTTNs(ttns){
