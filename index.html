@@ -1446,15 +1446,19 @@ function TTNStatus({ttn,orderId,orderStatus,onAutoStatus,onStatusCode}){
 
 // ─── Create TTN Modal ───
 // ── Переадресація відправлення НП (заявка orderRedirecting по існуючій ТТН) ──
-// Повне редагування експрес-накладної НП.
-// Режим "edit"    — ЕН ще не передана у відділення (doc.Edit===true): міняємо все напряму (InternetDocument.update).
-// Режим "request" — посилка вже їде: НП приймає тільки заявку orderChangeEW з обмеженим набором полів.
+// Повне редагування експрес-накладної НП. Три сценарії, які НП дозволяє в різних станах ЕН:
+//  1) "edit"    — ЕН створена, ще НЕ роздрукована і не передана: InternetDocument.update, міняється все.
+//  2) "reprint" — ЕН уже роздрукована, але ще не передана: НП блокує update ("Document is already printed")
+//                 і ще не приймає заявку → перестворюємо ЕН (нова save + delete старої, номер зміниться).
+//  3) "request" — посилку прийняли у відділенні / вона їде: заявка orderChangeEW (ПІБ, телефон, платник,
+//                 спосіб оплати, наложка, вартість, місця, опис). Місто/відділення — тільки переадресацією.
 function EditTTNModal({order,onClose,onSaved}){
   const[loading,setLoading]=useState(true);
   const[loadErr,setLoadErr]=useState("");
   const[doc,setDoc]=useState(null);
   const[chkInfo,setChkInfo]=useState(null);
   const[mode,setMode]=useState("");
+  const[printed,setPrinted]=useState(false);
   const[name,setName]=useState(order.client||"");
   const[phone,setPhone]=useState(order.phone||"");
   const[city,setCity]=useState("");
@@ -1472,50 +1476,133 @@ function EditTTNModal({order,onClose,onSaved}){
   const[busy,setBusy]=useState(false);
   const[err,setErr]=useState("");
   const[okMsg,setOkMsg]=useState("");
+  const init=useRef({});
   useEffect(()=>{(async()=>{
     try{
-      const d=await NP.findDoc(order.ttn,order.date?new Date(order.date).getTime():null,true);
+      const res=await Promise.all([
+        NP.findDoc(order.ttn,order.date?new Date(order.date).getTime():null,true).catch(()=>null),
+        NP.checkChangeEW(order.ttn).catch(e=>({ok:false,error:e.message||String(e)}))
+      ]);
+      const d=res[0],c=res[1];
+      let v={name:order.client||"",phone:order.phone||"",cost:"",weight:"0.5",seats:"1",descr:"",cod:"",payer:"Recipient",payMethod:"Cash"};
       if(d){
         setDoc(d);
-        setName(d.RecipientContactPerson||order.client||"");
-        setPhone(d.RecipientsPhone||order.phone||"");
-        setCost(String(Math.round(Number(d.Cost)||0)));
-        setWeight(String(d.Weight||"0.5"));
-        setSeats(String(d.SeatsAmount||"1"));
-        setDescr(d.Description||"");
-        setCod(String(Math.round(Number(d.AfterpaymentOnGoodsCost)||0)));
-        setPayer(d.PayerType||"Recipient");
-        setPayMethod(d.PaymentMethod||"Cash");
-        if(d.Edit===true||String(d.StateId)==="1"||String(d.StateId)==="2"){setMode("edit");setLoading(false);return;}
+        v={
+          name:d.RecipientContactPerson||order.client||"",
+          phone:d.RecipientsPhone||order.phone||"",
+          cost:String(Math.round(Number(d.Cost)||0)),
+          weight:String(d.Weight||"0.5"),
+          seats:String(d.SeatsAmount||"1"),
+          descr:d.Description||"",
+          cod:String(Math.round(Number(d.AfterpaymentOnGoodsCost)||0)),
+          payer:d.PayerType||"Recipient",
+          payMethod:d.PaymentMethod||"Cash"
+        };
+        setPrinted(String(d.Printed||"")==="1");
       }
-      const c=await NP.checkChangeEW(order.ttn);
-      if(c.ok){setChkInfo(c.info);setMode("request");}
-      else setLoadErr(c.error||"НП не дозволяє змінювати цю накладну");
+      if(c&&c.ok){
+        setChkInfo(c.info);
+        if(!d){
+          v.name=c.info.ContactPersonRecipient||v.name;
+          v.phone=c.info.RecipientPhone||v.phone;
+          v.cod=String(Math.round(Number(c.info.AfterpaymentOnGoodsCost)||0));
+          v.payer=c.info.PayerType||v.payer;
+          v.payMethod=c.info.PaymentMethod||v.payMethod;
+        }
+      }
+      init.current=v;
+      setName(v.name);setPhone(v.phone);setCost(v.cost);setWeight(v.weight);
+      setSeats(v.seats);setDescr(v.descr);setCod(v.cod);setPayer(v.payer);setPayMethod(v.payMethod);
+      // Заявка має пріоритет: якщо НП її приймає — значить посилку вже прийняли і прямий update неможливий.
+      if(c&&c.ok)setMode("request");
+      else if(d&&d.Edit===true&&String(d.Printed||"")!=="1")setMode("edit");
+      else if(d&&d.Edit===true)setMode("reprint");
+      else setLoadErr((c&&c.error)?NP._npErr([c.error]):"НП не дозволяє змінювати цю накладну (можливо, вона вже видана або видалена)");
       setLoading(false);
     }catch(e){setLoadErr("Помилка: "+(e.message||e));setLoading(false);}
   })();},[]);
-  const doSave=async(ov)=>{
+  const fullCh=(ov)=>{
+    ov=ov||{};
+    const pType=ov.payerType||payer;
+    const ch={name:name,phone:phone,cost:cost,weight:weight,seats:seats,description:descr,cod:cod,
+      payerType:pType,paymentMethod:pType==="Recipient"?"Cash":(ov.paymentMethod||payMethod)};
+    if(cityRef){ch.cityRef=cityRef;ch.recipCityRef=delCityRef||cityRef;}
+    if(whRef)ch.warehouseRef=whRef;
+    return ch;
+  };
+  // Для заявки шлемо тільки те, що реально змінили — НП відмовляє на зайвих полях.
+  const diffCh=(ov)=>{
+    ov=ov||{};
+    const i=init.current||{};
+    const ch={};
+    if(String(name||"").trim()&&String(name).trim()!==String(i.name||"").trim())ch.name=name;
+    if(String(phone||"").trim()&&normPhoneNP(phone)!==normPhoneNP(i.phone||""))ch.phone=phone;
+    if(String(cost||"")!==String(i.cost||"")&&Number(cost)>0)ch.cost=cost;
+    if(String(seats||"")!==String(i.seats||"")&&Number(seats)>0)ch.seats=seats;
+    if(String(descr||"").trim()&&String(descr).trim()!==String(i.descr||"").trim())ch.description=descr;
+    if(String(cod||"")!==String(i.cod||""))ch.cod=cod;
+    const pType=ov.payerType||payer;
+    const pMethod=pType==="Recipient"?"Cash":(ov.paymentMethod||payMethod);
+    if(pType!==(i.payer||"Recipient")||pMethod!==(i.payMethod||"Cash")){ch.payerType=pType;ch.paymentMethod=pMethod;}
+    return ch;
+  };
+  const applyPatch=(extra,ov)=>{
     ov=ov||{};
     const pType=ov.payerType||payer;
     const pMethod=pType==="Recipient"?"Cash":(ov.paymentMethod||payMethod);
+    setPayer(pType);setPayMethod(pMethod);
+    const patch={client:name,phone:phone,codAmount:Math.max(0,Math.round(Number(cod)||0))};
+    if(city)patch.city=city;
+    if(whNum){const m=String(whNum).match(/\d+/);patch.npBranch=m?m[0]:String(whNum);}
+    Object.assign(patch,extra||{});
+    if(onSaved)onSaved(patch,mode);
+    init.current=Object.assign({},init.current,{name:name,phone:phone,cost:cost,seats:seats,descr:descr,cod:cod,payer:pType,payMethod:pMethod});
+    try{NP.clearTrackCache();}catch(e){}
+  };
+  // Пряме редагування (ЕН ще не роздрукована і не передана)
+  const doUpdate=async(ov)=>{
     setBusy(true);setErr("");
     try{
-      const ch={name:name,phone:phone,cost:cost,weight:weight,seats:seats,description:descr,cod:cod,payerType:pType,paymentMethod:pMethod};
-      if(cityRef){ch.cityRef=cityRef;ch.recipCityRef=delCityRef||cityRef;}
-      if(whRef)ch.warehouseRef=whRef;
-      const r=(mode==="edit")?await NP.updateTTN(doc,ch):await NP.changeEW(order.ttn,ch);
+      const r=await NP.updateTTN(doc,fullCh(ov));
+      setBusy(false);
+      if(!r.ok){
+        setErr(r.error||"НП відмовила");
+        if(r.printed){setPrinted(true);setMode("reprint");}
+        return;
+      }
+      applyPatch({},ov);
+      setOkMsg("Накладну оновлено в Новій Пошті"+(r.cost?". Вартість доставки: "+r.cost+" грн":"")+". Роздрукуйте новий бланк — старий недійсний.");
+    }catch(e){setBusy(false);setErr("Помилка: "+(e.message||e));}
+  };
+  // Заявка на зміну даних уже переданої ЕН
+  const doRequest=async(ov)=>{
+    setBusy(true);setErr("");
+    try{
+      const ch=diffCh(ov);
+      if(!Object.keys(ch).length){setBusy(false);setErr("Нічого не змінено — заявка не потрібна");return;}
+      const r=await NP.changeEW(order.ttn,ch);
       setBusy(false);
       if(!r.ok){setErr(r.error||"НП відмовила");return;}
-      setPayer(pType);setPayMethod(pMethod);
-      const patch={client:name,phone:phone,codAmount:Math.max(0,Math.round(Number(cod)||0))};
-      if(city)patch.city=city;
-      if(whNum){const m=String(whNum).match(/\d+/);patch.npBranch=m?m[0]:String(whNum);}
-      if(onSaved)onSaved(patch,mode);
-      setOkMsg(mode==="edit"
-        ?("Накладну оновлено в Новій Пошті"+(r.cost?". Вартість доставки: "+r.cost+" грн":"")+". Роздрукуйте новий бланк — старий недійсний.")
-        :("Заявку на зміну створено"+(r.number?" (№ "+r.number+")":"")+". НП обробить її протягом кількох хвилин."));
-      try{NP.clearTrackCache();}catch(e){}
+      applyPatch({},ov);
+      setOkMsg("Заявку на зміну даних створено"+(r.number?" (№ "+r.number+")":"")+". НП обробить її протягом кількох хвилин — послуга платна за тарифом НП.");
     }catch(e){setBusy(false);setErr("Помилка: "+(e.message||e));}
+  };
+  // Перестворення ЕН (роздрукована, але ще не передана)
+  const doRecreate=async(ov)=>{
+    if(!confirm("Перестворити ЕН з новими даними?\nСтара накладна "+(order.ttn||"")+" буде видалена, НП видасть НОВИЙ номер — бланк треба роздрукувати заново."))return;
+    setBusy(true);setErr("");
+    try{
+      const r=await NP.recreateTTN(doc,fullCh(ov));
+      setBusy(false);
+      if(!r.ok){setErr(r.error||"НП відмовила");return;}
+      applyPatch({ttn:r.ttn},ov);
+      setOkMsg("Створено нову ЕН "+r.ttn+(r.delErr?(". УВАГА: стару "+r.oldTtn+" не вдалося видалити ("+r.delErr+") — видаліть її в кабінеті НП вручну"):(". Стару "+r.oldTtn+" видалено"))+". Роздрукуйте новий бланк.");
+    }catch(e){setBusy(false);setErr("Помилка: "+(e.message||e));}
+  };
+  const primarySave=(ov)=>{
+    if(mode==="request")return doRequest(ov);
+    if(mode==="reprint")return doRecreate(ov);
+    return doUpdate(ov);
   };
   const openNPCabinet=()=>{
     try{navigator.clipboard.writeText(String(order.ttn||""));}catch(e){}
@@ -1523,6 +1610,12 @@ function EditTTNModal({order,onClose,onSaved}){
   };
   const lbl={fontSize:10,fontWeight:700,color:"var(--text2)",marginBottom:2};
   const inp={fontSize:12};
+  const canGeo=(mode==="edit"||mode==="reprint");
+  const banner=mode==="request"
+    ?{bg:"var(--np-light)",t:"Посилку вже прийняли в НП — зміни підуть заявкою orderChangeEW (платна послуга НП)"}
+    :mode==="reprint"
+      ?{bg:"var(--gold-light)",t:"ЕН уже роздрукована — НП блокує пряме редагування. Можна перестворити накладну з новими даними (номер зміниться)"}
+      :{bg:"var(--green-light)",t:"Пряме редагування — зміни застосуються одразу"};
   return(<Modal title={"Редагування ЕН "+(order.ttn||"")} onClose={onClose} wide>
     {loading?<div style={{textAlign:"center",padding:20,color:"var(--text2)"}}>{"Читаю накладну з Нової Пошти..."}</div>
     :okMsg?<div style={{textAlign:"center",padding:20}}>
@@ -1532,12 +1625,12 @@ function EditTTNModal({order,onClose,onSaved}){
     </div>
     :(loadErr&&!mode)?<div style={{textAlign:"center",padding:20}}>
       <div style={{color:"var(--red)",fontWeight:600}}>{loadErr}</div>
-      <div style={{marginTop:8,fontSize:12,color:"var(--text2)"}}>{"Якщо посилка вже в дорозі або видана — дані ЕН змінити не можна. Можлива переадресація на інше відділення."}</div>
+      <div style={{marginTop:8,fontSize:12,color:"var(--text2)"}}>{"Якщо посилку вже видано або повернуто — дані ЕН змінити не можна. Для зміни відділення є «Переадресувати»."}</div>
       <div style={{marginTop:16}}><button className="btn btn-secondary" onClick={onClose}>{"Закрити"}</button></div>
     </div>
     :<div>
-      <div style={{background:mode==="edit"?"var(--green-light)":"var(--np-light)",borderRadius:10,padding:"8px 12px",marginBottom:12,fontSize:12}}>
-        <div style={{fontWeight:700}}>{mode==="edit"?"Пряме редагування — зміни застосуються одразу":"Посилка вже передана в НП — зміни підуть заявкою (обмежений набір полів)"}</div>
+      <div style={{background:banner.bg,borderRadius:10,padding:"8px 12px",marginBottom:12,fontSize:12}}>
+        <div style={{fontWeight:700}}>{banner.t}</div>
         {doc&&doc.StateName&&<div style={{marginTop:2,color:"var(--text2)"}}>{"Статус НП: "+doc.StateName}</div>}
         {doc&&doc.CostOnSite&&<div style={{marginTop:2,color:"var(--text2)"}}>{"Поточна вартість доставки: "+doc.CostOnSite+" грн"}</div>}
       </div>
@@ -1545,7 +1638,7 @@ function EditTTNModal({order,onClose,onSaved}){
         <div><div style={lbl}>{"ПІБ отримувача"}</div><input className="form-input" value={name} onChange={e=>{setName(e.target.value);setErr("");}} style={inp}/></div>
         <div><div style={lbl}>{"Телефон отримувача"}</div><input className="form-input" value={phone} onChange={e=>{setPhone(e.target.value);setErr("");}} style={inp}/></div>
       </div>
-      {mode==="edit"&&<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}>
+      {canGeo&&<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}>
         <div>
           <div style={lbl}>{"Місто"+(doc&&doc.CityRecipientDescription?" (зараз: "+doc.CityRecipientDescription+")":"")}</div>
           <NPCityPicker value={city} onChange={v=>{setCity(v);setErr("");}} onCityRef={r=>{setCityRef(r);setWhRef("");setWhNum("");}} onDeliveryCityRef={r=>setDelCityRef(r)}/>
@@ -1558,7 +1651,7 @@ function EditTTNModal({order,onClose,onSaved}){
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:10,marginBottom:10}}>
         <div><div style={lbl}>{"Оціночна вартість, грн"}</div><input className="form-input" type="number" min="1" value={cost} onChange={e=>setCost(e.target.value)} style={inp}/></div>
         <div><div style={lbl}>{"Наложка (контроль), грн"}</div><input className="form-input" type="number" min="0" value={cod} onChange={e=>setCod(e.target.value)} style={inp}/></div>
-        <div><div style={lbl}>{"Вага, кг"}</div><input className="form-input" type="number" min="0.1" step="0.1" value={weight} onChange={e=>setWeight(e.target.value)} style={inp} disabled={mode!=="edit"}/></div>
+        <div><div style={lbl}>{"Вага, кг"}</div><input className="form-input" type="number" min="0.1" step="0.1" value={weight} onChange={e=>setWeight(e.target.value)} style={inp} disabled={!canGeo}/></div>
         <div><div style={lbl}>{"Місць"}</div><input className="form-input" type="number" min="1" value={seats} onChange={e=>setSeats(e.target.value)} style={inp}/></div>
       </div>
       <div className="form-group" style={{marginBottom:10}}><div style={lbl}>{"Опис вмісту"}</div><input className="form-input" value={descr} onChange={e=>setDescr(e.target.value)} style={inp}/></div>
@@ -1579,17 +1672,20 @@ function EditTTNModal({order,onClose,onSaved}){
           </div>
         </div>
         <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-          <button className="btn btn-np btn-xs" disabled={busy} onClick={()=>{if(confirm("Перевести оплату доставки на нас (безготівка з рахунку НП)?"))doSave({payerType:"Sender",paymentMethod:"NonCash"});}} style={{padding:"8px 10px"}}>{busy?"...":"₴ Оплачуємо ми (безготівка)"}</button>
-          <button className="btn btn-secondary btn-xs" disabled={busy} onClick={()=>{if(confirm("Повернути оплату доставки на отримувача?"))doSave({payerType:"Recipient",paymentMethod:"Cash"});}} style={{padding:"8px 10px"}}>{"↩ Платить отримувач"}</button>
+          <button className="btn btn-np btn-xs" disabled={busy} onClick={()=>{if(confirm("Перевести оплату доставки на нас (безготівка з рахунку НП)?"))primarySave({payerType:"Sender",paymentMethod:"NonCash"});}} style={{padding:"8px 10px"}}>{busy?"...":"₴ Оплачуємо ми (безготівка)"}</button>
+          <button className="btn btn-secondary btn-xs" disabled={busy} onClick={()=>{if(confirm("Повернути оплату доставки на отримувача?"))primarySave({payerType:"Recipient",paymentMethod:"Cash"});}} style={{padding:"8px 10px"}}>{"↩ Платить отримувач"}</button>
           <button className="btn btn-secondary btn-xs" onClick={openNPCabinet} style={{padding:"8px 10px"}}>{"💳 Оплатити карткою (кабінет НП)"}</button>
         </div>
         <div style={{fontSize:10,color:"var(--text2)",marginTop:6}}>{"Безготівка списується з рахунку НП відправника. Оплата карткою поштучно доступна лише в кабінеті/додатку НП — кнопка відкриє кабінет і скопіює номер ЕН у буфер."}</div>
       </div>
-      {mode!=="edit"&&<div style={{fontSize:10,color:"var(--text2)",marginBottom:8}}>{"Місто/відділення заявкою змінити не можна — для цього є «Переадресувати»."}</div>}
+      {mode==="request"&&<div style={{fontSize:10,color:"var(--text2)",marginBottom:8}}>{"Заявкою НП змінює тільки ПІБ, телефон, платника/оплату, наложку, вартість, місця й опис — і лише ті поля, які ви реально відредагували. Місто/відділення заявкою не міняються: для цього є «Переадресувати»."}</div>}
+      {mode==="reprint"&&<div style={{fontSize:10,color:"var(--text2)",marginBottom:8}}>{"Перестворення: НП створить нову ЕН з цими даними і видалить стару. Номер ТТН у замовленні оновиться автоматично, бланк треба роздрукувати заново."}</div>}
       {err&&<div style={{color:"var(--red)",fontSize:12,fontWeight:600,marginBottom:8}}>{err}</div>}
-      <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}>
+      <div style={{display:"flex",gap:8,justifyContent:"flex-end",flexWrap:"wrap"}}>
         <button className="btn btn-secondary" onClick={onClose} disabled={busy}>{"Скасувати"}</button>
-        <button className="btn btn-np" onClick={()=>doSave()} disabled={busy}>{busy?"Зберігаю...":(mode==="edit"?"Зберегти в НП":"Створити заявку")}</button>
+        {mode!=="request"&&chkInfo&&<button className="btn btn-secondary" onClick={()=>doRequest()} disabled={busy}>{"📄 Заявка на зміну"}</button>}
+        {mode==="edit"&&<button className="btn btn-secondary" onClick={()=>doRecreate()} disabled={busy}>{"♻️ Перестворити ЕН"}</button>}
+        <button className="btn btn-np" onClick={()=>primarySave()} disabled={busy}>{busy?"Відправляю в НП...":(mode==="request"?"📄 Створити заявку на зміну":mode==="reprint"?"♻️ Перестворити ЕН":"Зберегти в НП")}</button>
       </div>
     </div>}
   </Modal>);
@@ -2965,6 +3061,7 @@ function OrdersListPage({orders,setOrders,products,user}){
       if(patch.city!=null)db.city=patch.city;
       if(patch.npBranch!=null)db.np_branch=patch.npBranch;
       if(patch.codAmount!=null)db.cod_amount=patch.codAmount;
+      if(patch.ttn!=null)db.ttn=patch.ttn;
       saveOrderField(editTtnO.id,db);
     }}/>}
     {redirO&&<RedirectTTNModal order={redirO} onClose={()=>setRedirO(null)} onDone={({city,branch,number})=>{
@@ -3853,25 +3950,23 @@ const NP={
     }
     return String(d.getDate()).padStart(2,"0")+"."+String(d.getMonth()+1).padStart(2,"0")+"."+d.getFullYear();
   },
-  // ch: {name,phone,cityRef,recipCityRef,warehouseRef,cost,weight,seats,description,addInfo,cod,payerType,paymentMethod}
-  async updateTTN(doc,ch){
-    if(!doc||!doc.Ref)return{ok:false,error:"не знайдено цю ЕН у кабінеті НП"};
-    ch=ch||{};
+  // Отримувач для нової/оновленої ЕН: якщо змінили ПІБ/телефон/місто — створюємо контрагента заново.
+  async _resolveRecipient(doc,ch){
     const cityRef=ch.cityRef||doc.CityRecipient;
-    let recipient=doc.Recipient,contact=doc.ContactRecipient;
     const newName=(ch.name||doc.RecipientContactPerson||"").trim();
     const newPhone=normPhoneNP(ch.phone||doc.RecipientsPhone);
-    const nameChanged=newName&&newName!==String(doc.RecipientContactPerson||"").trim();
-    const phoneChanged=newPhone&&newPhone!==normPhoneNP(doc.RecipientsPhone);
-    const cityChanged=!!(ch.cityRef&&ch.cityRef!==doc.CityRecipient);
-    if(nameChanged||phoneChanged||cityChanged){
-      const rc=await NP.createRecipient(newName,newPhone,ch.recipCityRef||cityRef);
-      if(!rc.ok)return{ok:false,error:"отримувач: "+((rc.errors||["не вдалося створити"]).join(", "))};
-      recipient=rc.ref;contact=rc.contactRef;
-    }
+    const changed=(newName&&newName!==String(doc.RecipientContactPerson||"").trim())
+      ||(newPhone&&newPhone!==normPhoneNP(doc.RecipientsPhone))
+      ||!!(ch.cityRef&&ch.cityRef!==doc.CityRecipient);
+    if(!changed)return{ok:true,ref:doc.Recipient,contactRef:doc.ContactRecipient,phone:newPhone};
+    const rc=await NP.createRecipient(newName,newPhone,ch.recipCityRef||cityRef);
+    if(!rc.ok)return{ok:false,error:"отримувач: "+((rc.errors||["не вдалося створити"]).join(", "))};
+    return{ok:true,ref:rc.ref,contactRef:rc.contactRef,phone:newPhone};
+  },
+  // Спільний білдер параметрів InternetDocument для save/update.
+  _buildDocParams(doc,ch,recip){
     const weight=String(ch.weight||doc.Weight||"0.5");
     const p={
-      Ref:doc.Ref,
       PayerType:ch.payerType||doc.PayerType||"Recipient",
       PaymentMethod:ch.paymentMethod||doc.PaymentMethod||"Cash",
       DateTime:NP._shipDate(doc.DateTime),
@@ -3883,14 +3978,31 @@ const NP={
       Cost:String(Math.max(1,Math.round(Number(ch.cost!=null&&ch.cost!==""?ch.cost:doc.Cost)||1))),
       CitySender:doc.CitySender,Sender:doc.Sender,SenderAddress:doc.SenderAddress,
       ContactSender:doc.ContactSender,SendersPhone:normPhoneNP(doc.SendersPhone),
-      CityRecipient:cityRef,RecipientAddress:ch.warehouseRef||doc.RecipientAddress,
-      Recipient:recipient,ContactRecipient:contact,RecipientsPhone:newPhone
+      CityRecipient:ch.cityRef||doc.CityRecipient,
+      RecipientAddress:ch.warehouseRef||doc.RecipientAddress,
+      Recipient:recip.ref,ContactRecipient:recip.contactRef,RecipientsPhone:recip.phone
     };
     const cod=Math.max(0,Math.round(Number(ch.cod!=null&&ch.cod!==""?ch.cod:doc.AfterpaymentOnGoodsCost)||0));
     if(cod>0)p.AfterpaymentOnGoodsCost=String(cod);
     const ai=NP._sanitizeNPText(ch.addInfo!=null?ch.addInfo:(doc.AdditionalInformation||"")).slice(0,99);
     if(ai)p.AdditionalInformation=ai;
     p.OptionsSeat=[{volumetricVolume:"1",volumetricWidth:"10",volumetricLength:"20",volumetricHeight:"10",weight:weight}];
+    return p;
+  },
+  _npErr(errs){
+    const s=((errs||["Невідома помилка НП"]).join(", "));
+    if(/already printed|вже роздрук/i.test(s))return"ЕН вже роздрукована — НП блокує пряме редагування. Перестворіть ЕН з новими даними або зачекайте, поки посилку приймуть у відділенні, і подайте заявку на зміну.";
+    if(/OrderChangeEW is unavailable/i.test(s))return"НП не приймає заявку на зміну для цієї ЕН (заявки доступні лише після того, як посилку прийняли у відділенні).";
+    return s;
+  },
+  // ch: {name,phone,cityRef,recipCityRef,warehouseRef,cost,weight,seats,description,addInfo,cod,payerType,paymentMethod}
+  async updateTTN(doc,ch){
+    if(!doc||!doc.Ref)return{ok:false,error:"не знайдено цю ЕН у кабінеті НП"};
+    ch=ch||{};
+    const recip=await NP._resolveRecipient(doc,ch);
+    if(!recip.ok)return{ok:false,error:recip.error};
+    const p=NP._buildDocParams(doc,ch,recip);
+    p.Ref=doc.Ref;
     let r=await NP.call("InternetDocument","update",p);
     if(!(r&&r.success)&&/DateTime/i.test(((r&&r.errors)||[]).join(" "))){
       p.DateTime=NP._shipDate(null);
@@ -3901,16 +4013,39 @@ const NP={
       try{NP.clearTrackCache();}catch(e){}
       return{ok:true,ttn:r.data[0].IntDocNumber||doc.IntDocNumber,cost:r.data[0].CostOnSite||"",estimated:r.data[0].EstimatedDeliveryDate||""};
     }
-    return{ok:false,error:((r&&r.errors)||["Невідома помилка НП"]).join(", ")};
+    const raw=((r&&r.errors)||[]).join(", ");
+    return{ok:false,printed:/already printed|вже роздрук/i.test(raw),error:NP._npErr((r&&r.errors))};
   },
-  // Заявка на зміну даних ЕН, коли пряме редагування вже недоступне (посилка передана в НП).
-  // НП дозволяє змінити тільки частину полів — ПІБ/телефон отримувача, платника, оплату,
-  // оголошену вартість, місця, опис і наложку.
+  // Роздруковану ЕН НП редагувати не дає, а заявка доступна лише після приймання у відділенні.
+  // Обхід: створюємо нову ЕН з потрібними даними і видаляємо стару (номер зміниться).
+  async recreateTTN(doc,ch){
+    if(!doc||!doc.Ref)return{ok:false,error:"не знайдено цю ЕН у кабінеті НП"};
+    ch=ch||{};
+    const recip=await NP._resolveRecipient(doc,ch);
+    if(!recip.ok)return{ok:false,error:recip.error};
+    const p=NP._buildDocParams(doc,ch,recip);
+    try{const cdRef=await NP.getCargoDescriptionRef("одяг");if(cdRef)p.CargoDescription=cdRef;}catch(e){}
+    const r=await NP.call("InternetDocument","save",p);
+    if(!(r&&r.success&&r.data&&r.data[0]))return{ok:false,error:NP._npErr((r&&r.errors))};
+    const num=r.data[0].IntDocNumber,ref=r.data[0].Ref;
+    if(num&&ref)try{TTNRefCache.set(num,ref);}catch(e){}
+    let delErr="";
+    try{
+      const dr=await NP.call("InternetDocument","delete",{DocumentRefs:[doc.Ref]});
+      if(!(dr&&dr.success))delErr=((dr&&dr.errors)||["не вдалося видалити стару ЕН"]).join(", ");
+      else try{TTNRefCache.remove(doc.IntDocNumber);}catch(e){}
+    }catch(e){delErr=e.message||String(e);}
+    NP.clearDocCache(doc.IntDocNumber);
+    try{NP.clearTrackCache();}catch(e){}
+    return{ok:true,ttn:num,ref:ref,cost:r.data[0].CostOnSite||"",estimated:r.data[0].EstimatedDeliveryDate||"",delErr:delErr,oldTtn:doc.IntDocNumber};
+  },
+  // Заявка на зміну даних уже переданої ЕН (orderChangeEW).
+  // ВАЖЛИВО: шлемо тільки ті поля, які реально змінили — інакше НП частіше відмовляє.
   async changeEW(ttn,ch){
     if(!ttn)return{ok:false,error:"немає номера ТТН"};
     ch=ch||{};
     const chk=await NP.checkChangeEW(ttn);
-    if(!chk.ok)return chk;
+    if(!chk.ok)return{ok:false,error:NP._npErr([chk.error])};
     const d=chk.info;
     const p={
       IntDocNumber:String(ttn),
@@ -3918,19 +4053,32 @@ const NP={
       PayerType:ch.payerType||d.PayerType||"Recipient",
       PaymentMethod:ch.paymentMethod||d.PaymentMethod||"Cash"
     };
-    if(ch.name)p.RecipientContactName=NP._sanitizeNPText(ch.name).slice(0,90);
-    if(ch.phone)p.RecipientPhone=normPhoneNP(ch.phone);
-    if(ch.cost!=null&&ch.cost!=="")p.Cost=String(Math.max(1,Math.round(Number(ch.cost)||1)));
-    if(ch.seats)p.SeatsAmount=String(ch.seats);
-    if(ch.description)p.Description=NP._sanitizeNPText(ch.description).slice(0,255);
-    if(ch.cod!=null&&ch.cod!==""){
-      const amt=String(Math.max(0,Math.round(Number(ch.cod)||0)));
-      if(d.CanChangeAfterpaymentType){p.AfterpaymentOnGoodsCost=amt;p.BackwardDeliveryData=[];}
-      else if(d.CanChangeBackwardDeliveryMoney){p.BackwardDeliveryData=Number(amt)>0?[{PayerType:"Recipient",CargoType:"Money",RedeliveryString:amt}]:[];}
+    let touched=false;
+    if(ch.name!=null&&String(ch.name).trim()){
+      if(!d.CanChangeRecipient)return{ok:false,error:"НП не дозволяє змінити дані отримувача по цій ЕН"};
+      p.RecipientContactName=NP._sanitizeNPText(ch.name).slice(0,90);touched=true;
     }
+    if(ch.phone!=null&&String(ch.phone).trim()){
+      if(!d.CanChangeRecipient)return{ok:false,error:"НП не дозволяє змінити телефон отримувача по цій ЕН"};
+      p.RecipientPhone=normPhoneNP(ch.phone);touched=true;
+    }
+    if(ch.payerType!=null||ch.paymentMethod!=null){
+      if(!d.CanChangePayerTypeOrPaymentMethod)return{ok:false,error:"НП не дозволяє змінити платника/спосіб оплати по цій ЕН"};
+      touched=true;
+    }
+    if(ch.cost!=null&&ch.cost!==""&&Number(ch.cost)>0){p.Cost=String(Math.max(1,Math.round(Number(ch.cost))));touched=true;}
+    if(ch.seats!=null&&ch.seats!==""&&Number(ch.seats)>0){p.SeatsAmount=String(Math.round(Number(ch.seats)));touched=true;}
+    if(ch.description!=null&&String(ch.description).trim()){p.Description=NP._sanitizeNPText(ch.description).slice(0,255);touched=true;}
+    if(ch.cod!=null&&ch.cod!==""){
+      const amt=Math.max(0,Math.round(Number(ch.cod)||0));
+      if(d.CanChangeAfterpaymentType){p.AfterpaymentOnGoodsCost=String(amt);p.BackwardDeliveryData=[];touched=true;}
+      else if(d.CanChangeBackwardDeliveryMoney){p.BackwardDeliveryData=amt>0?[{PayerType:"Recipient",CargoType:"Money",RedeliveryString:String(amt)}]:[];touched=true;}
+      else return{ok:false,error:"НП не дозволяє змінити наложку по цій ЕН"};
+    }
+    if(!touched)return{ok:false,error:"Нічого не змінено — заявка не потрібна"};
     const r=await NP.call("AdditionalService","save",p);
     if(r&&r.success&&r.data&&r.data[0])return{ok:true,number:r.data[0].Number||r.data[0].OrderNumber||"",ref:r.data[0].Ref||""};
-    return{ok:false,error:((r&&r.errors)||["Невідома помилка НП"]).join(", ")};
+    return{ok:false,error:NP._npErr((r&&r.errors))};
   },
   // Перевірка можливості переадресації (модель AdditionalServiceGeneral).
   // Повертає info з CounterpartyRecipientRef, RecipientName, PhoneRecipient тощо.
