@@ -2,7 +2,17 @@
   "buildCommand": null,
   "outputDirectory": ".",
   "framework": null,
-  "rewrites": [
-    { "source": "/v2", "destination": "/v2.html" }
+  "routes": [
+    { "src": "/", "dest": "/api/site-paused" },
+    { "src": "/index\\.html", "dest": "/api/site-paused" },
+    { "src": "/v2", "dest": "/api/site-paused" },
+    { "src": "/v2\\.html", "dest": "/api/site-paused" },
+    { "src": "/thanks", "dest": "/api/site-paused" },
+    { "src": "/thanks\\.html", "dest": "/api/site-paused" },
+    { "src": "/ttn-recovery", "dest": "/api/site-paused" },
+    { "src": "/ttn-recovery\\.html", "dest": "/api/site-paused" },
+    { "src": "/clear-ttns", "dest": "/api/site-paused" },
+    { "src": "/clear-ttns\\.html", "dest": "/api/site-paused" },
+    { "handle": "filesystem" }
   ]
 }
