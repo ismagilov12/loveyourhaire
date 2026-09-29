@@ -4299,7 +4299,7 @@ async function createTTNFromOrder(orderLike){
 const USERS_FALLBACK=[
   {login:"admin",password:"loveyourhaire2024",name:"Адміністратор",role:"admin"},
   {login:"yura",password:"yura123",name:"Юра",role:"admin"},
-  {login:"manager",password:"manager123",name:"Менеджер",role:"manager"},
+  {login:"manager",password:"manager123",name:"Менеджер",role:"disabled"},
 ];
 
 function LoginPage({onLogin,onShowOnboarding}){
@@ -4311,10 +4311,10 @@ function LoginPage({onLogin,onShowOnboarding}){
     let u=null;
     try{
       const{data}=await supabase.from("app_users").select("*").eq("login",login.toLowerCase()).eq("password",pass).single();
-      if(data) u={login:data.login,password:data.password,name:data.name,role:data.role};
+      if(data&&data.role!=="disabled") u={login:data.login,password:data.password,name:data.name,role:data.role};
     }catch{}
-    if(!u) u=USERS_FALLBACK.find(x=>x.login===login.toLowerCase()&&x.password===pass);
-    if(u){LS.set("user",u);if(u.role==="manager"){const _c=Number(LS.get("manager_login_count",0)||0)+1;LS.set("manager_login_count",_c);if(_c===1&&typeof onShowOnboarding==="function")onShowOnboarding();}onLogin(u);}
+    if(!u) u=USERS_FALLBACK.find(x=>x.login===login.toLowerCase()&&x.password===pass&&x.role!=="disabled");
+    if(u&&u.role!=="disabled"){LS.set("user",u);if(u.role==="manager"){const _c=Number(LS.get("manager_login_count",0)||0)+1;LS.set("manager_login_count",_c);if(_c===1&&typeof onShowOnboarding==="function")onShowOnboarding();}onLogin(u);}
     else setErr("Невірний логін або пароль");
   };
   return(<div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"linear-gradient(135deg,#fff0f3 0%,#ffd6e0 50%,#f5c6a0 100%)"}}>
@@ -5006,7 +5006,7 @@ function ManagerOnboarding({onClose}){
 }
 
 function App(){
-  const[user,setUser]=useState(()=>LS.get("user",null));
+  const[user,setUser]=useState(()=>{const u=LS.get("user",null);return u?.role==="disabled"?null:u;});
   const[showOnboarding,setShowOnboarding]=useState(false);
   const[page,setPage]=useState("neworder");
   const[products,setProducts]=useState(()=>LS.get("products",INIT_PRODUCTS));
