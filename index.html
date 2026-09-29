@@ -2248,8 +2248,8 @@ function NewOrderPage({orders,setOrders,products,setProducts,clients,setClients,
 
 // ─── ORDERS LIST ───
 function OrdersListPage({orders,setOrders,products,user}){
-  const isMgr=user?.role==="manager";
-  const[filter,setFilter]=useState(user?.role==="manager"?"new":"all");
+  const isMgr=user?.role==="manager"||user?.role==="orders_manager";
+  const[filter,setFilter]=useState((user?.role==="manager"||user?.role==="orders_manager")?"new":"all");
   const[ttnSync,setTtnSync]=useState(null); // {running, done, total, updated} or null
   const[search,setSearch]=useState("");
   const[productFilter,setProductFilter]=useState("all");// "all" or product id
@@ -5331,7 +5331,8 @@ function App(){
 
   if(!user) return <LoginPage onLogin={setUser} onShowOnboarding={()=>setShowOnboarding(true)}/>;
 
-  const isManager=user.role==="manager";
+  const isManager=user.role==="manager"||user.role==="orders_manager";
+  const isOrdersOnly=user.role==="orders_manager";
   const allPages=[
     {id:"neworder",label:"Замовлення",icon:I.plus2,mob:"Нове"},
     {id:"orders",label:"Всі замовлення",icon:I.list,mob:"Список"},
@@ -5341,7 +5342,7 @@ function App(){
     {id:"payments",label:"Платежі",icon:I.card,mob:"Платежі"},
     {id:"dashboard",label:"Сводка",icon:I.dash,mob:"Сводка"},
   ];
-  const pages=isManager?allPages.filter(p=>p.id==="neworder"||p.id==="orders"||p.id==="chat"):allPages;
+  const pages=isOrdersOnly?allPages.filter(p=>p.id==="orders"):isManager?allPages.filter(p=>p.id==="neworder"||p.id==="orders"||p.id==="chat"):allPages;
   // If manager somehow lands on a restricted page (e.g. last-saved page), bounce to neworder
   if(isManager&&!pages.some(p=>p.id===page)){setTimeout(()=>setPage("neworder"),0);}
   const todayOrders=orders.filter(o=>{const d=new Date(o.date),t=new Date();return sameDay(d,t);});
