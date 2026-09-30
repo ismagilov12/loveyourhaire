@@ -309,7 +309,7 @@ const INIT_PRODUCTS=[
   {id:397556579912,name:"Tension",sku:"BIK-TEN",category:"Bikinis",cost:0,price:1800,stock:0,type:"product",photo:""},
   {id:577681468562,name:"Soft bunny",sku:"BIK-SBN",category:"Bikinis",cost:0,price:2500,stock:0,type:"product",photo:""},
 ];
-const CATEGORIES=["Все","suit","icons","crop","long","belt","soft-rebel","Стрижки","Showgirl","Neck Pieces","Bikinis","Косметика для волосся"];
+const CATEGORIES=["Все","suit","hoodie","icons","crop","long","belt","soft-rebel","Стрижки","Showgirl","Neck Pieces","Bikinis","Косметика для волосся"];
 const MONTHS=["Січень","Лютий","Березень","Квітень","Травень","Червень","Липень","Серпень","Вересень","Жовтень","Листопад","Грудень"];
 const DAYS=["Пн","Вт","Ср","Чт","Пт","Сб","Нд"];
 const STATUSES={new:"Новий",ttn:"ТТН",toSend:"На відправку",shipped:"Відправлено",atPost:"На пошті",received:"Отримано",refused:"Відмова",delivered:"Доставлено",studio:"Студія",ttnDeleted:"ТТН видалено"};
@@ -2207,7 +2207,7 @@ function NewOrderPage({orders,setOrders,products,setProducts,clients,setClients,
         {prodDropOpen&&<div style={{position:"absolute",bottom:"100%",left:0,right:0,zIndex:50,background:"var(--surface)",border:"1px solid var(--border)",borderRadius:10,marginBottom:4,maxHeight:300,overflowY:"auto",boxShadow:"0 -8px 24px rgba(0,0,0,.15)"}}>
           {CATEGORIES.filter(c=>c!=="Все").map(cat=>(
             <div key={cat}>
-              <div style={{padding:"8px 12px",fontSize:11,fontWeight:700,color:"var(--text2)",background:"var(--bg)",borderBottom:"1px solid var(--border)",position:"sticky",top:0,zIndex:1}}>{cat==="suit"?"Костюмы":cat}</div>
+              <div style={{padding:"8px 12px",fontSize:11,fontWeight:700,color:"var(--text2)",background:"var(--bg)",borderBottom:"1px solid var(--border)",position:"sticky",top:0,zIndex:1}}>{cat==="suit"?"Костюмы":cat==="hoodie"?"Худи":cat}</div>
               {products.filter(p=>p.category===cat&&p.is_active!==false).map(p=>{
                 const inCart=items.find(i=>i.productId===p.id);
                 const isShirt=p.category==="Oversize футболки";const sz=isShirt&&prodSize==="long";
@@ -3175,7 +3175,7 @@ function AdminPage({products,setProducts}){
           <td>{p.photo?<img className="prod-photo" src={p.photo}/>:<div className="prod-photo-placeholder">{p.category==="Стрижки"?"\u2702":"\uD83D\uDCE6"}</div>}</td>
           <td style={{fontWeight:600}}>{p.name}</td>
           <td><code style={{fontSize:11,color:"var(--text2)"}}>{p.sku}</code></td>
-          <td><span className={"badge "+(p.version==="long"?"badge-blue":"badge-amber")} style={{fontSize:10}}>{p.version==="long"?"Лонг":"Оверсайз"}</span></td><td><span className={`badge ${p.category==='Стрижки'?'badge-pink':p.category==='Косметика'?'badge-green':'badge-amber'}`}>{p.category==="suit"?"Костюмы":p.category}</span></td>
+          <td><span className={"badge "+(p.version==="long"?"badge-blue":"badge-amber")} style={{fontSize:10}}>{p.version==="long"?"Лонг":"Оверсайз"}</span></td><td><span className={`badge ${p.category==='Стрижки'?'badge-pink':p.category==='Косметика'?'badge-green':'badge-amber'}`}>{p.category==="suit"?"Костюмы":p.category==="hoodie"?"Худи":p.category}</span></td>
           <td><input type="number" value={p.cost} onChange={e=>{const v=Number(e.target.value);setProducts(products.map(x=>x.id===p.id?{...x,cost:v}:x));}} style={{width:70,padding:"2px 4px",borderRadius:5,border:"1px solid var(--border)",fontSize:12,textAlign:"right",background:"transparent"}}/></td>
           <td style={{fontWeight:700}}>{fmt(p.price)}</td>
           <td>{p.type==="service"?"—":<span className={p.stock<10?'badge badge-red':p.stock<20?'badge badge-amber':''}>{p.stock}</span>}</td>
@@ -3191,7 +3191,7 @@ function AdminPage({products,setProducts}){
           <div className="form-group"><label className="form-label">Назва</label><input className="form-input" value={form.name} onChange={e=>setForm({...form,name:e.target.value})}/></div>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
             <div className="form-group"><label className="form-label">SKU</label><input className="form-input" value={form.sku} onChange={e=>setForm({...form,sku:e.target.value})}/></div>
-            <div className="form-group"><label className="form-label">Категорія</label><select className="form-input" value={form.category} onChange={e=>catChange(e.target.value)}><option>Стрижки</option><option>Косметика</option><option>Футболки</option><option value="suit">Костюмы</option></select></div>
+            <div className="form-group"><label className="form-label">Категорія</label><select className="form-input" value={form.category} onChange={e=>catChange(e.target.value)}><option>Стрижки</option><option>Косметика</option><option>Футболки</option><option value="suit">Костюмы</option><option value="hoodie">Худи</option></select></div>
             <div className="form-group"><label className="form-label">Версія</label><select className="form-input" value={form.version} onChange={e=>{const v=e.target.value;setForm({...form,version:v,price:v==="long"?"2500":form.price,cost:v==="long"?"480":form.cost});}}><option value="oversize">Оверсайз (1400)</option><option value="long">Лонг (2500)</option></select></div>
           </div>
         </div>
