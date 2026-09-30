@@ -309,7 +309,7 @@ const INIT_PRODUCTS=[
   {id:397556579912,name:"Tension",sku:"BIK-TEN",category:"Bikinis",cost:0,price:1800,stock:0,type:"product",photo:""},
   {id:577681468562,name:"Soft bunny",sku:"BIK-SBN",category:"Bikinis",cost:0,price:2500,stock:0,type:"product",photo:""},
 ];
-const CATEGORIES=["Все","icons","crop","long","belt","soft-rebel","Стрижки","Showgirl","Neck Pieces","Bikinis","Косметика для волосся"];
+const CATEGORIES=["Все","suit","icons","crop","long","belt","soft-rebel","Стрижки","Showgirl","Neck Pieces","Bikinis","Косметика для волосся"];
 const MONTHS=["Січень","Лютий","Березень","Квітень","Травень","Червень","Липень","Серпень","Вересень","Жовтень","Листопад","Грудень"];
 const DAYS=["Пн","Вт","Ср","Чт","Пт","Сб","Нд"];
 const STATUSES={new:"Новий",ttn:"ТТН",toSend:"На відправку",shipped:"Відправлено",atPost:"На пошті",received:"Отримано",refused:"Відмова",delivered:"Доставлено",studio:"Студія",ttnDeleted:"ТТН видалено"};
@@ -3191,7 +3191,7 @@ function AdminPage({products,setProducts}){
           <div className="form-group"><label className="form-label">Назва</label><input className="form-input" value={form.name} onChange={e=>setForm({...form,name:e.target.value})}/></div>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
             <div className="form-group"><label className="form-label">SKU</label><input className="form-input" value={form.sku} onChange={e=>setForm({...form,sku:e.target.value})}/></div>
-            <div className="form-group"><label className="form-label">Категорія</label><select className="form-input" value={form.category} onChange={e=>catChange(e.target.value)}><option>Стрижки</option><option>Косметика</option><option>Футболки</option></select></div>
+            <div className="form-group"><label className="form-label">Категорія</label><select className="form-input" value={form.category} onChange={e=>catChange(e.target.value)}><option>Стрижки</option><option>Косметика</option><option>Футболки</option><option value="suit">Костюмы</option></select></div>
             <div className="form-group"><label className="form-label">Версія</label><select className="form-input" value={form.version} onChange={e=>{const v=e.target.value;setForm({...form,version:v,price:v==="long"?"2500":form.price,cost:v==="long"?"480":form.cost});}}><option value="oversize">Оверсайз (1400)</option><option value="long">Лонг (2500)</option></select></div>
           </div>
         </div>
