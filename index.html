@@ -2207,7 +2207,7 @@ function NewOrderPage({orders,setOrders,products,setProducts,clients,setClients,
         {prodDropOpen&&<div style={{position:"absolute",bottom:"100%",left:0,right:0,zIndex:50,background:"var(--surface)",border:"1px solid var(--border)",borderRadius:10,marginBottom:4,maxHeight:300,overflowY:"auto",boxShadow:"0 -8px 24px rgba(0,0,0,.15)"}}>
           {CATEGORIES.filter(c=>c!=="Все").map(cat=>(
             <div key={cat}>
-              <div style={{padding:"8px 12px",fontSize:11,fontWeight:700,color:"var(--text2)",background:"var(--bg)",borderBottom:"1px solid var(--border)",position:"sticky",top:0,zIndex:1}}>{cat}</div>
+              <div style={{padding:"8px 12px",fontSize:11,fontWeight:700,color:"var(--text2)",background:"var(--bg)",borderBottom:"1px solid var(--border)",position:"sticky",top:0,zIndex:1}}>{cat==="suit"?"Костюмы":cat}</div>
               {products.filter(p=>p.category===cat&&p.is_active!==false).map(p=>{
                 const inCart=items.find(i=>i.productId===p.id);
                 const isShirt=p.category==="Oversize футболки";const sz=isShirt&&prodSize==="long";
@@ -3175,7 +3175,7 @@ function AdminPage({products,setProducts}){
           <td>{p.photo?<img className="prod-photo" src={p.photo}/>:<div className="prod-photo-placeholder">{p.category==="Стрижки"?"\u2702":"\uD83D\uDCE6"}</div>}</td>
           <td style={{fontWeight:600}}>{p.name}</td>
           <td><code style={{fontSize:11,color:"var(--text2)"}}>{p.sku}</code></td>
-          <td><span className={"badge "+(p.version==="long"?"badge-blue":"badge-amber")} style={{fontSize:10}}>{p.version==="long"?"Лонг":"Оверсайз"}</span></td><td><span className={`badge ${p.category==='Стрижки'?'badge-pink':p.category==='Косметика'?'badge-green':'badge-amber'}`}>{p.category}</span></td>
+          <td><span className={"badge "+(p.version==="long"?"badge-blue":"badge-amber")} style={{fontSize:10}}>{p.version==="long"?"Лонг":"Оверсайз"}</span></td><td><span className={`badge ${p.category==='Стрижки'?'badge-pink':p.category==='Косметика'?'badge-green':'badge-amber'}`}>{p.category==="suit"?"Костюмы":p.category}</span></td>
           <td><input type="number" value={p.cost} onChange={e=>{const v=Number(e.target.value);setProducts(products.map(x=>x.id===p.id?{...x,cost:v}:x));}} style={{width:70,padding:"2px 4px",borderRadius:5,border:"1px solid var(--border)",fontSize:12,textAlign:"right",background:"transparent"}}/></td>
           <td style={{fontWeight:700}}>{fmt(p.price)}</td>
           <td>{p.type==="service"?"—":<span className={p.stock<10?'badge badge-red':p.stock<20?'badge badge-amber':''}>{p.stock}</span>}</td>
