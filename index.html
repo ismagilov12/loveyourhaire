@@ -5062,16 +5062,48 @@ function App(){
 
       // ─── STEP 2: pull fresh data from DB ───
       console.log("Loading data from Supabase...");
-      const[pData,oData,cData,eData]=await Promise.all([
+      // Canonical product sync: bg_products is the catalog source for storefront, admin and feed.
+      // Every active catalog item is mirrored into CRM by bg_uid; prices, photos and visibility stay aligned.
+      const[pData,oData,cData,eData,bgData]=await Promise.all([
         DB.loadAll("products"),
         DB.loadAll("orders"),
         DB.loadAll("clients"),
         DB.loadAll("expenses"),
+        DB.loadAll("bg_products"),
       ]);
-      console.log("Supabase data:",{products:pData?.length,orders:oData?.length,clients:cData?.length,expenses:eData?.length});
-      if(pData&&pData.length>0){
-        const fixed=pData.map(p=>{if(p.category==="Футболки"||p.category==="Oversize футболки")return{...p,cost:p.cost<450?450:p.cost};if(p.id===18||p.sku==="COS-BS")return{...p,cost:300};return p;});
-        const changed=fixed.filter((p,i)=>p.cost!==pData[i].cost);
+      console.log("Supabase data:",{products:pData?.length, catalog:bgData?.length,orders:oData?.length,clients:cData?.length,expenses:eData?.length});
+      const catalogAsset=(src)=>{
+        if(!src)return "";
+        const s=String(src);
+        return /^https?:\\/\\//i.test(s)?s:(s.startsWith("assets/")?"https://www.babygirl.com.ua/"+s:s);
+      };
+      const catalogId=(uid)=>{
+        let h=0;for(let i=0;i<String(uid).length;i++)h=((h<<5)-h+String(uid).charCodeAt(i))|0;
+        return 1900000000000+Math.abs(h);
+      };
+      const syncCatalogToCrm=(current,rows)=>{
+        if(!Array.isArray(rows))return current||[];
+        const out=Array.isArray(current)?current.slice():[];
+        const byUid=new Map(out.filter(p=>p&&p.bg_uid).map(p=>[p.bg_uid,p]));
+        const changed=[];
+        rows.filter(r=>r&&r.uid).forEach(r=>{
+          let p=byUid.get(r.uid);
+          if(r.active===false&&!p)return;
+          if(!p){
+            p={id:catalogId(r.uid),name:r.title||r.uid,sku:"BG-"+String(r.uid).toUpperCase(),category:r.family==="hoodie"?"hoodie":r.family==="suit"?"suit":(r.family||"product"),type:"product",cost:Number(r.cost)||0,stock:0,bg_uid:r.uid};
+            out.push(p);byUid.set(r.uid,p);
+          }
+          const photos=Array.isArray(r.photos)?r.photos.map(catalogAsset).filter(Boolean):[];
+          const next={...p,bg_uid:r.uid,name:r.title||p.name,category:r.family==="hoodie"?"hoodie":r.family==="suit"?"suit":(r.family||p.category),type:"product",price:Number(r.price)||0,photo:catalogAsset(r.photo_main)||p.photo||"",image_url:catalogAsset(r.photo_main)||p.image_url||"",images:photos.length?photos:(p.images||[]),description:r.description||p.description||"",sizes:r.sizes||p.sizes||[],is_active:r.active!==false};
+          if(JSON.stringify(next)!==JSON.stringify(p)){Object.assign(p,next);changed.push(p);}
+        });
+        if(changed.length)DB.upsertMany("products",changed);
+        return out;
+      };
+      const syncedProducts=syncCatalogToCrm(pData||[],bgData);
+      if(syncedProducts.length>0){
+        const fixed=syncedProducts.map(p=>{if(p.category==="Футболки"||p.category==="Oversize футболки")return{...p,cost:p.cost<450?450:p.cost};if(p.id===18||p.sku==="COS-BS")return{...p,cost:300};return p;});
+        const changed=fixed.filter((p,i)=>p.cost!==syncedProducts[i].cost);
         if(changed.length>0)DB.upsertMany("products",changed);
         setProducts(fixed);LS.set("products",fixed);
       }
