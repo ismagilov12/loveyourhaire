@@ -5075,7 +5075,8 @@ function App(){
       const catalogAsset=(src)=>{
         if(!src)return "";
         const s=String(src);
-        return /^https?:\\/\\//i.test(s)?s:(s.startsWith("assets/")?"https://www.babygirl.com.ua/"+s:s);
+        const lower=s.toLowerCase();
+        return (lower.startsWith("http://")||lower.startsWith("https://"))?s:(s.startsWith("assets/")?"https://www.babygirl.com.ua/"+s:s);
       };
       const catalogId=(uid)=>{
         let h=0;for(let i=0;i<String(uid).length;i++)h=((h<<5)-h+String(uid).charCodeAt(i))|0;
